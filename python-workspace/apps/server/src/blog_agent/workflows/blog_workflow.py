@@ -8,6 +8,7 @@ from llama_index.core.workflow import StopEvent, Workflow, step
 from blog_agent.storage.models import Message
 from blog_agent.workflows.editor import BlogEditor, EditEvent
 from blog_agent.workflows.extractor import ContentExtractor, ExtractEvent, ExtractStartEvent
+from blog_agent.workflows.reviewer import ContentReviewer, ReviewEvent
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,12 +31,13 @@ class BlogWorkflowStopEvent(StopEvent):
 
 
 class BlogWorkflow(Workflow):
-    """Main blog generation workflow (extractor → editor)."""
+    """Main blog generation workflow (extractor → reviewer → editor)."""
 
     def __init__(self, timeout: int = 300, verbose: bool = True):
         """Initialize blog workflow."""
         super().__init__(timeout=timeout, verbose=verbose)
         self.extractor = ContentExtractor()
+        self.reviewer = ContentReviewer()
         self.editor = BlogEditor()
 
     async def extract_step(self, ev: BlogWorkflowStartEvent) -> ExtractEvent:
@@ -49,7 +51,13 @@ class BlogWorkflow(Workflow):
         return await self.extractor.extract(extract_start)
 
     @step
-    async def edit_step(self, ev: ExtractEvent) -> EditEvent:
+    async def review_step(self, ev: ExtractEvent) -> ReviewEvent:
+        """Content review step."""
+        logger.info("Starting content review", conversation_log_id=ev.conversation_log_id)
+        return await self.reviewer.review(ev)
+
+    @step
+    async def edit_step(self, ev: ReviewEvent) -> EditEvent:
         """Blog editing step."""
         logger.info("Starting blog editing", conversation_log_id=ev.conversation_log_id)
         return await self.editor.edit(ev)

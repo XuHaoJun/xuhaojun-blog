@@ -463,15 +463,122 @@ class ReviewFindingsRepository(BaseRepository[ReviewFindings]):
 
     async def create(self, entity: ReviewFindings) -> ReviewFindings:
         """Create a new review finding."""
-        raise NotImplementedError
+        async with get_db_connection() as conn:
+            entity_id = entity.id or uuid4()
+            now = datetime.utcnow()
+
+            await conn.execute(
+                """
+                INSERT INTO review_findings (
+                    id, content_extract_id, issues, improvement_suggestions,
+                    fact_checking_needs, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                entity_id,
+                entity.content_extract_id,
+                json.dumps(entity.issues),
+                entity.improvement_suggestions,
+                entity.fact_checking_needs,
+                now,
+            )
+
+            entity.id = entity_id
+            entity.created_at = now
+
+            return entity
 
     async def get_by_id(self, entity_id: UUID) -> Optional[ReviewFindings]:
         """Get review finding by ID."""
-        raise NotImplementedError
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, content_extract_id, issues, improvement_suggestions,
+                       fact_checking_needs, created_at
+                FROM review_findings
+                WHERE id = $1
+                """,
+                entity_id,
+            )
+
+            if not row:
+                return None
+
+            return ReviewFindings(
+                id=row["id"],
+                content_extract_id=row["content_extract_id"],
+                issues=json.loads(row["issues"]),
+                improvement_suggestions=list(row["improvement_suggestions"])
+                if row["improvement_suggestions"]
+                else [],
+                fact_checking_needs=list(row["fact_checking_needs"])
+                if row["fact_checking_needs"]
+                else [],
+                created_at=row["created_at"],
+            )
 
     async def list(self, limit: int = 100, offset: int = 0) -> List[ReviewFindings]:
         """List review findings."""
-        raise NotImplementedError
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, content_extract_id, issues, improvement_suggestions,
+                       fact_checking_needs, created_at
+                FROM review_findings
+                ORDER BY created_at DESC
+                LIMIT $1 OFFSET $2
+                """,
+                limit,
+                offset,
+            )
+
+            return [
+                ReviewFindings(
+                    id=row["id"],
+                    content_extract_id=row["content_extract_id"],
+                    issues=json.loads(row["issues"]),
+                    improvement_suggestions=list(row["improvement_suggestions"])
+                    if row["improvement_suggestions"]
+                    else [],
+                    fact_checking_needs=list(row["fact_checking_needs"])
+                    if row["fact_checking_needs"]
+                    else [],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
+    async def get_by_content_extract_id(
+        self, content_extract_id: UUID
+    ) -> Optional[ReviewFindings]:
+        """Get review finding by content extract ID."""
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, content_extract_id, issues, improvement_suggestions,
+                       fact_checking_needs, created_at
+                FROM review_findings
+                WHERE content_extract_id = $1
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                content_extract_id,
+            )
+
+            if not row:
+                return None
+
+            return ReviewFindings(
+                id=row["id"],
+                content_extract_id=row["content_extract_id"],
+                issues=json.loads(row["issues"]),
+                improvement_suggestions=list(row["improvement_suggestions"])
+                if row["improvement_suggestions"]
+                else [],
+                fact_checking_needs=list(row["fact_checking_needs"])
+                if row["fact_checking_needs"]
+                else [],
+                created_at=row["created_at"],
+            )
 
 
 class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):

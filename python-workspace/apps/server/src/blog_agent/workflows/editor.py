@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from llama_index.core.workflow import Event, step
 
 if TYPE_CHECKING:
-    from blog_agent.workflows.extractor import ExtractEvent
+    from blog_agent.workflows.reviewer import ReviewEvent
 
 from blog_agent.services.llm_service import get_llm_service
-from blog_agent.storage.models import BlogPost, ContentExtract
+from blog_agent.storage.models import BlogPost, ContentExtract, ReviewFindings
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -29,15 +29,17 @@ class BlogEditor:
         self.llm_service = llm_service or get_llm_service()
 
     @step
-    async def edit(self, ev: "ExtractEvent") -> EditEvent:  # type: ignore
-        """Generate blog post from extracted content with structured metadata."""
+    async def edit(self, ev: "ReviewEvent") -> EditEvent:  # type: ignore
+        """Generate blog post from extracted content with structured metadata, incorporating review findings."""
         try:
             content_extract = ev.content_extract
+            review_findings = ev.review_findings
             conversation_log_id = ev.conversation_log_id
             conversation_log_metadata = ev.conversation_log_metadata or {}
+            errors = ev.errors or []
 
-            # Generate blog post using LLM
-            blog_content = await self._generate_blog_content(content_extract)
+            # Generate blog post using LLM, incorporating review findings (T061)
+            blog_content = await self._generate_blog_content(content_extract, review_findings)
 
             # Extract metadata (title, summary, tags)
             title = await self._generate_title(content_extract)
@@ -45,7 +47,9 @@ class BlogEditor:
             tags = content_extract.core_concepts[:5]  # Use core concepts as tags
 
             # Build structured metadata from conversation log (FR-015: preserve timestamps, participants)
-            blog_metadata = self._build_blog_metadata(conversation_log_metadata, content_extract)
+            blog_metadata = self._build_blog_metadata(
+                conversation_log_metadata, content_extract, review_findings, errors
+            )
 
             blog_post = BlogPost(
                 conversation_log_id=conversation_log_id,
@@ -66,8 +70,37 @@ class BlogEditor:
             logger.error("Blog editing failed", error=str(e), exc_info=True)
             raise
 
-    async def _generate_blog_content(self, content_extract: ContentExtract) -> str:
-        """Generate blog post content in Markdown format."""
+    async def _generate_blog_content(
+        self, content_extract: ContentExtract, review_findings: ReviewFindings
+    ) -> str:
+        """Generate blog post content in Markdown format, incorporating review findings (T061)."""
+        # Build review context for LLM
+        review_context = ""
+        if review_findings.issues:
+            logical_gaps = review_findings.issues.get("logical_gaps", [])
+            factual_inconsistencies = review_findings.issues.get("factual_inconsistencies", [])
+            unclear_explanations = review_findings.issues.get("unclear_explanations", [])
+
+            if logical_gaps or factual_inconsistencies or unclear_explanations:
+                review_context = "\n\n審閱發現的問題（請在生成文章時處理或說明）：\n"
+                if logical_gaps:
+                    review_context += f"\n邏輯斷層 ({len(logical_gaps)} 個)：\n"
+                    for gap in logical_gaps[:3]:  # Show top 3
+                        review_context += f"- {gap.get('description', '')}\n"
+                if factual_inconsistencies:
+                    review_context += f"\n事實不一致 ({len(factual_inconsistencies)} 個)：\n"
+                    for inc in factual_inconsistencies[:3]:  # Show top 3
+                        review_context += f"- {inc.get('description', '')}\n"
+                if unclear_explanations:
+                    review_context += f"\n不清楚的解釋 ({len(unclear_explanations)} 個)：\n"
+                    for unclear in unclear_explanations[:3]:  # Show top 3
+                        review_context += f"- {unclear.get('description', '')} (建議：{unclear.get('suggestion', '')})\n"
+
+        if review_findings.improvement_suggestions:
+            review_context += "\n\n改進建議：\n"
+            for suggestion in review_findings.improvement_suggestions[:5]:  # Top 5
+                review_context += f"- {suggestion}\n"
+
         prompt = f"""請將以下對話內容改寫成一篇結構完整的技術部落格文章。
 
 核心觀點：
@@ -78,6 +111,7 @@ class BlogEditor:
 
 對話內容：
 {content_extract.filtered_content}
+{review_context}
 
 要求：
 1. 使用 Markdown 格式
@@ -85,6 +119,10 @@ class BlogEditor:
 3. 保持技術深度與可讀性
 4. 將對話中的問答轉換成流暢的敘述
 5. 突出核心觀點與概念
+6. 根據審閱發現的問題和改進建議，在文章中處理或說明這些問題
+7. 如果發現邏輯斷層，請補充必要的連接說明
+8. 如果發現不清楚的解釋，請提供更詳細的說明或範例
+9. 如果發現事實不一致，請在文章中澄清或標註需要驗證
 
 請直接輸出完整的 Markdown 文章，不要額外說明。"""
 
@@ -130,13 +168,21 @@ class BlogEditor:
         response = await self.llm_service.generate(prompt)
         return response.strip()[:500]  # Limit length
 
-    def _build_blog_metadata(self, conversation_log_metadata: Optional[Dict[str, Any]], content_extract: ContentExtract) -> Dict[str, Any]:
+    def _build_blog_metadata(
+        self,
+        conversation_log_metadata: Optional[Dict[str, Any]],
+        content_extract: ContentExtract,
+        review_findings: Optional[ReviewFindings] = None,
+        errors: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Build structured metadata for blog post from conversation log metadata (FR-015).
         
         Args:
             conversation_log_metadata: Metadata extracted from conversation log
             content_extract: Content extract with key insights and concepts
+            review_findings: Review findings from content review step (T061)
+            errors: List of errors that cannot be auto-corrected (T062)
             
         Returns:
             Dictionary containing structured blog metadata
@@ -162,6 +208,24 @@ class BlogEditor:
         # Add key insights and core concepts for reference
         metadata["key_insights"] = content_extract.key_insights
         metadata["core_concepts"] = content_extract.core_concepts
+        
+        # Add review findings metadata (T061)
+        if review_findings:
+            metadata["review_summary"] = {
+                "logical_gaps_count": len(review_findings.issues.get("logical_gaps", [])),
+                "factual_inconsistencies_count": len(
+                    review_findings.issues.get("factual_inconsistencies", [])
+                ),
+                "unclear_explanations_count": len(
+                    review_findings.issues.get("unclear_explanations", [])
+                ),
+                "fact_checking_needs_count": len(review_findings.fact_checking_needs),
+                "improvement_suggestions_count": len(review_findings.improvement_suggestions),
+            }
+        
+        # Add errors that require human attention (T062)
+        if errors:
+            metadata["review_errors"] = errors
         
         return metadata
 
