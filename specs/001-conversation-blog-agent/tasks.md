@@ -48,22 +48,22 @@
 
 - [x] T014 Setup PostgreSQL database schema and migrations in python-workspace/apps/server/src/blog_agent/storage/migrations/
 - [x] T014a [P] Update database migration to add content_hash column to conversation_logs table in python-workspace/apps/server/src/blog_agent/storage/migrations/ (FR-031)
-- [ ] T014b [P] Create database migration to add content_blocks table in python-workspace/apps/server/src/blog_agent/storage/migrations/ (UI/UX P0)
-- [ ] T014c [P] Create database migration to update prompt_suggestions table (better_candidates to JSONB, add expected_effect) in python-workspace/apps/server/src/blog_agent/storage/migrations/ (UI/UX P0)
+- [x] T014b [P] Create database migration to add content_blocks table in python-workspace/apps/server/src/blog_agent/storage/migrations/ (UI/UX P0)
+- [x] T014c [P] Create database migration to update prompt_suggestions table (better_candidates to JSONB, add expected_effect) in python-workspace/apps/server/src/blog_agent/storage/migrations/ (UI/UX P0)
 - [x] T015 [P] Create database connection utility in python-workspace/apps/server/src/blog_agent/storage/db.py
 - [x] T016 [P] Implement base Pydantic models in python-workspace/apps/server/src/blog_agent/storage/models.py (ConversationLog, BlogPost, ProcessingHistory, ContentExtract, ReviewFindings, PromptSuggestion)
 - [x] T016a [P] Update ConversationLog model to include content_hash field in python-workspace/apps/server/src/blog_agent/storage/models.py (FR-031)
-- [ ] T016b [P] Add ContentBlock Pydantic model in python-workspace/apps/server/src/blog_agent/storage/models.py (UI/UX P0)
-- [ ] T016c [P] Add PromptCandidate Pydantic model in python-workspace/apps/server/src/blog_agent/storage/models.py (UI/UX P0)
-- [ ] T016d [P] Update PromptSuggestion model to use structured better_candidates (List[PromptCandidate]) and add expected_effect field in python-workspace/apps/server/src/blog_agent/storage/models.py (UI/UX P0)
+- [x] T016b [P] Add ContentBlock Pydantic model in python-workspace/apps/server/src/blog_agent/storage/models.py (UI/UX P0)
+- [x] T016c [P] Add PromptCandidate Pydantic model in python-workspace/apps/server/src/blog_agent/storage/models.py (UI/UX P0)
+- [x] T016d [P] Update PromptSuggestion model to use structured better_candidates (List[PromptCandidate]) and add expected_effect field in python-workspace/apps/server/src/blog_agent/storage/models.py (UI/UX P0)
 - [x] T017 [P] Create repository pattern base class in python-workspace/apps/server/src/blog_agent/storage/repository.py
-- [ ] T017a [P] Implement ContentBlock repository methods (create, get_by_blog_post, get_by_prompt_suggestion) in python-workspace/apps/server/src/blog_agent/storage/repository.py (UI/UX P0)
+- [x] T017a [P] Implement ContentBlock repository methods (create, get_by_blog_post, get_by_prompt_suggestion) in python-workspace/apps/server/src/blog_agent/storage/repository.py (UI/UX P0)
 - [x] T018 [P] Setup structured logging (structlog) in python-workspace/apps/server/src/blog_agent/utils/logging.py
 - [x] T019 [P] Setup error handling infrastructure in python-workspace/apps/server/src/blog_agent/utils/errors.py
 - [x] T020 [P] Create environment configuration management in python-workspace/apps/server/src/blog_agent/config.py
 - [x] T021 [P] Generate gRPC Python code from share/proto/blog_agent.proto to python-workspace/apps/server/src/blog_agent/proto/ (script ready, requires grpc_tools)
 - [x] T022 [P] Generate gRPC TypeScript code from share/proto/blog_agent.proto to typescript-workspace/apps/proto-gen/src/ (script ready, requires buf or protoc-gen-es)
-- [ ] T022a [P] Regenerate gRPC code after proto updates (ContentBlock, PromptMeta, PromptCandidate, GetBlogPostWithPrompts) in python-workspace/apps/server/src/blog_agent/proto/ and typescript-workspace/apps/proto-gen/src/ (UI/UX P0)
+- [x] T022a [P] Regenerate gRPC code after proto updates (ContentBlock, PromptMeta, PromptCandidate, GetBlogPostWithPrompts) in python-workspace/apps/server/src/blog_agent/proto/ and typescript-workspace/apps/proto-gen/src/ (UI/UX P0)
 - [x] T023 [P] Create shared gRPC client package in typescript-workspace/packages/rpc-client/src/index.ts
 - [x] T024 [P] Setup LLM service abstraction in python-workspace/apps/server/src/blog_agent/services/llm_service.py
 - [x] T025 [P] Setup PostgreSQL + pgvector integration in python-workspace/apps/server/src/blog_agent/services/vector_store.py
@@ -192,15 +192,15 @@
 - [x] T075 [US4] Implement prompt effectiveness evaluation in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py
 - [x] T076 [US4] Implement generation of at least 3 alternative prompt candidates in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py (FR-012)
 - [x] T077 [US4] Implement reasoning generation for why alternatives are better in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py (FR-013)
-- [ ] T077a [US4] Update prompt_analyzer to generate structured PromptCandidate objects (with type, prompt, reasoning) instead of plain strings in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py (UI/UX P0)
-- [ ] T077b [US4] Add expected_effect generation in prompt_analyzer workflow step in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py (UI/UX P0)
+- [x] T077a [US4] Update prompt_analyzer to generate structured PromptCandidate objects (with type, prompt, reasoning) instead of plain strings in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py (UI/UX P0)
+- [x] T077b [US4] Add expected_effect generation in prompt_analyzer workflow step in python-workspace/apps/server/src/blog_agent/workflows/prompt_analyzer.py (UI/UX P0)
 - [x] T078 [US4] Create PromptSuggestion repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py
 - [x] T079 [US4] Integrate prompt analysis into blog workflow in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py (parallel branch)
 - [x] T080 [US4] Update editor step to include prompt suggestions section in blog post in python-workspace/apps/server/src/blog_agent/workflows/editor.py (FR-014)
 - [x] T081 [US4] Format prompt suggestions as side-by-side comparison in python-workspace/apps/server/src/blog_agent/utils/markdown_formatter.py
-- [ ] T081a [US4] Update editor workflow to create ContentBlock objects from blog post content in python-workspace/apps/server/src/blog_agent/workflows/editor.py (UI/UX P0)
-- [ ] T081b [US4] Implement logic to associate ContentBlocks with PromptSuggestions in editor workflow in python-workspace/apps/server/src/blog_agent/workflows/editor.py (UI/UX P1)
-- [ ] T081c [US4] Update editor to split blog content into structured blocks and store them in database in python-workspace/apps/server/src/blog_agent/workflows/editor.py (UI/UX P0)
+- [x] T081a [US4] Update editor workflow to create ContentBlock objects from blog post content in python-workspace/apps/server/src/blog_agent/workflows/editor.py (UI/UX P0)
+- [x] T081b [US4] Implement logic to associate ContentBlocks with PromptSuggestions in editor workflow in python-workspace/apps/server/src/blog_agent/workflows/editor.py (UI/UX P1)
+- [x] T081c [US4] Update editor to split blog content into structured blocks and store them in database in python-workspace/apps/server/src/blog_agent/workflows/editor.py (UI/UX P0)
 
 **Checkpoint**: At this point, all user stories should be independently functional - prompt analysis adds educational value
 
@@ -214,54 +214,11 @@
 - [x] T083 [P] Implement ListConversationLogs gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
 - [x] T084 [P] Implement GetBlogPost gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
 - [x] T085 [P] Implement ListBlogPosts gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T085a [P] Implement GetBlogPostWithPrompts gRPC handler (returns BlogPost + ContentBlocks with PromptMeta) in python-workspace/apps/server/src/blog_agent/main.py (UI/UX P0)
-- [ ] T085b [P] Create utility function to build PromptMeta from PromptSuggestion in python-workspace/apps/server/src/blog_agent/utils/prompt_meta_builder.py (UI/UX P0)
+- [x] T085a [P] Implement GetBlogPostWithPrompts gRPC handler (returns BlogPost + ContentBlocks with PromptMeta) in python-workspace/apps/server/src/blog_agent/main.py (UI/UX P0)
+- [x] T085b [P] Create utility function to build PromptMeta from PromptSuggestion in python-workspace/apps/server/src/blog_agent/utils/prompt_meta_builder.py (UI/UX P0)
 - [x] T086 [P] Implement GetProcessingHistory gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
 - [x] T087 [P] Create CLI command for listing conversation logs in typescript-workspace/apps/cli/src/commands/list.ts
 - [x] T088 [P] Create CLI command for retrieving blog posts in typescript-workspace/apps/cli/src/commands/retrieve.ts
-
-### Web UI Implementation (Next.js)
-
-- [ ] T106 [P] Initialize Next.js project in typescript-workspace/apps/web/ with App Router
-- [ ] T107 [P] Setup shadcn/ui components in typescript-workspace/apps/web/
-- [ ] T108 [P] Configure Connect-Web gRPC client for Next.js in typescript-workspace/apps/web/lib/grpc-client.ts
-- [ ] T109 [P] Create blog list page with static generation in typescript-workspace/apps/web/app/page.tsx (uses ListBlogPosts gRPC)
-- [ ] T110 [P] Create blog detail page with static generation in typescript-workspace/apps/web/app/blog/[id]/page.tsx (uses GetBlogPostWithPrompts gRPC for UI/UX support)
-- [ ] T111 [P] Implement generateStaticParams for blog posts in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T112 [P] Create Markdown renderer component for blog content in typescript-workspace/apps/web/components/markdown-renderer.tsx
-- [ ] T113 [P] Create blog metadata display component in typescript-workspace/apps/web/components/blog-metadata.tsx
-- [ ] T114 [P] Add TailwindCSS styling and responsive layout in typescript-workspace/apps/web/
-- [ ] T115 [P] Configure Next.js static generation with gRPC client in typescript-workspace/apps/web/next.config.mjs
-
-### UI/UX Implementation (Side-by-Side Layout) - See uiux.md
-
-#### Phase 1: 基礎佈局 (P1)
-
-- [ ] T116 [P1] Implement Desktop 70/30 dual-column layout in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T117 [P1] Create Sticky Sidebar component in typescript-workspace/apps/web/components/prompt-sidebar.tsx
-- [ ] T118 [P1] Create Prompt Clinic Card component in typescript-workspace/apps/web/components/prompt-card.tsx with 4 sections (Original, Diagnosis, Candidates, Expected Effect)
-- [ ] T119 [P1] Integrate Markdown renderer with content blocks structure (text + prompt_meta) in typescript-workspace/apps/web/components/markdown-renderer.tsx
-- [ ] T119a [P1] Create ContentBlock component that renders text and optional prompt_meta in typescript-workspace/apps/web/components/content-block.tsx (UI/UX P0)
-
-#### Phase 2: 互動功能 (P1)
-
-- [ ] T120 [P1] Implement Intersection Observer API for scroll tracking in typescript-workspace/apps/web/hooks/use-intersection-observer.ts
-- [ ] T121 [P1] Implement automatic sidebar card switching based on scroll position in typescript-workspace/apps/web/components/prompt-sidebar.tsx
-- [ ] T122 [P1] Add anchor icon (⚓ or 💡) to content blocks with hover highlight effect in typescript-workspace/apps/web/components/content-block.tsx
-- [ ] T123 [P1] Implement Copy to Clipboard functionality for optimized prompts in typescript-workspace/apps/web/components/prompt-card.tsx
-
-#### Phase 3: Mobile 適配 (P2)
-
-- [ ] T124 [P2] Implement Accordion mode for mobile in typescript-workspace/apps/web/components/prompt-accordion.tsx
-- [ ] T125 [P2] Add responsive breakpoints (Desktop ≥1024px, Tablet 768-1023px, Mobile <768px) in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T126 [P2] Optimize touch interactions for mobile devices
-
-#### Phase 4: 進階功能 (P3)
-
-- [ ] T127 [P3] Implement Diff Highlighter to show differences between original and optimized prompts in typescript-workspace/apps/web/components/diff-highlighter.tsx
-- [ ] T128 [P3] Implement Run Simulation modal (requires backend API support) in typescript-workspace/apps/web/components/simulation-modal.tsx
-- [ ] T129 [P3] Add dark mode support with proper color system in typescript-workspace/apps/web/
-- [ ] T130 [P3] Add smooth animations and transitions for card switching and accordion expansion
 
 ---
 
@@ -276,7 +233,58 @@
 
 ---
 
-## Phase 10: Polish & Cross-Cutting Concerns
+## Phase 10: Web UI Implementation (Next.js)
+
+**Purpose**: Build Next.js web application for blog post display
+
+- [ ] T106 [P] Initialize Next.js project in typescript-workspace/apps/web/ with App Router
+- [ ] T107 [P] Setup shadcn/ui components in typescript-workspace/apps/web/
+- [ ] T108 [P] Configure Connect-Web gRPC client for Next.js in typescript-workspace/apps/web/lib/grpc-client.ts
+- [ ] T109 [P] Create blog list page with static generation in typescript-workspace/apps/web/app/page.tsx (uses ListBlogPosts gRPC)
+- [ ] T110 [P] Create blog detail page with static generation in typescript-workspace/apps/web/app/blog/[id]/page.tsx (uses GetBlogPostWithPrompts gRPC for UI/UX support)
+- [ ] T111 [P] Implement generateStaticParams for blog posts in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [ ] T112 [P] Create Markdown renderer component for blog content in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [ ] T113 [P] Create blog metadata display component in typescript-workspace/apps/web/components/blog-metadata.tsx
+- [ ] T114 [P] Add TailwindCSS styling and responsive layout in typescript-workspace/apps/web/
+- [ ] T115 [P] Configure Next.js static generation with gRPC client in typescript-workspace/apps/web/next.config.mjs
+
+---
+
+## Phase 11: UI/UX Implementation (Side-by-Side Layout)
+
+**Purpose**: Implement Side-by-Side UI/UX design for prompt clinic display (See uiux.md)
+
+### Phase 11.1: 基礎佈局 (P1)
+
+- [ ] T116 [P1] Implement Desktop 70/30 dual-column layout in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [ ] T117 [P1] Create Sticky Sidebar component in typescript-workspace/apps/web/components/prompt-sidebar.tsx
+- [ ] T118 [P1] Create Prompt Clinic Card component in typescript-workspace/apps/web/components/prompt-card.tsx with 4 sections (Original, Diagnosis, Candidates, Expected Effect)
+- [ ] T119 [P1] Integrate Markdown renderer with content blocks structure (text + prompt_meta) in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [ ] T119a [P1] Create ContentBlock component that renders text and optional prompt_meta in typescript-workspace/apps/web/components/content-block.tsx (UI/UX P0)
+
+### Phase 11.2: 互動功能 (P1)
+
+- [ ] T120 [P1] Implement Intersection Observer API for scroll tracking in typescript-workspace/apps/web/hooks/use-intersection-observer.ts
+- [ ] T121 [P1] Implement automatic sidebar card switching based on scroll position in typescript-workspace/apps/web/components/prompt-sidebar.tsx
+- [ ] T122 [P1] Add anchor icon (⚓ or 💡) to content blocks with hover highlight effect in typescript-workspace/apps/web/components/content-block.tsx
+- [ ] T123 [P1] Implement Copy to Clipboard functionality for optimized prompts in typescript-workspace/apps/web/components/prompt-card.tsx
+
+### Phase 11.3: Mobile 適配 (P2)
+
+- [ ] T124 [P2] Implement Accordion mode for mobile in typescript-workspace/apps/web/components/prompt-accordion.tsx
+- [ ] T125 [P2] Add responsive breakpoints (Desktop ≥1024px, Tablet 768-1023px, Mobile <768px) in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [ ] T126 [P2] Optimize touch interactions for mobile devices
+
+### Phase 11.4: 進階功能 (P3)
+
+- [ ] T127 [P3] Implement Diff Highlighter to show differences between original and optimized prompts in typescript-workspace/apps/web/components/diff-highlighter.tsx
+- [ ] T128 [P3] Implement Run Simulation modal (requires backend API support) in typescript-workspace/apps/web/components/simulation-modal.tsx
+- [ ] T129 [P3] Add dark mode support with proper color system in typescript-workspace/apps/web/
+- [ ] T130 [P3] Add smooth animations and transitions for card switching and accordion expansion
+
+---
+
+## Phase 12: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
 
@@ -288,13 +296,13 @@
 - [ ] T098 [P] Add CLI help text and error messages in typescript-workspace/apps/cli/src/
 - [ ] T099 [P] Create README documentation in python-workspace/apps/server/README.md
 - [ ] T100 [P] Create README documentation in typescript-workspace/apps/cli/README.md
-- [ ] T116 [P] Create README documentation in typescript-workspace/apps/web/README.md
+- [ ] T131 [P] Create README documentation in typescript-workspace/apps/web/README.md
 - [ ] T101 Run quickstart.md validation to ensure all setup steps work
 - [ ] T102 [P] Add unit tests for parsers in python-workspace/apps/server/tests/unit/test_parsers.py
 - [ ] T103 [P] Add unit tests for workflow steps in python-workspace/apps/server/tests/unit/test_workflows.py
 - [ ] T104 [P] Add integration tests for end-to-end workflow in python-workspace/apps/server/tests/integration/test_workflow_integration.py
 - [ ] T105 [P] Add CLI tests in typescript-workspace/apps/cli/tests/
-- [ ] T117 [P] Add Web UI tests in typescript-workspace/apps/web/tests/ (React Testing Library)
+- [ ] T132 [P] Add Web UI tests in typescript-workspace/apps/web/tests/ (React Testing Library)
 
 ---
 
@@ -308,9 +316,10 @@
   - User stories can then proceed in parallel (if staffed)
   - Or sequentially in priority order (US1/US5 → US2/US3 → US4)
 - **Additional Features (Phase 8)**: Can proceed in parallel with user stories after Phase 2
-  - **Web UI (T106-T115)**: Depends on gRPC handlers (T082-T086) completion for data retrieval
 - **Advanced Features (Phase 9)**: Depends on US1 completion
-- **Polish (Phase 10)**: Depends on all desired user stories being complete
+- **Web UI (Phase 10)**: Depends on gRPC handlers (T082-T086) completion for data retrieval
+- **UI/UX Implementation (Phase 11)**: Depends on Phase 10 completion (Web UI foundation)
+- **Polish (Phase 12)**: Depends on all desired user stories being complete
 
 ### User Story Dependencies
 

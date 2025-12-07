@@ -1,14 +1,2 @@
-[project]
-name = "blog-agent-workspace"
-version = "0.1.0"
-description = "AI Conversation to Blog Agent System - Python workspace"
-requires-python = ">=3.11"
-dependencies = []
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.uv]
-dev-dependencies = []
 

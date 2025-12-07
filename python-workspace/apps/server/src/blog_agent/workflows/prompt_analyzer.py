@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent, ExtractStartEvent
 
 from blog_agent.services.llm_service import get_llm_service
-from blog_agent.storage.models import Message, PromptSuggestion
+from blog_agent.storage.models import Message, PromptCandidate, PromptSuggestion
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -51,12 +51,31 @@ class PromptAnalyzer:
             if not user_prompts:
                 logger.info("No user prompts found in conversation", conversation_log_id=conversation_log_id)
                 # Return empty suggestion if no prompts found
+                # T077a: Use structured PromptCandidate objects instead of strings
+                empty_candidates = [
+                    PromptCandidate(
+                        type="structured",
+                        prompt="",
+                        reasoning="",
+                    ),
+                    PromptCandidate(
+                        type="role-play",
+                        prompt="",
+                        reasoning="",
+                    ),
+                    PromptCandidate(
+                        type="chain-of-thought",
+                        prompt="",
+                        reasoning="",
+                    ),
+                ]
                 prompt_suggestion = PromptSuggestion(
                     conversation_log_id=conversation_log_id,
                     original_prompt="",
                     analysis="未找到使用者提示詞",
-                    better_candidates=["", "", ""],  # Ensure at least 3 empty strings to satisfy FR-012
+                    better_candidates=empty_candidates,  # Ensure at least 3 structured candidates (FR-012)
                     reasoning="對話紀錄中沒有使用者提示詞可供分析",
+                    expected_effect=None,  # T077b: No effect if no prompts
                 )
                 return PromptAnalysisEvent(
                     prompt_suggestion=prompt_suggestion,
@@ -72,7 +91,8 @@ class PromptAnalyzer:
             effectiveness_analysis = await self._evaluate_prompt_effectiveness(primary_prompt, messages)
             
             # T076: Generate at least 3 alternative prompt candidates (FR-012)
-            better_candidates = await self._generate_alternative_prompts(primary_prompt, messages)
+            # T077a: Generate structured PromptCandidate objects instead of plain strings
+            better_candidates = await self._generate_structured_alternative_prompts(primary_prompt, messages)
             
             # Ensure we have at least 3 candidates (FR-012)
             if len(better_candidates) < 3:
@@ -81,19 +101,24 @@ class PromptAnalyzer:
                     count=len(better_candidates),
                     conversation_log_id=conversation_log_id,
                 )
-                additional_candidates = await self._generate_additional_candidates(
+                additional_candidates = await self._generate_additional_structured_candidates(
                     primary_prompt, messages, needed=3 - len(better_candidates)
                 )
                 better_candidates.extend(additional_candidates)
             
             # Ensure we have at least 3 candidates (use fallback if needed)
             if len(better_candidates) < 3:
-                fallback = await self._generate_fallback_alternatives(primary_prompt)
+                fallback = await self._generate_fallback_structured_alternatives(primary_prompt)
                 better_candidates.extend(fallback)
                 better_candidates = better_candidates[:10]  # Limit to 10
             
             # T077: Generate reasoning for why alternatives are better (FR-013)
-            reasoning = await self._generate_reasoning(primary_prompt, better_candidates, messages)
+            # Extract prompt strings for reasoning generation
+            candidate_prompts = [c.prompt for c in better_candidates]
+            reasoning = await self._generate_reasoning(primary_prompt, candidate_prompts, messages)
+            
+            # T077b: Generate expected_effect description
+            expected_effect = await self._generate_expected_effect(primary_prompt, better_candidates, messages)
             
             prompt_suggestion = PromptSuggestion(
                 conversation_log_id=conversation_log_id,
@@ -101,6 +126,7 @@ class PromptAnalyzer:
                 analysis=effectiveness_analysis,
                 better_candidates=better_candidates[:10],  # Limit to 10, but ensure at least 3
                 reasoning=reasoning,
+                expected_effect=expected_effect,  # T077b: Add expected effect
             )
             
             logger.info(
@@ -118,12 +144,31 @@ class PromptAnalyzer:
         except Exception as e:
             logger.error("Prompt analysis failed", error=str(e), exc_info=True)
             # Return empty suggestion on error
+            # T077a: Use structured PromptCandidate objects
+            error_candidates = [
+                PromptCandidate(
+                    type="structured",
+                    prompt="",
+                    reasoning="分析失敗",
+                ),
+                PromptCandidate(
+                    type="role-play",
+                    prompt="",
+                    reasoning="分析失敗",
+                ),
+                PromptCandidate(
+                    type="chain-of-thought",
+                    prompt="",
+                    reasoning="分析失敗",
+                ),
+            ]
             prompt_suggestion = PromptSuggestion(
                 conversation_log_id=ev.conversation_log_id,
                 original_prompt="",
                 analysis=f"分析失敗：{str(e)}",
-                better_candidates=["", "", ""],  # Ensure at least 3 to satisfy FR-012
+                better_candidates=error_candidates,  # Ensure at least 3 structured candidates (FR-012)
                 reasoning="無法生成提示詞建議",
+                expected_effect=None,  # T077b: No effect on error
             )
             return PromptAnalysisEvent(
                 prompt_suggestion=prompt_suggestion,
@@ -206,14 +251,14 @@ class PromptAnalyzer:
         response = await self.llm_service.generate(evaluation_prompt)
         return response.strip()
 
-    async def _generate_alternative_prompts(
+    async def _generate_structured_alternative_prompts(
         self, original_prompt: str, messages: List[Message]
-    ) -> List[str]:
+    ) -> List[PromptCandidate]:
         """
-        T076: Generate at least 3 alternative prompt candidates (FR-012).
+        T076, T077a: Generate at least 3 structured alternative prompt candidates (FR-012).
         
         Generates improved versions of the original prompt with different
-        approaches or structures.
+        approaches or structures, returning structured PromptCandidate objects.
         """
         context_summary = self._summarize_conversation_context(messages)
         
@@ -226,34 +271,71 @@ class PromptAnalyzer:
 {context_summary}
 
 要求：
-1. 生成至少 3 個不同的改進版本
-2. 每個版本應該採用不同的策略或結構
-3. 改進版本應該更清晰、更具體、更有效
-4. 可以嘗試不同的提示詞技巧（如：角色扮演、步驟分解、範例引導等）
+1. 生成至少 3 個不同的改進版本，每個版本使用不同的策略
+2. 必須包含以下三種類型：
+   - "structured": 結構化版本（使用清晰的步驟、格式、要求）
+   - "role-play": 角色扮演版本（設定角色、情境）
+   - "chain-of-thought": 思維鏈版本（引導逐步思考）
+3. 每個候選應該包含：
+   - type: 類型（"structured"、"role-play" 或 "chain-of-thought"）
+   - prompt: 完整的改進後提示詞
+   - reasoning: 為什麼這個版本更好（簡短說明）
+4. 改進版本應該更清晰、更具體、更有效
 5. 每個候選應該完整且可以直接使用
 
-請以 JSON 陣列格式返回，例如：["改進版本1", "改進版本2", "改進版本3", ...]
+請以 JSON 陣列格式返回，例如：
+[
+  {{
+    "type": "structured",
+    "prompt": "改進版本1（結構化）",
+    "reasoning": "為什麼這個版本更好"
+  }},
+  {{
+    "type": "role-play",
+    "prompt": "改進版本2（角色扮演）",
+    "reasoning": "為什麼這個版本更好"
+  }},
+  {{
+    "type": "chain-of-thought",
+    "prompt": "改進版本3（思維鏈）",
+    "reasoning": "為什麼這個版本更好"
+  }}
+]
 
 請只輸出 JSON 陣列，不要額外說明。"""
 
         try:
             response = await self.llm_service.generate(generation_prompt)
             import json
-            candidates = json.loads(response.strip())
-            if isinstance(candidates, list):
-                # Filter and clean candidates
-                cleaned = [c for c in candidates if isinstance(c, str) and len(c) > 20]
-                return cleaned[:10]  # Limit to 10 candidates
+            candidates_data = json.loads(response.strip())
+            if isinstance(candidates_data, list):
+                # Convert to PromptCandidate objects
+                candidates = []
+                for item in candidates_data:
+                    if isinstance(item, dict) and "type" in item and "prompt" in item and "reasoning" in item:
+                        try:
+                            candidate = PromptCandidate(
+                                type=item["type"],  # Will validate against Literal
+                                prompt=item["prompt"],
+                                reasoning=item["reasoning"],
+                            )
+                            if len(candidate.prompt) > 20:  # Filter out too short prompts
+                                candidates.append(candidate)
+                        except Exception as e:
+                            logger.warning("Failed to create PromptCandidate", error=str(e), data=item)
+                            continue
+                if len(candidates) >= 3:
+                    return candidates[:10]  # Limit to 10 candidates
         except Exception as e:
-            logger.warning("Failed to parse alternative prompts", error=str(e))
+            logger.warning("Failed to parse structured alternative prompts", error=str(e))
         
-        # Fallback: generate simple alternatives
-        return await self._generate_fallback_alternatives(original_prompt)
+        # Fallback: generate simple structured alternatives
+        return await self._generate_fallback_structured_alternatives(original_prompt)
 
-    async def _generate_additional_candidates(
+    async def _generate_additional_structured_candidates(
         self, original_prompt: str, messages: List[Message], needed: int
-    ) -> List[str]:
-        """Generate additional prompt candidates if we don't have enough."""
+    ) -> List[PromptCandidate]:
+        """Generate additional structured prompt candidates if we don't have enough."""
         context_summary = self._summarize_conversation_context(messages)
         
         generation_prompt = f"""請根據以下原始提示詞，再生成 {needed} 個不同的改進版本。
@@ -266,54 +348,91 @@ class PromptAnalyzer:
 
 要求：
 1. 生成 {needed} 個與之前不同的改進版本
-2. 嘗試不同的提示詞技巧或結構
-3. 每個候選應該完整且可以直接使用
+2. 每個版本使用不同的策略（structured、role-play、chain-of-thought 或其他）
+3. 每個候選應該包含：
+   - type: 類型
+   - prompt: 完整的改進後提示詞
+   - reasoning: 為什麼這個版本更好
+4. 每個候選應該完整且可以直接使用
 
-請以 JSON 陣列格式返回，例如：["改進版本1", "改進版本2", ...]
+請以 JSON 陣列格式返回，例如：
+[
+  {{
+    "type": "structured",
+    "prompt": "改進版本",
+    "reasoning": "為什麼更好"
+  }}
+]
 
 請只輸出 JSON 陣列，不要額外說明。"""
 
         try:
             response = await self.llm_service.generate(generation_prompt)
             import json
-            candidates = json.loads(response.strip())
-            if isinstance(candidates, list):
-                return [c for c in candidates if isinstance(c, str) and len(c) > 20]
+            candidates_data = json.loads(response.strip())
+            if isinstance(candidates_data, list):
+                candidates = []
+                for item in candidates_data:
+                    if isinstance(item, dict) and "type" in item and "prompt" in item and "reasoning" in item:
+                        try:
+                            candidate = PromptCandidate(
+                                type=item["type"],
+                                prompt=item["prompt"],
+                                reasoning=item["reasoning"],
+                            )
+                            if len(candidate.prompt) > 20:
+                                candidates.append(candidate)
+                        except Exception as e:
+                            logger.warning("Failed to create additional PromptCandidate", error=str(e))
+                            continue
+                return candidates
         except Exception as e:
-            logger.warning("Failed to generate additional candidates", error=str(e))
+            logger.warning("Failed to generate additional structured candidates", error=str(e))
         
         return []
 
-    async def _generate_fallback_alternatives(self, original_prompt: str) -> List[str]:
-        """Generate simple fallback alternatives if LLM generation fails."""
+    async def _generate_fallback_structured_alternatives(self, original_prompt: str) -> List[PromptCandidate]:
+        """Generate simple fallback structured alternatives if LLM generation fails."""
         alternatives = []
         
-        # Strategy 1: Add structure
-        alt1 = f"""請根據以下要求完成任務：
+        # Strategy 1: Structured version
+        alt1 = PromptCandidate(
+            type="structured",
+            prompt=f"""請根據以下要求完成任務：
 
 任務：{original_prompt}
 
 要求：
 1. 提供詳細且完整的回答
 2. 包含具體的範例或說明
-3. 確保回答清晰易懂"""
+3. 確保回答清晰易懂""",
+            reasoning="使用結構化格式，明確列出任務和要求，讓 AI 更容易理解並產生完整的回答",
+        )
         alternatives.append(alt1)
         
-        # Strategy 2: Add context and steps
-        alt2 = f"""我需要完成以下任務：{original_prompt}
+        # Strategy 2: Chain-of-thought version
+        alt2 = PromptCandidate(
+            type="chain-of-thought",
+            prompt=f"""我需要完成以下任務：{original_prompt}
 
 請按照以下步驟進行：
 1. 先理解任務的核心需求
 2. 提供詳細的分析和說明
-3. 給出具體的建議或解決方案"""
+3. 給出具體的建議或解決方案""",
+            reasoning="使用思維鏈方式，引導 AI 逐步思考，確保回答的邏輯性和完整性",
+        )
         alternatives.append(alt2)
         
-        # Strategy 3: Role-based
-        alt3 = f"""作為一位專業的顧問，請幫助我完成以下任務：
+        # Strategy 3: Role-play version
+        alt3 = PromptCandidate(
+            type="role-play",
+            prompt=f"""作為一位專業的顧問，請幫助我完成以下任務：
 
 {original_prompt}
 
-請提供專業、詳細且實用的建議。"""
+請提供專業、詳細且實用的建議。""",
+            reasoning="使用角色扮演方式，設定專業角色，讓 AI 以專業角度提供更深入的建議",
+        )
         alternatives.append(alt3)
         
         return alternatives
@@ -349,6 +468,46 @@ class PromptAnalyzer:
 
         response = await self.llm_service.generate(reasoning_prompt)
         return response.strip()
+
+    async def _generate_expected_effect(
+        self, original_prompt: str, better_candidates: List[PromptCandidate], messages: List[Message]
+    ) -> str:
+        """
+        T077b: Generate expected effect description (UI/UX support).
+        
+        Explains what effect using the optimized prompts will have on the AI's response quality.
+        """
+        context_summary = self._summarize_conversation_context(messages)
+        
+        # Extract candidate types and prompts for analysis
+        candidate_summary = "\n".join(
+            f"- {c.type}: {c.prompt[:100]}..." for c in better_candidates[:3]
+        )
+        
+        effect_prompt = f"""請說明使用以下優化後的提示詞，預期會對 AI 的回答產生什麼效果。
+
+原始提示詞：
+{original_prompt}
+
+優化後的提示詞候選（前 3 個）：
+{candidate_summary}
+
+對話上下文：
+{context_summary}
+
+請說明：
+1. 使用這些優化提示詞後，AI 的回答品質會如何提升？
+2. 回答會變得更具體、更完整、還是更符合需求？
+3. 這些優化如何幫助獲得更好的結果？
+
+請提供簡潔明瞭的說明（100-200字），以正體中文撰寫。"""
+
+        try:
+            response = await self.llm_service.generate(effect_prompt)
+            return response.strip()[:500]  # Limit length
+        except Exception as e:
+            logger.warning("Failed to generate expected effect", error=str(e))
+            return "使用優化後的提示詞可以獲得更清晰、更具體、更符合需求的 AI 回答。"
 
     def _summarize_conversation_context(self, messages: List[Message]) -> str:
         """Summarize conversation context for prompt analysis."""

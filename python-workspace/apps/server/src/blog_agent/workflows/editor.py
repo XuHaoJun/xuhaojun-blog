@@ -1,6 +1,7 @@
 """Blog editor workflow step (simple version without review/extension)."""
 
 from typing import TYPE_CHECKING, Any, Dict, Optional
+from uuid import uuid4
 
 from llama_index.core.workflow import Event, step
 
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from blog_agent.workflows.reviewer import ReviewEvent
 
 from blog_agent.services.llm_service import get_llm_service
-from blog_agent.storage.models import BlogPost, ContentExtract, PromptSuggestion, ReviewFindings
+from blog_agent.storage.models import BlogPost, ContentBlock, ContentExtract, PromptSuggestion, ReviewFindings
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,6 +23,7 @@ class EditEvent(Event):
     blog_post: BlogPost
     conversation_log_id: str
     prompt_suggestion: Optional[PromptSuggestion] = None  # T080: Include prompt suggestions (FR-014)
+    content_blocks: list[ContentBlock] = []  # T081a, T081c: Content blocks for UI/UX support
 
 
 class BlogEditor:
@@ -71,10 +73,18 @@ class BlogEditor:
                 status="draft",
             )
 
+            # T081a, T081c: Create ContentBlock objects from blog post content
+            # Note: blog_post.id will be set after saving to database, so we'll create blocks later
+            # For now, we'll prepare the blocks structure
+            content_blocks = await self._create_content_blocks(
+                blog_content, prompt_suggestion
+            )
+
             return EditEvent(
                 blog_post=blog_post,
                 conversation_log_id=conversation_log_id,
                 prompt_suggestion=prompt_suggestion,
+                content_blocks=content_blocks,  # T081a, T081c: Include content blocks
             )
 
         except Exception as e:
@@ -280,4 +290,91 @@ class BlogEditor:
             }
         
         return metadata
+
+    async def _create_content_blocks(
+        self, blog_content: str, prompt_suggestion: Optional[PromptSuggestion] = None
+    ) -> list[ContentBlock]:
+        """
+        T081a, T081c: Create ContentBlock objects from blog post content.
+        
+        Splits the blog content into structured blocks for UI/UX support.
+        Each block can optionally be associated with a prompt suggestion.
+        
+        T081b: Associates ContentBlocks with PromptSuggestions when content is related to prompts.
+        """
+        import re
+        blocks = []
+        
+        # Split content into blocks by markdown headers (## and ###)
+        # This creates natural sections that can be displayed side-by-side with prompts
+        # Pattern: Split by ## (level 2 headers) or ### (level 3 headers)
+        # We'll preserve the headers in each block
+        section_pattern = r'\n(##+\s+[^\n]+)'
+        sections = re.split(section_pattern, blog_content)
+        
+        block_order = 0
+        
+        # First part (before any headers) is introduction
+        if sections and sections[0].strip():
+            intro = sections[0].strip()
+            if intro:
+                # T081b: Associate intro with prompt_suggestion if available
+                # The intro often contains content generated from the original prompt
+                block = ContentBlock(
+                    blog_post_id=uuid4(),  # Placeholder, will be set after blog_post is saved
+                    block_order=block_order,
+                    text=intro,
+                    prompt_suggestion_id=prompt_suggestion.id if prompt_suggestion and prompt_suggestion.id else None,
+                )
+                blocks.append(block)
+                block_order += 1
+        
+        # Process remaining sections (header + content pairs)
+        i = 1
+        while i < len(sections):
+            if i + 1 < len(sections):
+                header = sections[i].strip()  # The header (## Title)
+                content = sections[i + 1].strip()  # The content after header
+                
+                if content:
+                    section_text = f"{header}\n\n{content}"
+                    
+                    # T081b: Associate with prompt_suggestion if this section is related to prompts
+                    prompt_suggestion_id = None
+                    if prompt_suggestion and prompt_suggestion.id:
+                        # Check if this section contains prompt-related keywords
+                        prompt_keywords = ["提示詞", "prompt", "優化", "建議", "候選", "candidate"]
+                        if any(keyword in section_text.lower() for keyword in prompt_keywords):
+                            prompt_suggestion_id = prompt_suggestion.id
+                        # Also associate if this is one of the first few sections (likely related to original prompt)
+                        elif block_order < 3:
+                            prompt_suggestion_id = prompt_suggestion.id
+                    
+                    block = ContentBlock(
+                        blog_post_id=uuid4(),  # Placeholder, will be set after blog_post is saved
+                        block_order=block_order,
+                        text=section_text,
+                        prompt_suggestion_id=prompt_suggestion_id,
+                    )
+                    blocks.append(block)
+                    block_order += 1
+            i += 2
+        
+        # If no sections found, create a single block with all content
+        if not blocks:
+            block = ContentBlock(
+                blog_post_id=uuid4(),  # Placeholder
+                block_order=0,
+                text=blog_content,
+                prompt_suggestion_id=prompt_suggestion.id if prompt_suggestion and prompt_suggestion.id else None,
+            )
+            blocks.append(block)
+        
+        logger.info(
+            "Content blocks created",
+            blocks_count=len(blocks),
+            has_prompt_association=any(b.prompt_suggestion_id for b in blocks),
+        )
+        
+        return blocks
 

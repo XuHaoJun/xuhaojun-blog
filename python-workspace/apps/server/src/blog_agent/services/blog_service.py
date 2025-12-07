@@ -14,6 +14,7 @@ from blog_agent.storage.models import (
 )
 from blog_agent.storage.repository import (
     BlogPostRepository,
+    ContentBlockRepository,
     ConversationLogRepository,
     ProcessingHistoryRepository,
     PromptSuggestionRepository,
@@ -35,6 +36,7 @@ class BlogService:
         self.blog_repo = BlogPostRepository()
         self.history_repo = ProcessingHistoryRepository()
         self.prompt_suggestion_repo = PromptSuggestionRepository()  # T079: Add prompt suggestion repository
+        self.content_block_repo = ContentBlockRepository()  # T081c: Add content block repository
         self.workflow = BlogWorkflow()
 
     async def process_conversation(
@@ -262,6 +264,17 @@ class BlogService:
             blog_post.conversation_log_id = conversation_log_id
             blog_post = await self.blog_repo.create(blog_post)
             blog_post_id = blog_post.id
+
+            # T081c: Save content blocks to database
+            if edit_event.content_blocks and blog_post_id:
+                for block in edit_event.content_blocks:
+                    block.blog_post_id = blog_post_id  # Set the actual blog_post_id
+                    await self.content_block_repo.create(block)
+                logger.info(
+                    "Content blocks saved",
+                    blog_post_id=str(blog_post_id),
+                    blocks_count=len(edit_event.content_blocks),
+                )
 
             # Update processing history
             processing.blog_post_id = blog_post_id

@@ -19,9 +19,12 @@ from blog_agent.config import config
 from blog_agent.services.blog_service import BlogService
 from blog_agent.storage.repository import (
     BlogPostRepository,
+    ContentBlockRepository,
     ConversationLogRepository,
     ProcessingHistoryRepository,
+    PromptSuggestionRepository,
 )
+from blog_agent.utils.prompt_meta_builder import build_prompt_meta
 from blog_agent.utils.errors import BlogAgentError
 from blog_agent.utils.logging import get_logger
 
@@ -41,6 +44,8 @@ class BlogAgentServiceImpl:
         self.conversation_repo = ConversationLogRepository()
         self.blog_repo = BlogPostRepository()
         self.history_repo = ProcessingHistoryRepository()
+        self.content_block_repo = ContentBlockRepository()  # T085a: For GetBlogPostWithPrompts
+        self.prompt_suggestion_repo = PromptSuggestionRepository()  # T085a: For GetBlogPostWithPrompts
 
     async def ProcessConversation(self, request, context):
         """Process conversation log and generate blog post."""
@@ -215,6 +220,79 @@ class BlogAgentServiceImpl:
             return None
         except Exception as e:
             logger.error("GetBlogPost error", error=str(e), exc_info=True)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Internal error: {str(e)}")
+            return None
+
+    # T085a: GetBlogPostWithPrompts handler (UI/UX P0)
+    async def GetBlogPostWithPrompts(self, request, context):
+        """
+        Get blog post with structured content blocks and prompt meta for UI/UX support.
+        
+        Returns BlogPost + ContentBlocks with PromptMeta for Side-by-Side display.
+        """
+        try:
+            blog_post_id = UUID(request.blog_post_id)
+            blog_post = await self.blog_repo.get_by_id(blog_post_id)
+
+            if not blog_post:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f"Blog post not found: {request.blog_post_id}")
+                return None
+
+            # Get content blocks for this blog post
+            content_blocks = await self.content_block_repo.get_by_blog_post_id(blog_post_id)
+            
+            # Build ContentBlock proto messages with PromptMeta
+            content_block_protos = []
+            for block in content_blocks:
+                prompt_meta = None
+                
+                # If block has associated prompt_suggestion, build PromptMeta
+                if block.prompt_suggestion_id:
+                    prompt_suggestion = await self.prompt_suggestion_repo.get_by_id(block.prompt_suggestion_id)
+                    if prompt_suggestion:
+                        prompt_meta = build_prompt_meta(prompt_suggestion)
+                
+                # TODO: Uncomment after proto generation
+                # content_block_proto = blog_agent_pb2.ContentBlock(
+                #     id=str(block.id) if block.id else "",
+                #     blog_post_id=str(block.blog_post_id),
+                #     block_order=block.block_order,
+                #     text=block.text,
+                #     prompt_meta=blog_agent_pb2.PromptMeta(**prompt_meta) if prompt_meta else None,
+                # )
+                # content_block_protos.append(content_block_proto)
+                
+                # Temporary placeholder
+                content_block_protos.append({
+                    "id": str(block.id) if block.id else "",
+                    "blog_post_id": str(block.blog_post_id),
+                    "block_order": block.block_order,
+                    "text": block.text,
+                    "prompt_meta": prompt_meta,
+                })
+
+            # TODO: Uncomment after proto generation
+            # response = blog_agent_pb2.GetBlogPostWithPromptsResponse(
+            #     blog_post=self._blog_post_to_proto(blog_post),
+            #     content_blocks=content_block_protos,
+            # )
+            # return response
+
+            # Temporary placeholder
+            return {
+                "blog_post": self._blog_post_to_dict(blog_post),
+                "content_blocks": content_block_protos,
+            }
+
+        except ValueError as e:
+            logger.error("Invalid blog post ID", error=str(e))
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(f"Invalid blog post ID: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error("GetBlogPostWithPrompts error", error=str(e), exc_info=True)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Internal error: {str(e)}")
             return None

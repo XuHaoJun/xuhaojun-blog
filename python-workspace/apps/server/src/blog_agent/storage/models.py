@@ -1,7 +1,7 @@
 """Pydantic models for blog agent system."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -82,6 +82,14 @@ class ReviewFindings(BaseModel):
     created_at: Optional[datetime] = None
 
 
+class PromptCandidate(BaseModel):
+    """Represents a structured prompt candidate with type and reasoning."""
+
+    type: Literal["structured", "role-play", "chain-of-thought"]
+    prompt: str
+    reasoning: str
+
+
 class PromptSuggestion(BaseModel):
     """Represents prompt analysis and optimization result."""
 
@@ -89,7 +97,19 @@ class PromptSuggestion(BaseModel):
     conversation_log_id: UUID
     original_prompt: str
     analysis: str
-    better_candidates: List[str] = Field(..., min_items=3)  # At least 3 candidates (FR-012)
-    reasoning: str
+    better_candidates: List[PromptCandidate] = Field(..., min_items=3)  # At least 3 structured candidates (FR-012)
+    reasoning: str  # Overall reasoning (kept for backward compatibility)
+    expected_effect: Optional[str] = None  # Expected effect description (UI/UX support)
+    created_at: Optional[datetime] = None
+
+
+class ContentBlock(BaseModel):
+    """Represents a structured content block for blog posts (UI/UX support)."""
+
+    id: Optional[UUID] = None
+    blog_post_id: UUID
+    block_order: int  # Order in the article (starting from 0)
+    text: str  # Article content in Markdown format
+    prompt_suggestion_id: Optional[UUID] = None  # Optional: associated prompt suggestion
     created_at: Optional[datetime] = None
 

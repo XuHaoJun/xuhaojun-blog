@@ -11,9 +11,11 @@ import asyncpg
 from blog_agent.storage.db import get_db_connection
 from blog_agent.storage.models import (
     BlogPost,
+    ContentBlock,
     ContentExtract,
     ConversationLog,
     ProcessingHistory,
+    PromptCandidate,
     PromptSuggestion,
     ReviewFindings,
 )
@@ -590,19 +592,26 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
             entity_id = entity.id or uuid4()
             now = datetime.utcnow()
 
+            # Convert PromptCandidate list to dict list for JSONB
+            # asyncpg will automatically convert Python dict/list to JSONB
+            candidates_data = [
+                candidate.model_dump() for candidate in entity.better_candidates
+            ]
+
             await conn.execute(
                 """
                 INSERT INTO prompt_suggestions (
                     id, conversation_log_id, original_prompt, analysis,
-                    better_candidates, reasoning, created_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    better_candidates, reasoning, expected_effect, created_at
+                ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
                 """,
                 entity_id,
                 entity.conversation_log_id,
                 entity.original_prompt,
                 entity.analysis,
-                entity.better_candidates,
+                json.dumps(candidates_data),  # Convert to JSON string for JSONB
                 entity.reasoning,
+                entity.expected_effect,
                 now,
             )
 
@@ -617,7 +626,7 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
             row = await conn.fetchrow(
                 """
                 SELECT id, conversation_log_id, original_prompt, analysis,
-                       better_candidates, reasoning, created_at
+                       better_candidates, reasoning, expected_effect, created_at
                 FROM prompt_suggestions
                 WHERE id = $1
                 """,
@@ -627,15 +636,24 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
             if not row:
                 return None
 
+            # Convert JSONB to PromptCandidate list
+            candidates_data = (
+                json.loads(row["better_candidates"])
+                if isinstance(row["better_candidates"], str)
+                else row["better_candidates"]
+            )
+            candidates = [
+                PromptCandidate(**candidate) for candidate in candidates_data
+            ]
+
             return PromptSuggestion(
                 id=row["id"],
                 conversation_log_id=row["conversation_log_id"],
                 original_prompt=row["original_prompt"],
                 analysis=row["analysis"],
-                better_candidates=list(row["better_candidates"])
-                if row["better_candidates"]
-                else [],
+                better_candidates=candidates,
                 reasoning=row["reasoning"],
+                expected_effect=row.get("expected_effect"),
                 created_at=row["created_at"],
             )
 
@@ -645,7 +663,7 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
             rows = await conn.fetch(
                 """
                 SELECT id, conversation_log_id, original_prompt, analysis,
-                       better_candidates, reasoning, created_at
+                       better_candidates, reasoning, expected_effect, created_at
                 FROM prompt_suggestions
                 ORDER BY created_at DESC
                 LIMIT $1 OFFSET $2
@@ -654,20 +672,31 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
                 offset,
             )
 
-            return [
-                PromptSuggestion(
-                    id=row["id"],
-                    conversation_log_id=row["conversation_log_id"],
-                    original_prompt=row["original_prompt"],
-                    analysis=row["analysis"],
-                    better_candidates=list(row["better_candidates"])
-                    if row["better_candidates"]
-                    else [],
-                    reasoning=row["reasoning"],
-                    created_at=row["created_at"],
+            result = []
+            for row in rows:
+                # Convert JSONB to PromptCandidate list
+                candidates_data = (
+                    json.loads(row["better_candidates"])
+                    if isinstance(row["better_candidates"], str)
+                    else row["better_candidates"]
                 )
-                for row in rows
-            ]
+                candidates = [
+                    PromptCandidate(**candidate) for candidate in candidates_data
+                ]
+
+                result.append(
+                    PromptSuggestion(
+                        id=row["id"],
+                        conversation_log_id=row["conversation_log_id"],
+                        original_prompt=row["original_prompt"],
+                        analysis=row["analysis"],
+                        better_candidates=candidates,
+                        reasoning=row["reasoning"],
+                        expected_effect=row.get("expected_effect"),
+                        created_at=row["created_at"],
+                    )
+                )
+            return result
 
     async def get_by_conversation_log_id(
         self, conversation_log_id: UUID
@@ -677,7 +706,7 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
             row = await conn.fetchrow(
                 """
                 SELECT id, conversation_log_id, original_prompt, analysis,
-                       better_candidates, reasoning, created_at
+                       better_candidates, reasoning, expected_effect, created_at
                 FROM prompt_suggestions
                 WHERE conversation_log_id = $1
                 ORDER BY created_at DESC
@@ -689,15 +718,157 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
             if not row:
                 return None
 
+            # Convert JSONB to PromptCandidate list
+            candidates_data = (
+                json.loads(row["better_candidates"])
+                if isinstance(row["better_candidates"], str)
+                else row["better_candidates"]
+            )
+            candidates = [
+                PromptCandidate(**candidate) for candidate in candidates_data
+            ]
+
             return PromptSuggestion(
                 id=row["id"],
                 conversation_log_id=row["conversation_log_id"],
                 original_prompt=row["original_prompt"],
                 analysis=row["analysis"],
-                better_candidates=list(row["better_candidates"])
-                if row["better_candidates"]
-                else [],
+                better_candidates=candidates,
                 reasoning=row["reasoning"],
+                expected_effect=row.get("expected_effect"),
                 created_at=row["created_at"],
             )
+
+
+class ContentBlockRepository(BaseRepository[ContentBlock]):
+    """Repository for content blocks."""
+
+    async def create(self, entity: ContentBlock) -> ContentBlock:
+        """Create a new content block."""
+        async with get_db_connection() as conn:
+            entity_id = entity.id or uuid4()
+            now = datetime.utcnow()
+
+            await conn.execute(
+                """
+                INSERT INTO content_blocks (
+                    id, blog_post_id, block_order, text, prompt_suggestion_id, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                entity_id,
+                entity.blog_post_id,
+                entity.block_order,
+                entity.text,
+                entity.prompt_suggestion_id,
+                now,
+            )
+
+            entity.id = entity_id
+            entity.created_at = now
+
+            return entity
+
+    async def get_by_id(self, entity_id: UUID) -> Optional[ContentBlock]:
+        """Get content block by ID."""
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, blog_post_id, block_order, text, prompt_suggestion_id, created_at
+                FROM content_blocks
+                WHERE id = $1
+                """,
+                entity_id,
+            )
+
+            if not row:
+                return None
+
+            return ContentBlock(
+                id=row["id"],
+                blog_post_id=row["blog_post_id"],
+                block_order=row["block_order"],
+                text=row["text"],
+                prompt_suggestion_id=row["prompt_suggestion_id"],
+                created_at=row["created_at"],
+            )
+
+    async def list(self, limit: int = 100, offset: int = 0) -> List[ContentBlock]:
+        """List content blocks."""
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, blog_post_id, block_order, text, prompt_suggestion_id, created_at
+                FROM content_blocks
+                ORDER BY created_at DESC
+                LIMIT $1 OFFSET $2
+                """,
+                limit,
+                offset,
+            )
+
+            return [
+                ContentBlock(
+                    id=row["id"],
+                    blog_post_id=row["blog_post_id"],
+                    block_order=row["block_order"],
+                    text=row["text"],
+                    prompt_suggestion_id=row["prompt_suggestion_id"],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
+    async def get_by_blog_post_id(
+        self, blog_post_id: UUID
+    ) -> List[ContentBlock]:
+        """Get all content blocks for a blog post, ordered by block_order."""
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, blog_post_id, block_order, text, prompt_suggestion_id, created_at
+                FROM content_blocks
+                WHERE blog_post_id = $1
+                ORDER BY block_order ASC
+                """,
+                blog_post_id,
+            )
+
+            return [
+                ContentBlock(
+                    id=row["id"],
+                    blog_post_id=row["blog_post_id"],
+                    block_order=row["block_order"],
+                    text=row["text"],
+                    prompt_suggestion_id=row["prompt_suggestion_id"],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
+    async def get_by_prompt_suggestion_id(
+        self, prompt_suggestion_id: UUID
+    ) -> List[ContentBlock]:
+        """Get all content blocks associated with a prompt suggestion."""
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, blog_post_id, block_order, text, prompt_suggestion_id, created_at
+                FROM content_blocks
+                WHERE prompt_suggestion_id = $1
+                ORDER BY block_order ASC
+                """,
+                prompt_suggestion_id,
+            )
+
+            return [
+                ContentBlock(
+                    id=row["id"],
+                    blog_post_id=row["blog_post_id"],
+                    block_order=row["block_order"],
+                    text=row["text"],
+                    prompt_suggestion_id=row["prompt_suggestion_id"],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
 

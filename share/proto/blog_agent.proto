@@ -16,6 +16,9 @@ service BlogAgentService {
   // 取得生成的部落格文章
   rpc GetBlogPost(GetBlogPostRequest) returns (GetBlogPostResponse);
   
+  // 取得部落格文章（包含結構化的 content blocks 和 prompt meta，用於 UI/UX）
+  rpc GetBlogPostWithPrompts(GetBlogPostRequest) returns (GetBlogPostWithPromptsResponse);
+  
   // 列出所有部落格文章
   rpc ListBlogPosts(ListBlogPostsRequest) returns (ListBlogPostsResponse);
   
@@ -29,7 +32,6 @@ message ProcessConversationRequest {
   FileFormat file_format = 2;              // 檔案格式
   bytes file_content = 3;                  // 檔案內容（二進位）
   map<string, string> metadata = 4;        // 額外 metadata
-  bool force = 5;                          // 強制重新處理，即使檔案內容未變更 (FR-034)
 }
 
 // 處理對話紀錄回應
@@ -72,6 +74,12 @@ message GetBlogPostRequest {
 // 取得部落格文章回應
 message GetBlogPostResponse {
   BlogPost blog_post = 1;
+}
+
+// 取得部落格文章（包含 prompts）回應
+message GetBlogPostWithPromptsResponse {
+  BlogPost blog_post = 1;
+  repeated ContentBlock content_blocks = 2;  // 結構化的內容區塊
 }
 
 // 列出部落格文章請求
@@ -145,11 +153,35 @@ message BlogPost {
   string title = 3;
   string summary = 4;
   repeated string tags = 5;
-  string content = 6;                      // Markdown 格式
+  string content = 6;                      // Markdown 格式（保留用於向後兼容）
   map<string, string> metadata = 7;
   BlogPostStatus status = 8;
   string created_at = 9;                   // ISO 8601 timestamp
   string updated_at = 10;
+}
+
+// 內容區塊（用於 UI/UX Side-by-Side 顯示）
+message ContentBlock {
+  string id = 1;                           // UUID
+  string blog_post_id = 2;                 // 關聯的部落格文章 ID
+  int32 block_order = 3;                   // 在文章中的順序（從 0 開始）
+  string text = 4;                         // 文章內容（Markdown 格式）
+  PromptMeta prompt_meta = 5;             // 可選：對應的 Prompt 元資料（用於前端顯示）
+}
+
+// Prompt 元資料（用於前端 UI/UX 顯示）
+message PromptMeta {
+  string original_prompt = 1;              // 原始提問
+  string analysis = 2;                     // AI 診斷
+  repeated PromptCandidate better_candidates = 3;  // 優化建議候選
+  string expected_effect = 4;             // 預期效果說明
+}
+
+// Prompt 候選（結構化）
+message PromptCandidate {
+  string type = 1;                         // 'structured' | 'role-play' | 'chain-of-thought'
+  string prompt = 2;                       // 優化後的 Prompt
+  string reasoning = 3;                    // 為什麼這個版本更好
 }
 
 // 處理歷史
