@@ -198,13 +198,13 @@
 
 **Purpose**: Support retrieval and listing of processed content (FR-022)
 
-- [ ] T082 [P] Implement GetConversationLog gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T083 [P] Implement ListConversationLogs gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T084 [P] Implement GetBlogPost gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T085 [P] Implement ListBlogPosts gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T086 [P] Implement GetProcessingHistory gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T087 [P] Create CLI command for listing conversation logs in typescript-workspace/apps/cli/src/commands/list.ts
-- [ ] T088 [P] Create CLI command for retrieving blog posts in typescript-workspace/apps/cli/src/commands/retrieve.ts
+- [x] T082 [P] Implement GetConversationLog gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T083 [P] Implement ListConversationLogs gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T084 [P] Implement GetBlogPost gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T085 [P] Implement ListBlogPosts gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T086 [P] Implement GetProcessingHistory gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T087 [P] Create CLI command for listing conversation logs in typescript-workspace/apps/cli/src/commands/list.ts
+- [x] T088 [P] Create CLI command for retrieving blog posts in typescript-workspace/apps/cli/src/commands/retrieve.ts
 
 ### Web UI Implementation (Next.js)
 
