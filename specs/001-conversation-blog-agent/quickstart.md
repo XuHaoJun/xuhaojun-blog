@@ -73,12 +73,33 @@ uv run python -m blog_agent.storage.migrations init_db
 
 ## 使用方式
 
+### 準備對話紀錄檔案
+
+1. **建立對話紀錄目錄**（如果尚未存在）：
+```bash
+mkdir -p conversations
+```
+
+2. **檔案命名規則**：
+   - 格式：`YYYY-MM-DD_HH-MM-SS_Model_Provider.ext`
+   - 範例：`2025-12-07_15-30-59_Gemini_Google_Gemini.md`
+   - 說明：
+     - `YYYY-MM-DD_HH-MM-SS`：日期時間戳記（ISO 8601 格式，使用底線分隔）
+     - `Model`：AI 模型名稱（如 Gemini、GPT-4、Claude）
+     - `Provider`：服務提供者（如 Google_Gemini、OpenAI、Anthropic）
+     - `ext`：檔案副檔名（`.md`、`.json`、`.csv`、`.txt`）
+
+3. **將對話紀錄檔案放入 `conversations/` 目錄**
+
 ### CLI 基本使用
 
 ```bash
-# 處理對話紀錄
+# 處理對話紀錄（從 conversations/ 目錄）
 cd typescript-workspace/apps/cli
-pnpm start process --file-path /path/to/conversation.md --format markdown
+pnpm start process --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md --format markdown
+
+# 強制重新處理（即使檔案未更新）
+pnpm start process --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md --format markdown --force
 
 # 列出所有已處理的對話紀錄
 pnpm start list
@@ -86,6 +107,13 @@ pnpm start list
 # 取得生成的部落格文章
 pnpm start get-blog --id <blog-post-id>
 ```
+
+### 檔案更新處理邏輯
+
+- **自動更新檢測**：系統會自動檢測檔案內容是否變更（使用 SHA-256 hash）
+- **未更新時**：如果檔案內容未變更，系統會跳過處理並提示（除非使用 `--force`）
+- **已更新時**：如果檔案內容已變更，系統會自動重新處理並生成新的部落格文章
+- **強制處理**：使用 `--force` 參數可強制重新處理，即使檔案內容未變更
 
 ### 啟動 gRPC Server
 
@@ -98,14 +126,30 @@ uv run python -m blog_agent.main
 ### 範例：處理 Gemini 匯出的對話紀錄
 
 ```bash
-# 處理範例檔案
+# 1. 將對話紀錄檔案放入 conversations/ 目錄
+cp 2025-12-07_15-30-59_Gemini_Google_Gemini.md conversations/
+
+# 2. 處理對話紀錄
+cd typescript-workspace/apps/cli
 pnpm start process \
-  --file-path 2025-12-07_15-30-59_Gemini_Google_Gemini.md \
+  --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md \
   --format markdown
 
 # 輸出會顯示處理 ID 與生成的部落格文章 ID
 # Processing ID: abc123...
 # Blog Post ID: def456...
+
+# 3. 如果檔案未更新，再次處理會跳過（除非使用 --force）
+pnpm start process \
+  --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md \
+  --format markdown
+# 輸出：File unchanged, skipping processing. Use --force to regenerate.
+
+# 4. 強制重新處理
+pnpm start process \
+  --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md \
+  --format markdown \
+  --force
 ```
 
 ## 專案結構說明

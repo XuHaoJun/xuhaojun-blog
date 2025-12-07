@@ -20,6 +20,7 @@ CREATE TABLE conversation_logs (
     file_format TEXT NOT NULL CHECK (file_format IN ('markdown', 'json', 'csv', 'text')),
     raw_content TEXT NOT NULL,                   -- 原始檔案內容
     parsed_content JSONB NOT NULL,               -- 解析後的結構化內容
+    content_hash TEXT NOT NULL,                  -- 檔案內容 SHA-256 hash (用於更新檢測)
     metadata JSONB,                             -- 額外 metadata (timestamps, participants, etc.)
     language TEXT,                               -- 偵測到的語言
     message_count INTEGER,                       -- 訊息數量
@@ -29,6 +30,8 @@ CREATE TABLE conversation_logs (
 
 CREATE INDEX idx_conversation_logs_created_at ON conversation_logs (created_at DESC);
 CREATE INDEX idx_conversation_logs_language ON conversation_logs (language);
+CREATE INDEX idx_conversation_logs_content_hash ON conversation_logs (content_hash);
+CREATE UNIQUE INDEX idx_conversation_logs_file_path_hash ON conversation_logs (file_path, content_hash);
 ```
 
 ### blog_posts
@@ -165,6 +168,7 @@ class ConversationLog(BaseModel):
     file_format: str = Field(..., pattern="^(markdown|json|csv|text)$")
     raw_content: str
     parsed_content: Dict[str, Any]
+    content_hash: str  # SHA-256 hash of file content for change detection
     metadata: Optional[Dict[str, Any]] = None
     language: Optional[str] = None
     message_count: Optional[int] = None

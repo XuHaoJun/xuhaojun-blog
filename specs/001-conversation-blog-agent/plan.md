@@ -20,6 +20,9 @@
 **Storage**: 
 - PostgreSQL 18+ with pgvector extension
 - 檔案系統 (用於儲存對話紀錄與生成的部落格文章)
+  - `conversations/` 目錄：存放使用者原始對話紀錄檔案（markdown、JSON、CSV 等格式）
+  - 檔名格式：`YYYY-MM-DD_HH-MM-SS_Model_Provider.ext`（例如：`2025-12-07_15-30-59_Gemini_Google_Gemini.md`）
+  - 內容更新檢測：使用 SHA-256 hash 比對檔案內容，未更新時跳過處理（除非使用 `--force`）
 
 **Testing**: 
 - Python: pytest, pytest-asyncio, pytest-mock
@@ -194,6 +197,9 @@ share/
 └── proto/
     └── blog_agent.proto                # gRPC service definition (shared)
 
+conversations/                           # 使用者原始對話紀錄存放目錄
+└── YYYY-MM-DD_HH-MM-SS_Model_Provider.ext  # 檔名格式範例
+
 scripts/
 ├── generate-proto.sh                   # Generate Python & TS from .proto
 └── setup-dev.sh                        # Development environment setup
@@ -210,7 +216,23 @@ docker-compose.yaml                     # Local development stack
 - `python-workspace/` 使用 uv 管理 Python 專案，包含 gRPC server 與 LlamaIndex workflows
 - `typescript-workspace/` 使用 pnpm workspace，包含 CLI 應用與可選的 Web UI
 - `share/proto/` 存放共用的 Protocol Buffers 定義
+- `conversations/` 存放使用者原始對話紀錄檔案，檔名格式：`YYYY-MM-DD_HH-MM-SS_Model_Provider.ext`
 - 使用 gRPC 作為 Python 與 TypeScript 之間的通信協議，支援高效能與型別安全
+
+**File Management**:
+- 原始對話紀錄檔案存放在專案根目錄的 `conversations/` 資料夾
+- 檔名命名規則：`YYYY-MM-DD_HH-MM-SS_Model_Provider.ext`
+  - `YYYY-MM-DD_HH-MM-SS`：日期時間戳記（ISO 8601 格式，使用底線分隔）
+  - `Model`：AI 模型名稱（如 Gemini、GPT-4、Claude）
+  - `Provider`：服務提供者（如 Google_Gemini、OpenAI、Anthropic）
+  - `ext`：檔案副檔名（`.md`、`.json`、`.csv`、`.txt`）
+- 內容更新檢測機制：
+  - 使用 SHA-256 hash 計算檔案內容的雜湊值
+  - 將 hash 值儲存在資料庫的 `conversation_logs` 表中（新增 `content_hash` 欄位）
+  - 處理前比對檔案內容 hash 與資料庫中儲存的 hash
+  - 如果 hash 相同且未使用 `--force`，則跳過處理並提示檔案未更新
+  - 如果 hash 不同，則自動重新處理並更新 hash 值
+  - CLI 支援 `--force` 參數，強制重新處理即使檔案內容未變更
 
 ## Complexity Tracking
 

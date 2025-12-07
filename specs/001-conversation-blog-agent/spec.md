@@ -19,6 +19,9 @@
 - Q: How should the system handle malformed or incomplete conversation logs? → A: Auto-fix common format issues then continue processing
 - Q: How should the system handle conversation logs exceeding 1000 messages? → A: Segment processing with hierarchical summarization (each segment includes summary of previous segments and optionally trailing context from previous segment)
 - Q: How should the system handle conversations where user and system messages cannot be clearly distinguished? → A: Use heuristic rules to infer and mark uncertainty (continue processing but mark potential errors)
+- Q: Where should users place their original conversation log files (markdown and other formats)? → A: Users place files in a designated `conversations/` directory at the project root, with standardized naming convention
+- Q: What naming convention should be used for conversation log files? → A: Format: `YYYY-MM-DD_HH-MM-SS_Model_Provider.ext` (e.g., `2025-12-07_15-30-59_Gemini_Google_Gemini.md`)
+- Q: How should the system handle file updates and regeneration? → A: System detects file changes via content hash comparison. If file unchanged, skip processing unless `--force` flag is provided. If file updated, automatically regenerate blog post
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -32,9 +35,12 @@ A user has a conversation log from an AI interaction that contains valuable insi
 
 **Acceptance Scenarios**:
 
-1. **Given** a user has a conversation log file (JSON, CSV, or text format), **When** they submit it via CLI command for processing, **Then** the system generates a blog post in Markdown format with title, summary, tags, and content sections
-2. **Given** a conversation log with multiple exchanges, **When** the system processes it, **Then** the blog post extracts and organizes the key insights in a coherent narrative structure
-3. **Given** a conversation log with metadata (timestamps, participants), **When** the system processes it, **Then** relevant metadata is preserved and included in the blog post output
+1. **Given** a user has a conversation log file (JSON, CSV, or text format) in the `conversations/` directory with proper naming, **When** they submit it via CLI command for processing, **Then** the system generates a blog post in Markdown format with title, summary, tags, and content sections
+2. **Given** a conversation log file that has not changed since last processing, **When** the user submits it for processing without `--force`, **Then** the system skips processing and returns a message indicating the file is unchanged
+3. **Given** a conversation log file that has not changed, **When** the user submits it with `--force` flag, **Then** the system processes it regardless of change detection and regenerates the blog post
+4. **Given** a conversation log file that has been updated, **When** the user submits it for processing, **Then** the system automatically detects the change and regenerates the blog post
+5. **Given** a conversation log with multiple exchanges, **When** the system processes it, **Then** the blog post extracts and organizes the key insights in a coherent narrative structure
+6. **Given** a conversation log with metadata (timestamps, participants), **When** the system processes it, **Then** relevant metadata is preserved and included in the blog post output
 
 ---
 
@@ -146,6 +152,12 @@ A user wants the generated blog post to include structured metadata (title, tags
 - **FR-026**: System MUST automatically fix common format issues in malformed conversation logs (e.g., missing quotes, incomplete JSON structures) and continue processing
 - **FR-027**: System MUST handle conversation logs exceeding 1000 messages by segmenting them, with each segment including a hierarchical summary of previous segments and optionally trailing context for continuity
 - **FR-028**: System MUST use heuristic rules (e.g., message patterns, formatting cues) to infer user/system message roles when not clearly distinguishable, and MUST mark uncertain classifications with appropriate warnings
+- **FR-029**: System MUST store original conversation log files in a designated `conversations/` directory at the project root
+- **FR-030**: System MUST enforce file naming convention: `YYYY-MM-DD_HH-MM-SS_Model_Provider.ext` (e.g., `2025-12-07_15-30-59_Gemini_Google_Gemini.md`) where date/time, model name, and provider are extracted from metadata or inferred
+- **FR-031**: System MUST detect file changes by comparing content hash (SHA-256) of the file content
+- **FR-032**: System MUST skip processing if conversation log file content has not changed since last processing (same hash), unless `--force` flag is provided
+- **FR-033**: System MUST automatically regenerate blog post when conversation log file content changes (different hash)
+- **FR-034**: System MUST support `--force` CLI flag to force regeneration even when file content is unchanged
 
 ### Key Entities *(include if feature involves data)*
 
