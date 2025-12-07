@@ -199,10 +199,14 @@ class BlogService:
             extractor = ContentExtractor()
             editor = BlogEditor()
 
+            # Extract metadata from conversation log (FR-015: preserve timestamps, participants)
+            conversation_log_metadata = self._extract_conversation_metadata(conversation_log)
+            
             # Extract
             extract_start = ExtractStartEvent(
                 messages=messages,
                 conversation_log_id=str(conversation_log_id),
+                conversation_log_metadata=conversation_log_metadata,
             )
             extract_event = await extractor.extract(extract_start)
 
@@ -248,4 +252,57 @@ class BlogService:
                 message=str(e),
                 details={"processing_id": str(processing_id), "stack_trace": traceback.format_exc()},
             ) from e
+
+    def _extract_conversation_metadata(self, conversation_log: ConversationLog) -> dict:
+        """
+        Extract metadata from conversation log (timestamps, participants, etc.) (FR-015).
+        
+        Args:
+            conversation_log: The conversation log to extract metadata from
+            
+        Returns:
+            Dictionary containing extracted metadata
+        """
+        metadata = {}
+        
+        # Extract timestamps from messages
+        messages = conversation_log.parsed_content.get("messages", [])
+        timestamps = []
+        for msg_data in messages:
+            if isinstance(msg_data, dict) and "timestamp" in msg_data:
+                timestamp = msg_data["timestamp"]
+                if timestamp:
+                    timestamps.append(timestamp)
+        
+        if timestamps:
+            metadata["timestamps"] = {
+                "first": min(timestamps) if timestamps else None,
+                "last": max(timestamps) if timestamps else None,
+                "count": len(timestamps),
+            }
+        
+        # Extract participants (unique roles)
+        participants = set()
+        for msg_data in messages:
+            if isinstance(msg_data, dict) and "role" in msg_data:
+                role = msg_data["role"]
+                if role:
+                    participants.add(role)
+        
+        if participants:
+            metadata["participants"] = list(participants)
+        
+        # Include existing metadata from conversation log
+        if conversation_log.metadata:
+            metadata.update(conversation_log.metadata)
+        
+        # Add language if available
+        if conversation_log.language:
+            metadata["language"] = conversation_log.language
+        
+        # Add message count
+        if conversation_log.message_count:
+            metadata["message_count"] = conversation_log.message_count
+        
+        return metadata
 

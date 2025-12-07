@@ -115,13 +115,13 @@
 
 ### Implementation for User Story 5
 
-- [ ] T047 [US5] Enhance blog editor workflow step to generate structured metadata in python-workspace/apps/server/src/blog_agent/workflows/editor.py
-- [ ] T048 [US5] Implement metadata extraction from conversation logs in python-workspace/apps/server/src/blog_agent/workflows/editor.py (preserve timestamps, participants per FR-015)
-- [ ] T049 [US5] Add metadata validation in python-workspace/apps/server/src/blog_agent/storage/models.py (ensure title, summary, tags are present per FR-005)
-- [ ] T050 [US5] Update BlogPost model to include all metadata fields in python-workspace/apps/server/src/blog_agent/storage/models.py
-- [ ] T051 [US5] Create Markdown formatter with frontmatter support in python-workspace/apps/server/src/blog_agent/utils/markdown_formatter.py
-- [ ] T052 [US5] Update CLI output formatter in typescript-workspace/apps/cli/src/utils/formatter.ts to display structured metadata
-- [ ] T053 [US5] Add metadata export functionality in typescript-workspace/apps/cli/src/commands/process.ts
+- [x] T047 [US5] Enhance blog editor workflow step to generate structured metadata in python-workspace/apps/server/src/blog_agent/workflows/editor.py
+- [x] T048 [US5] Implement metadata extraction from conversation logs in python-workspace/apps/server/src/blog_agent/workflows/editor.py (preserve timestamps, participants per FR-015)
+- [x] T049 [US5] Add metadata validation in python-workspace/apps/server/src/blog_agent/storage/models.py (ensure title, summary, tags are present per FR-005)
+- [x] T050 [US5] Update BlogPost model to include all metadata fields in python-workspace/apps/server/src/blog_agent/storage/models.py
+- [x] T051 [US5] Create Markdown formatter with frontmatter support in python-workspace/apps/server/src/blog_agent/utils/markdown_formatter.py
+- [x] T052 [US5] Update CLI output formatter in typescript-workspace/apps/cli/src/utils/formatter.ts to display structured metadata
+- [x] T053 [US5] Add metadata export functionality in typescript-workspace/apps/cli/src/commands/process.ts
 
 **Checkpoint**: At this point, User Stories 1 AND 5 should both work independently - MVP is complete with structured blog post output
 

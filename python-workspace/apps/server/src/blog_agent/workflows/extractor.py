@@ -1,6 +1,6 @@
 """Content extraction workflow step."""
 
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from llama_index.core.workflow import Event, step
 
@@ -16,6 +16,7 @@ class ExtractEvent(Event):
 
     content_extract: ContentExtract
     conversation_log_id: str  # UUID as string for workflow
+    conversation_log_metadata: Optional[Dict[str, Any]] = None  # Metadata from conversation log (timestamps, participants, etc.) (FR-015)
     quality_warning: str = ""  # Optional warning for low-quality content
 
 
@@ -24,6 +25,7 @@ class ExtractStartEvent(Event):
 
     messages: List[Message]
     conversation_log_id: str  # UUID as string
+    conversation_log_metadata: Optional[Dict[str, Any]] = None  # Metadata from conversation log (timestamps, participants, etc.) (FR-015)
 
 
 class ContentExtractor:
@@ -54,6 +56,7 @@ class ContentExtractor:
                         filtered_content="",
                     ),
                     conversation_log_id=conversation_log_id,
+                    conversation_log_metadata=ev.conversation_log_metadata or {},
                     quality_warning="Low quality: minimal substantive content",
                 )
 
@@ -76,6 +79,7 @@ class ContentExtractor:
             return ExtractEvent(
                 content_extract=content_extract,
                 conversation_log_id=conversation_log_id,
+                conversation_log_metadata=ev.conversation_log_metadata or {},
             )
 
         except Exception as e:

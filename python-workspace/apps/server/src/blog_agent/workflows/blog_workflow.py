@@ -1,6 +1,6 @@
 """Blog workflow orchestrator using LlamaIndex Workflows."""
 
-from typing import List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from llama_index.core.workflow import StopEvent, Workflow, step
@@ -16,9 +16,10 @@ logger = get_logger(__name__)
 class BlogWorkflowStartEvent:
     """Start event for blog workflow."""
 
-    def __init__(self, messages: List[Message], conversation_log_id: str):
+    def __init__(self, messages: List[Message], conversation_log_id: str, conversation_log_metadata: Optional[Dict[str, Any]] = None):
         self.messages = messages
         self.conversation_log_id = conversation_log_id
+        self.conversation_log_metadata = conversation_log_metadata or {}
 
 
 class BlogWorkflowStopEvent(StopEvent):
@@ -43,6 +44,7 @@ class BlogWorkflow(Workflow):
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,
+            conversation_log_metadata=ev.conversation_log_metadata,
         )
         return await self.extractor.extract(extract_start)
 
@@ -66,12 +68,13 @@ class BlogWorkflow(Workflow):
         )
 
     async def run_workflow(
-        self, messages: List[Message], conversation_log_id: str
+        self, messages: List[Message], conversation_log_id: str, conversation_log_metadata: Optional[Dict[str, Any]] = None
     ) -> BlogWorkflowStopEvent:
         """Run the complete workflow."""
         start_event = BlogWorkflowStartEvent(
             messages=messages,
             conversation_log_id=conversation_log_id,
+            conversation_log_metadata=conversation_log_metadata or {},
         )
 
         result = await self.run(start_event)

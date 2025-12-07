@@ -36,9 +36,9 @@ class BlogPost(BaseModel):
 
     id: Optional[UUID] = None
     conversation_log_id: UUID
-    title: str
-    summary: str
-    tags: List[str] = Field(default_factory=list)
+    title: str = Field(..., min_length=1)  # Required, non-empty (FR-005)
+    summary: str = Field(..., min_length=1)  # Required, non-empty (FR-005)
+    tags: List[str] = Field(default_factory=list)  # Required but can be empty (FR-005)
     content: str  # Markdown format
     metadata: Optional[Dict[str, Any]] = None
     status: str = Field(default="draft", pattern="^(draft|published|archived)$")

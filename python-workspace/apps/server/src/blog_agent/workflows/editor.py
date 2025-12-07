@@ -1,7 +1,8 @@
 """Blog editor workflow step (simple version without review/extension)."""
 
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
 from llama_index.core.workflow import Event, step
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent
@@ -29,10 +30,11 @@ class BlogEditor:
 
     @step
     async def edit(self, ev: "ExtractEvent") -> EditEvent:  # type: ignore
-        """Generate blog post from extracted content."""
+        """Generate blog post from extracted content with structured metadata."""
         try:
             content_extract = ev.content_extract
             conversation_log_id = ev.conversation_log_id
+            conversation_log_metadata = ev.conversation_log_metadata or {}
 
             # Generate blog post using LLM
             blog_content = await self._generate_blog_content(content_extract)
@@ -42,12 +44,16 @@ class BlogEditor:
             summary = await self._generate_summary(content_extract)
             tags = content_extract.core_concepts[:5]  # Use core concepts as tags
 
+            # Build structured metadata from conversation log (FR-015: preserve timestamps, participants)
+            blog_metadata = self._build_blog_metadata(conversation_log_metadata, content_extract)
+
             blog_post = BlogPost(
                 conversation_log_id=conversation_log_id,
                 title=title,
                 summary=summary,
                 tags=tags,
                 content=blog_content,
+                metadata=blog_metadata,
                 status="draft",
             )
 
@@ -123,4 +129,39 @@ class BlogEditor:
 
         response = await self.llm_service.generate(prompt)
         return response.strip()[:500]  # Limit length
+
+    def _build_blog_metadata(self, conversation_log_metadata: Optional[Dict[str, Any]], content_extract: ContentExtract) -> Dict[str, Any]:
+        """
+        Build structured metadata for blog post from conversation log metadata (FR-015).
+        
+        Args:
+            conversation_log_metadata: Metadata extracted from conversation log
+            content_extract: Content extract with key insights and concepts
+            
+        Returns:
+            Dictionary containing structured blog metadata
+        """
+        metadata = {}
+        
+        # Preserve timestamps from conversation log (FR-015)
+        if "timestamps" in conversation_log_metadata:
+            metadata["conversation_timestamps"] = conversation_log_metadata["timestamps"]
+        
+        # Preserve participants from conversation log (FR-015)
+        if "participants" in conversation_log_metadata:
+            metadata["conversation_participants"] = conversation_log_metadata["participants"]
+        
+        # Add language if available
+        if "language" in conversation_log_metadata:
+            metadata["language"] = conversation_log_metadata["language"]
+        
+        # Add message count if available
+        if "message_count" in conversation_log_metadata:
+            metadata["message_count"] = conversation_log_metadata["message_count"]
+        
+        # Add key insights and core concepts for reference
+        metadata["key_insights"] = content_extract.key_insights
+        metadata["core_concepts"] = content_extract.core_concepts
+        
+        return metadata
 
