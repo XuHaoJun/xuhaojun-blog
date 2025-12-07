@@ -271,16 +271,16 @@
 
 ### Phase 11.3: Mobile 適配 (P2)
 
-- [ ] T124 [P2] Implement Accordion mode for mobile in typescript-workspace/apps/web/components/prompt-accordion.tsx
-- [ ] T125 [P2] Add responsive breakpoints (Desktop ≥1024px, Tablet 768-1023px, Mobile <768px) in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T126 [P2] Optimize touch interactions for mobile devices
+- [x] T124 [P2] Implement Accordion mode for mobile in typescript-workspace/apps/web/components/prompt-accordion.tsx
+- [x] T125 [P2] Add responsive breakpoints (Desktop ≥1024px, Tablet 768-1023px, Mobile <768px) in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [x] T126 [P2] Optimize touch interactions for mobile devices
 
 ### Phase 11.4: 進階功能 (P3)
 
-- [ ] T127 [P3] Implement Diff Highlighter to show differences between original and optimized prompts in typescript-workspace/apps/web/components/diff-highlighter.tsx
-- [ ] T128 [P3] Implement Run Simulation modal (requires backend API support) in typescript-workspace/apps/web/components/simulation-modal.tsx
-- [ ] T129 [P3] Add dark mode support with proper color system in typescript-workspace/apps/web/
-- [ ] T130 [P3] Add smooth animations and transitions for card switching and accordion expansion
+- [x] T127 [P3] Implement Diff Highlighter to show differences between original and optimized prompts in typescript-workspace/apps/web/components/diff-highlighter.tsx
+- [x] T128 [P3] Implement Run Simulation modal (requires backend API support) in typescript-workspace/apps/web/components/simulation-modal.tsx
+- [x] T129 [P3] Add dark mode support with proper color system in typescript-workspace/apps/web/
+- [x] T130 [P3] Add smooth animations and transitions for card switching and accordion expansion
 
 ---
 

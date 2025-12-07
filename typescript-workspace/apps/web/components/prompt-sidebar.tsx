@@ -43,14 +43,17 @@ export function PromptSidebar({
     <aside
       className={cn(
         "hidden lg:block w-full lg:w-[30%] lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto",
+        "transition-opacity duration-300",
         className
       )}
     >
-      <div className="space-y-4">
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           💡 Prompt 診斷室
         </h2>
-        <PromptCard promptMeta={activePromptMeta} />
+        <div className="transition-all duration-300">
+          <PromptCard promptMeta={activePromptMeta} />
+        </div>
       </div>
     </aside>
   );

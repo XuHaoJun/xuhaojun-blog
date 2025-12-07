@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { PromptMeta, PromptCandidate } from "@blog-agent/proto-gen";
 import { cn } from "@/lib/utils";
+import { DiffHighlighter } from "./diff-highlighter";
+import { SimulationModal } from "./simulation-modal";
 
 interface PromptCardProps {
   promptMeta: PromptMeta;
@@ -11,6 +13,7 @@ interface PromptCardProps {
 
 export function PromptCard({ promptMeta, className }: PromptCardProps) {
   const [activeTab, setActiveTab] = useState(0);
+  const [isSimulationOpen, setIsSimulationOpen] = useState(false);
   const candidates = promptMeta.betterCandidates || [];
 
   const copyToClipboard = async (text: string) => {
@@ -91,9 +94,10 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
           {candidates[activeTab] && (
             <div className="space-y-3">
               <div className="bg-white dark:bg-gray-900 rounded p-3 border border-green-200 dark:border-green-800">
-                <p className="text-sm text-gray-800 dark:text-gray-200 font-mono leading-relaxed whitespace-pre-wrap">
-                  {candidates[activeTab].prompt}
-                </p>
+                <DiffHighlighter
+                  original={promptMeta.originalPrompt}
+                  optimized={candidates[activeTab].prompt}
+                />
               </div>
 
               {candidates[activeTab].reasoning && (
@@ -102,16 +106,33 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
                 </p>
               )}
 
-              {/* Copy Button */}
-              <button
-                onClick={() => copyToClipboard(candidates[activeTab].prompt)}
-                className="w-full px-3 py-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded transition-colors"
-              >
-                📋 複製此 Prompt
-              </button>
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => copyToClipboard(candidates[activeTab].prompt)}
+                  className="flex-1 px-3 py-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded transition-colors"
+                >
+                  📋 複製此 Prompt
+                </button>
+                <button
+                  onClick={() => setIsSimulationOpen(true)}
+                  className="flex-1 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded transition-colors"
+                >
+                  🚀 模擬運行
+                </button>
+              </div>
             </div>
           )}
         </div>
+      )}
+
+      {/* Simulation Modal */}
+      {candidates[activeTab] && (
+        <SimulationModal
+          prompt={candidates[activeTab].prompt}
+          isOpen={isSimulationOpen}
+          onClose={() => setIsSimulationOpen(false)}
+        />
       )}
 
       {/* 4. 🚀 預期效果 (Why it works) */}

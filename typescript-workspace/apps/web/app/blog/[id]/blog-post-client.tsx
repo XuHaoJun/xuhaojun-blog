@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { BlogPost, ContentBlock } from "@blog-agent/proto-gen";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { PromptSidebar } from "@/components/prompt-sidebar";
+import { PromptAccordion } from "@/components/prompt-accordion";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 
 interface BlogPostClientProps {
@@ -20,7 +21,7 @@ export function BlogPostClient({
     .filter((block) => block.promptMeta)
     .map((block) => block.id);
 
-  // Use Intersection Observer to track active block
+  // Use Intersection Observer to track active block (desktop only)
   const activeBlockId = useIntersectionObserver(blockIds, {
     enabled: blockIds.length > 0,
   });
@@ -32,7 +33,7 @@ export function BlogPostClient({
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      {/* Left Column - Article Content (70% on desktop) */}
+      {/* Left Column - Article Content (70% on desktop, 100% on mobile) */}
       <article className="flex-1 lg:w-[70%]">
         <div className="prose prose-lg dark:prose-invert max-w-none">
           <MarkdownRenderer
@@ -43,6 +44,13 @@ export function BlogPostClient({
             onBlockLeave={() => setHoveredBlockId(undefined)}
           />
         </div>
+
+        {/* Mobile Accordion - Shows below content on mobile */}
+        {blockIds.length > 0 && (
+          <div className="mt-8 lg:hidden">
+            <PromptAccordion contentBlocks={contentBlocks} />
+          </div>
+        )}
       </article>
 
       {/* Right Column - Prompt Sidebar (30% on desktop, hidden on mobile) */}
