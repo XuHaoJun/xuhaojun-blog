@@ -92,6 +92,7 @@ specs/001-conversation-blog-agent/
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
 ├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── uiux.md              # UI/UX design specification (Side-by-Side layout)
 ├── contracts/           # Phase 1 output (/speckit.plan command)
 │   ├── blog_agent.proto # gRPC service definition
 │   └── openapi.yaml     # Optional REST API docs

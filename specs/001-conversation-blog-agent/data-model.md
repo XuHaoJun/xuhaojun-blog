@@ -123,12 +123,51 @@ CREATE TABLE prompt_suggestions (
     conversation_log_id UUID NOT NULL REFERENCES conversation_logs(id) ON DELETE CASCADE,
     original_prompt TEXT NOT NULL,
     analysis TEXT NOT NULL,
-    better_candidates TEXT[] NOT NULL DEFAULT '{}',  -- 至少 3 個候選
+    better_candidates JSONB NOT NULL DEFAULT '[]',  -- 結構化的候選列表，至少 3 個
     reasoning TEXT NOT NULL,
+    expected_effect TEXT,                          -- 預期效果說明（新增，支援 UI/UX）
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- better_candidates JSONB 結構範例：
+-- [
+--   {
+--     "type": "structured",
+--     "prompt": "...",
+--     "reasoning": "..."
+--   },
+--   {
+--     "type": "role-play",
+--     "prompt": "...",
+--     "reasoning": "..."
+--   },
+--   {
+--     "type": "chain-of-thought",
+--     "prompt": "...",
+--     "reasoning": "..."
+--   }
+-- ]
+
 CREATE INDEX idx_prompt_suggestions_conversation_log_id ON prompt_suggestions (conversation_log_id);
+```
+
+### content_blocks
+
+儲存部落格文章的結構化內容區塊，支援 Side-by-Side UI/UX 設計。
+
+```sql
+CREATE TABLE content_blocks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    blog_post_id UUID NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
+    block_order INTEGER NOT NULL,                  -- 在文章中的順序（從 0 開始）
+    text TEXT NOT NULL,                            -- 文章內容（Markdown 格式）
+    prompt_suggestion_id UUID REFERENCES prompt_suggestions(id) ON DELETE SET NULL,  -- 可選：關聯的 prompt 建議
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_content_blocks_blog_post_id ON content_blocks (blog_post_id);
+CREATE INDEX idx_content_blocks_blog_post_order ON content_blocks (blog_post_id, block_order);
+CREATE INDEX idx_content_blocks_prompt_suggestion_id ON content_blocks (prompt_suggestion_id);
 ```
 
 ### embeddings
@@ -190,11 +229,23 @@ class BlogPost(BaseModel):
     title: str
     summary: str
     tags: List[str] = Field(default_factory=list)
-    content: str  # Markdown format
+    content: str  # Markdown format（保留用於向後兼容）
     metadata: Optional[Dict[str, Any]] = None
     status: str = Field(default="draft", pattern="^(draft|published|archived)$")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+```
+
+### ContentBlock
+
+```python
+class ContentBlock(BaseModel):
+    id: Optional[UUID] = None
+    blog_post_id: UUID
+    block_order: int
+    text: str  # Markdown 格式的文章內容
+    prompt_suggestion_id: Optional[UUID] = None  # 可選：關聯的 prompt 建議
+    created_at: Optional[datetime] = None
 ```
 
 ### ProcessingHistory
@@ -236,6 +287,15 @@ class ReviewFindings(BaseModel):
     created_at: Optional[datetime] = None
 ```
 
+### PromptCandidate
+
+```python
+class PromptCandidate(BaseModel):
+    type: Literal['structured', 'role-play', 'chain-of-thought']
+    prompt: str
+    reasoning: str
+```
+
 ### PromptSuggestion
 
 ```python
@@ -244,9 +304,21 @@ class PromptSuggestion(BaseModel):
     conversation_log_id: UUID
     original_prompt: str
     analysis: str
-    better_candidates: List[str] = Field(..., min_items=3)  # At least 3 candidates (FR-012)
-    reasoning: str
+    better_candidates: List[PromptCandidate] = Field(..., min_items=3)  # 至少 3 個結構化候選 (FR-012)
+    reasoning: str  # 整體推理說明（保留用於向後兼容）
+    expected_effect: Optional[str] = None  # 預期效果說明（新增，支援 UI/UX）
     created_at: Optional[datetime] = None
+```
+
+### PromptMeta (UI/UX 專用，用於前端顯示)
+
+```python
+class PromptMeta(BaseModel):
+    """用於前端顯示的 Prompt 元資料，組合自 PromptSuggestion"""
+    original_prompt: str
+    analysis: str
+    better_candidates: List[PromptCandidate]
+    expected_effect: Optional[str] = None
 ```
 
 ## gRPC Message Types
@@ -262,15 +334,19 @@ conversation_logs (1) ──→ (N) content_extracts
 conversation_logs (1) ──→ (N) prompt_suggestions
 content_extracts (1) ──→ (1) review_findings
 processing_history (N) ──→ (1) blog_posts
+blog_posts (1) ──→ (N) content_blocks
+content_blocks (N) ──→ (0..1) prompt_suggestions  -- 可選關聯
 embeddings (N) ──→ (1) entity (polymorphic)
 ```
 
 ## Validation Rules
 
-1. **FR-012**: `prompt_suggestions.better_candidates` 必須至少包含 3 個元素
+1. **FR-012**: `prompt_suggestions.better_candidates` 必須至少包含 3 個元素，且每個元素必須包含 `type`, `prompt`, `reasoning` 欄位
 2. **FR-017**: `conversation_logs.language` 必須是單一語言（系統自動偵測）
-3. **FR-004**: `blog_posts.content` 必須是有效的 Markdown 格式
+3. **FR-004**: `blog_posts.content` 必須是有效的 Markdown 格式（保留用於向後兼容）
 4. **FR-005**: `blog_posts` 必須包含 `title`, `summary`, `tags` 欄位
+5. **UI/UX**: `content_blocks.block_order` 必須在每個 `blog_post_id` 範圍內唯一且連續（從 0 開始）
+6. **UI/UX**: `content_blocks.prompt_suggestion_id` 為可選，但若存在則必須指向有效的 `prompt_suggestions.id`
 
 ## State Transitions
 
@@ -293,4 +369,6 @@ draft → published → archived
 - `conversation_logs.created_at`: 支援按時間排序查詢
 - `blog_posts.status`: 支援篩選已發布/草稿文章
 - `embeddings.embedding`: 向量相似度搜尋（ivfflat index）
+- `content_blocks.blog_post_id, block_order`: 支援按順序查詢文章區塊（用於 UI/UX Side-by-Side 顯示）
+- `content_blocks.prompt_suggestion_id`: 支援查詢關聯的 prompt 建議
 
