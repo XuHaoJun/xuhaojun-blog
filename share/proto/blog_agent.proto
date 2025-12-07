@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package blog_agent.v1;
+
+// Blog Agent Service - 處理對話紀錄轉換為部落格文章
+service BlogAgentService {
+  // 處理對話紀錄並生成部落格文章
+  rpc ProcessConversation(ProcessConversationRequest) returns (ProcessConversationResponse);
+  
+  // 列出所有已處理的對話紀錄
+  rpc ListConversationLogs(ListConversationLogsRequest) returns (ListConversationLogsResponse);
+  
+  // 取得特定的對話紀錄
+  rpc GetConversationLog(GetConversationLogRequest) returns (GetConversationLogResponse);
+  
+  // 取得生成的部落格文章
+  rpc GetBlogPost(GetBlogPostRequest) returns (GetBlogPostResponse);
+  
+  // 列出所有部落格文章
+  rpc ListBlogPosts(ListBlogPostsRequest) returns (ListBlogPostsResponse);
+  
+  // 取得處理歷史
+  rpc GetProcessingHistory(GetProcessingHistoryRequest) returns (GetProcessingHistoryResponse);
+}
+
+// 處理對話紀錄請求
+message ProcessConversationRequest {
+  string file_path = 1;                    // 檔案路徑
+  FileFormat file_format = 2;              // 檔案格式
+  bytes file_content = 3;                  // 檔案內容（二進位）
+  map<string, string> metadata = 4;        // 額外 metadata
+}
+
+// 處理對話紀錄回應
+message ProcessConversationResponse {
+  string processing_id = 1;                // 處理 ID (UUID)
+  ProcessingStatus status = 2;             // 處理狀態
+  string error_message = 3;                 // 錯誤訊息（如果失敗）
+  BlogPost blog_post = 4;                   // 生成的部落格文章（如果成功）
+}
+
+// 列出對話紀錄請求
+message ListConversationLogsRequest {
+  int32 page_size = 1;                     // 每頁數量
+  string page_token = 2;                   // 分頁 token
+  string language_filter = 3;              // 語言篩選（可選）
+}
+
+// 列出對話紀錄回應
+message ListConversationLogsResponse {
+  repeated ConversationLog conversation_logs = 1;
+  string next_page_token = 2;              // 下一頁 token
+  int32 total_count = 3;                   // 總數
+}
+
+// 取得對話紀錄請求
+message GetConversationLogRequest {
+  string conversation_log_id = 1;         // 對話紀錄 ID (UUID)
+}
+
+// 取得對話紀錄回應
+message GetConversationLogResponse {
+  ConversationLog conversation_log = 1;
+}
+
+// 取得部落格文章請求
+message GetBlogPostRequest {
+  string blog_post_id = 1;                 // 部落格文章 ID (UUID)
+}
+
+// 取得部落格文章回應
+message GetBlogPostResponse {
+  BlogPost blog_post = 1;
+}
+
+// 列出部落格文章請求
+message ListBlogPostsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  BlogPostStatus status_filter = 3;        // 狀態篩選（可選）
+}
+
+// 列出部落格文章回應
+message ListBlogPostsResponse {
+  repeated BlogPost blog_posts = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// 取得處理歷史請求
+message GetProcessingHistoryRequest {
+  string processing_id = 1;                // 處理 ID (UUID)
+}
+
+// 取得處理歷史回應
+message GetProcessingHistoryResponse {
+  ProcessingHistory processing_history = 1;
+}
+
+// 檔案格式
+enum FileFormat {
+  FILE_FORMAT_UNSPECIFIED = 0;
+  FILE_FORMAT_MARKDOWN = 1;
+  FILE_FORMAT_JSON = 2;
+  FILE_FORMAT_CSV = 3;
+  FILE_FORMAT_TEXT = 4;
+}
+
+// 處理狀態
+enum ProcessingStatus {
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  PROCESSING_STATUS_PENDING = 1;
+  PROCESSING_STATUS_PROCESSING = 2;
+  PROCESSING_STATUS_COMPLETED = 3;
+  PROCESSING_STATUS_FAILED = 4;
+}
+
+// 部落格文章狀態
+enum BlogPostStatus {
+  BLOG_POST_STATUS_UNSPECIFIED = 0;
+  BLOG_POST_STATUS_DRAFT = 1;
+  BLOG_POST_STATUS_PUBLISHED = 2;
+  BLOG_POST_STATUS_ARCHIVED = 3;
+}
+
+// 對話紀錄
+message ConversationLog {
+  string id = 1;                           // UUID
+  string file_path = 2;
+  FileFormat file_format = 3;
+  string raw_content = 4;                  // 原始內容（文字）
+  string parsed_content_json = 5;          // 解析後的 JSON 字串
+  map<string, string> metadata = 6;
+  string language = 7;                     // 偵測到的語言
+  int32 message_count = 8;                 // 訊息數量
+  string created_at = 9;                   // ISO 8601 timestamp
+  string updated_at = 10;
+}
+
+// 部落格文章
+message BlogPost {
+  string id = 1;                           // UUID
+  string conversation_log_id = 2;          // 關聯的對話紀錄 ID
+  string title = 3;
+  string summary = 4;
+  repeated string tags = 5;
+  string content = 6;                      // Markdown 格式
+  map<string, string> metadata = 7;
+  BlogPostStatus status = 8;
+  string created_at = 9;                   // ISO 8601 timestamp
+  string updated_at = 10;
+}
+
+// 處理歷史
+message ProcessingHistory {
+  string id = 1;                           // UUID
+  string conversation_log_id = 2;
+  string blog_post_id = 3;                 // 可選，如果處理成功
+  ProcessingStatus status = 4;
+  string error_message = 5;                // 如果失敗，錯誤訊息
+  string processing_steps_json = 6;        // 各步驟的 JSON 字串
+  string started_at = 7;                   // ISO 8601 timestamp
+  string completed_at = 8;                 // ISO 8601 timestamp（可選）
+  string created_at = 9;
+}
+

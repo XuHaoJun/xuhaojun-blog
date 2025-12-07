@@ -24,19 +24,19 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project root structure (python-workspace/, typescript-workspace/, share/, scripts/, docker/)
-- [ ] T002 [P] Initialize Python workspace with uv in python-workspace/pyproject.toml
-- [ ] T003 [P] Initialize TypeScript workspace with pnpm in typescript-workspace/package.json and pnpm-workspace.yaml
-- [ ] T004 [P] Create share/proto/ directory and copy blog_agent.proto from contracts/
-- [ ] T005 [P] Create scripts/generate-proto.sh for generating Python and TypeScript code from .proto
-- [ ] T006 [P] Create scripts/setup-dev.sh for development environment setup
-- [ ] T007 [P] Create docker/postgresql.Dockerfile with pgvector extension
-- [ ] T008 [P] Create docker/server.Dockerfile for Python gRPC server
-- [ ] T009 Create docker-compose.yaml for local development stack
-- [ ] T010 [P] Configure Python linting (ruff) and formatting (black) in python-workspace/apps/server/pyproject.toml
-- [ ] T011 [P] Configure TypeScript linting (ESLint) and formatting (Prettier) in typescript-workspace/
-- [ ] T012 [P] Setup shared TypeScript config packages in typescript-workspace/packages/typescript-config/
-- [ ] T013 [P] Setup shared ESLint config in typescript-workspace/packages/eslint-config/
+- [x] T001 Create project root structure (python-workspace/, typescript-workspace/, share/, scripts/, docker/)
+- [x] T002 [P] Initialize Python workspace with uv in python-workspace/pyproject.toml
+- [x] T003 [P] Initialize TypeScript workspace with pnpm in typescript-workspace/package.json and pnpm-workspace.yaml
+- [x] T004 [P] Create share/proto/ directory and copy blog_agent.proto from contracts/
+- [x] T005 [P] Create scripts/generate-proto.sh for generating Python and TypeScript code from .proto
+- [x] T006 [P] Create scripts/setup-dev.sh for development environment setup
+- [x] T007 [P] Create docker/postgresql.Dockerfile with pgvector extension
+- [x] T008 [P] Create docker/server.Dockerfile for Python gRPC server
+- [x] T009 Create docker-compose.yaml for local development stack
+- [x] T010 [P] Configure Python linting (ruff) and formatting (black) in python-workspace/apps/server/pyproject.toml
+- [x] T011 [P] Configure TypeScript linting (ESLint) and formatting (Prettier) in typescript-workspace/
+- [x] T012 [P] Setup shared TypeScript config packages in typescript-workspace/packages/typescript-config/
+- [x] T013 [P] Setup shared ESLint config in typescript-workspace/packages/eslint-config/
 
 ---
 
@@ -46,19 +46,19 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T014 Setup PostgreSQL database schema and migrations in python-workspace/apps/server/src/blog_agent/storage/migrations/
-- [ ] T015 [P] Create database connection utility in python-workspace/apps/server/src/blog_agent/storage/db.py
-- [ ] T016 [P] Implement base Pydantic models in python-workspace/apps/server/src/blog_agent/storage/models.py (ConversationLog, BlogPost, ProcessingHistory, ContentExtract, ReviewFindings, PromptSuggestion)
-- [ ] T017 [P] Create repository pattern base class in python-workspace/apps/server/src/blog_agent/storage/repository.py
-- [ ] T018 [P] Setup structured logging (structlog) in python-workspace/apps/server/src/blog_agent/utils/logging.py
-- [ ] T019 [P] Setup error handling infrastructure in python-workspace/apps/server/src/blog_agent/utils/errors.py
-- [ ] T020 [P] Create environment configuration management in python-workspace/apps/server/src/blog_agent/config.py
-- [ ] T021 [P] Generate gRPC Python code from share/proto/blog_agent.proto to python-workspace/apps/server/src/blog_agent/proto/
-- [ ] T022 [P] Generate gRPC TypeScript code from share/proto/blog_agent.proto to typescript-workspace/apps/proto-gen/src/
-- [ ] T023 [P] Create shared gRPC client package in typescript-workspace/packages/rpc-client/src/index.ts
-- [ ] T024 [P] Setup LLM service abstraction in python-workspace/apps/server/src/blog_agent/services/llm_service.py
-- [ ] T025 [P] Setup PostgreSQL + pgvector integration in python-workspace/apps/server/src/blog_agent/services/vector_store.py
-- [ ] T026 Create gRPC server skeleton in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T014 Setup PostgreSQL database schema and migrations in python-workspace/apps/server/src/blog_agent/storage/migrations/
+- [x] T015 [P] Create database connection utility in python-workspace/apps/server/src/blog_agent/storage/db.py
+- [x] T016 [P] Implement base Pydantic models in python-workspace/apps/server/src/blog_agent/storage/models.py (ConversationLog, BlogPost, ProcessingHistory, ContentExtract, ReviewFindings, PromptSuggestion)
+- [x] T017 [P] Create repository pattern base class in python-workspace/apps/server/src/blog_agent/storage/repository.py
+- [x] T018 [P] Setup structured logging (structlog) in python-workspace/apps/server/src/blog_agent/utils/logging.py
+- [x] T019 [P] Setup error handling infrastructure in python-workspace/apps/server/src/blog_agent/utils/errors.py
+- [x] T020 [P] Create environment configuration management in python-workspace/apps/server/src/blog_agent/config.py
+- [x] T021 [P] Generate gRPC Python code from share/proto/blog_agent.proto to python-workspace/apps/server/src/blog_agent/proto/ (script ready, requires grpc_tools)
+- [x] T022 [P] Generate gRPC TypeScript code from share/proto/blog_agent.proto to typescript-workspace/apps/proto-gen/src/ (script ready, requires buf or protoc-gen-es)
+- [x] T023 [P] Create shared gRPC client package in typescript-workspace/packages/rpc-client/src/index.ts
+- [x] T024 [P] Setup LLM service abstraction in python-workspace/apps/server/src/blog_agent/services/llm_service.py
+- [x] T025 [P] Setup PostgreSQL + pgvector integration in python-workspace/apps/server/src/blog_agent/services/vector_store.py
+- [x] T026 Create gRPC server skeleton in python-workspace/apps/server/src/blog_agent/main.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -72,26 +72,26 @@
 
 ### Implementation for User Story 1
 
-- [ ] T027 [P] [US1] Create Markdown parser in python-workspace/apps/server/src/blog_agent/parsers/markdown_parser.py
-- [ ] T028 [P] [US1] Create JSON parser in python-workspace/apps/server/src/blog_agent/parsers/json_parser.py
-- [ ] T029 [P] [US1] Create CSV parser in python-workspace/apps/server/src/blog_agent/parsers/csv_parser.py
-- [ ] T030 [US1] Create parser factory in python-workspace/apps/server/src/blog_agent/parsers/__init__.py to auto-detect format
-- [ ] T031 [US1] Implement language detection utility in python-workspace/apps/server/src/blog_agent/utils/language_detector.py
-- [ ] T032 [US1] Implement message role inference with heuristics in python-workspace/apps/server/src/blog_agent/parsers/role_inference.py (FR-028)
-- [ ] T033 [US1] Create content extractor workflow step in python-workspace/apps/server/src/blog_agent/workflows/extractor.py
-- [ ] T034 [US1] Create basic blog editor workflow step in python-workspace/apps/server/src/blog_agent/workflows/editor.py (simple version without review/extension)
-- [ ] T035 [US1] Create blog workflow orchestrator in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py (extractor → editor)
-- [ ] T036 [US1] Implement ConversationLog repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (create, get, list)
-- [ ] T037 [US1] Implement BlogPost repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (create, get, list)
-- [ ] T038 [US1] Implement ProcessingHistory repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (create, update, get)
-- [ ] T039 [US1] Implement ProcessConversation gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
-- [ ] T040 [US1] Implement error handling with full technical details in python-workspace/apps/server/src/blog_agent/main.py (FR-024)
-- [ ] T041 [US1] Create CLI command for processing conversation logs in typescript-workspace/apps/cli/src/commands/process.ts
-- [ ] T042 [US1] Create file reader utility in typescript-workspace/apps/cli/src/utils/file-reader.ts
-- [ ] T043 [US1] Create gRPC client wrapper in typescript-workspace/apps/cli/src/client/grpc-client.ts
-- [ ] T044 [US1] Implement CLI entry point in typescript-workspace/apps/cli/src/index.ts
-- [ ] T045 [US1] Add handling for malformed logs with auto-fix in python-workspace/apps/server/src/blog_agent/parsers/ (FR-026)
-- [ ] T046 [US1] Add handling for empty/non-substantive content with low-quality marking in python-workspace/apps/server/src/blog_agent/workflows/extractor.py (FR-025)
+- [x] T027 [P] [US1] Create Markdown parser in python-workspace/apps/server/src/blog_agent/parsers/markdown_parser.py
+- [x] T028 [P] [US1] Create JSON parser in python-workspace/apps/server/src/blog_agent/parsers/json_parser.py
+- [x] T029 [P] [US1] Create CSV parser in python-workspace/apps/server/src/blog_agent/parsers/csv_parser.py
+- [x] T030 [US1] Create parser factory in python-workspace/apps/server/src/blog_agent/parsers/__init__.py to auto-detect format
+- [x] T031 [US1] Implement language detection utility in python-workspace/apps/server/src/blog_agent/utils/language_detector.py
+- [x] T032 [US1] Implement message role inference with heuristics in python-workspace/apps/server/src/blog_agent/parsers/role_inference.py (FR-028)
+- [x] T033 [US1] Create content extractor workflow step in python-workspace/apps/server/src/blog_agent/workflows/extractor.py
+- [x] T034 [US1] Create basic blog editor workflow step in python-workspace/apps/server/src/blog_agent/workflows/editor.py (simple version without review/extension)
+- [x] T035 [US1] Create blog workflow orchestrator in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py (extractor → editor)
+- [x] T036 [US1] Implement ConversationLog repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (create, get, list)
+- [x] T037 [US1] Implement BlogPost repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (create, get, list)
+- [x] T038 [US1] Implement ProcessingHistory repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (create, update, get)
+- [x] T039 [US1] Implement ProcessConversation gRPC handler in python-workspace/apps/server/src/blog_agent/main.py
+- [x] T040 [US1] Implement error handling with full technical details in python-workspace/apps/server/src/blog_agent/main.py (FR-024)
+- [x] T041 [US1] Create CLI command for processing conversation logs in typescript-workspace/apps/cli/src/commands/process.ts
+- [x] T042 [US1] Create file reader utility in typescript-workspace/apps/cli/src/utils/file-reader.ts
+- [x] T043 [US1] Create gRPC client wrapper in typescript-workspace/apps/cli/src/client/grpc-client.ts
+- [x] T044 [US1] Implement CLI entry point in typescript-workspace/apps/cli/src/index.ts
+- [x] T045 [US1] Add handling for malformed logs with auto-fix in python-workspace/apps/server/src/blog_agent/parsers/json_parser.py (FR-026)
+- [x] T046 [US1] Add handling for empty/non-substantive content with low-quality marking in python-workspace/apps/server/src/blog_agent/workflows/extractor.py (FR-025)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently - users can submit conversation logs and receive basic blog posts
 

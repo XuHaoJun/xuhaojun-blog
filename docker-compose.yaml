@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: docker/postgresql.Dockerfile
+    container_name: blog-agent-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: blog_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/server.Dockerfile
+    container_name: blog-agent-server
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:test@db:5432/blog_agent
+      GRPC_PORT: 50051
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./python-workspace/apps/server/src:/app/python-workspace/apps/server/src
+    command: ["uv", "run", "python", "-m", "blog_agent.main"]
+
+volumes:
+  postgres_data:
+

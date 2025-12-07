@@ -1,0 +1,79 @@
+"""Blog workflow orchestrator using LlamaIndex Workflows."""
+
+from typing import List
+from uuid import UUID
+
+from llama_index.core.workflow import StopEvent, Workflow, step
+
+from blog_agent.storage.models import Message
+from blog_agent.workflows.editor import BlogEditor, EditEvent
+from blog_agent.workflows.extractor import ContentExtractor, ExtractEvent, ExtractStartEvent
+from blog_agent.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class BlogWorkflowStartEvent:
+    """Start event for blog workflow."""
+
+    def __init__(self, messages: List[Message], conversation_log_id: str):
+        self.messages = messages
+        self.conversation_log_id = conversation_log_id
+
+
+class BlogWorkflowStopEvent(StopEvent):
+    """Stop event containing final blog post."""
+
+    blog_post_id: str
+    conversation_log_id: str
+
+
+class BlogWorkflow(Workflow):
+    """Main blog generation workflow (extractor → editor)."""
+
+    def __init__(self, timeout: int = 300, verbose: bool = True):
+        """Initialize blog workflow."""
+        super().__init__(timeout=timeout, verbose=verbose)
+        self.extractor = ContentExtractor()
+        self.editor = BlogEditor()
+
+    async def extract_step(self, ev: BlogWorkflowStartEvent) -> ExtractEvent:
+        """Content extraction step."""
+        logger.info("Starting content extraction", conversation_log_id=ev.conversation_log_id)
+        extract_start = ExtractStartEvent(
+            messages=ev.messages,
+            conversation_log_id=ev.conversation_log_id,
+        )
+        return await self.extractor.extract(extract_start)
+
+    @step
+    async def edit_step(self, ev: ExtractEvent) -> EditEvent:
+        """Blog editing step."""
+        logger.info("Starting blog editing", conversation_log_id=ev.conversation_log_id)
+        return await self.editor.edit(ev)
+
+    @step
+    async def finalize_step(self, ev: EditEvent) -> BlogWorkflowStopEvent:
+        """Finalize workflow."""
+        logger.info(
+            "Workflow completed",
+            conversation_log_id=ev.conversation_log_id,
+            blog_post_id=ev.blog_post.id,
+        )
+        return BlogWorkflowStopEvent(
+            blog_post_id=str(ev.blog_post.id) if ev.blog_post.id else "",
+            conversation_log_id=ev.conversation_log_id,
+        )
+
+    async def run_workflow(
+        self, messages: List[Message], conversation_log_id: str
+    ) -> BlogWorkflowStopEvent:
+        """Run the complete workflow."""
+        start_event = BlogWorkflowStartEvent(
+            messages=messages,
+            conversation_log_id=conversation_log_id,
+        )
+
+        result = await self.run(start_event)
+        return result
+
