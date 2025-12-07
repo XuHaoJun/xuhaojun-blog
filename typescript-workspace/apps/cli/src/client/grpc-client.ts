@@ -25,7 +25,8 @@ export async function processConversation(
   filePath: string,
   fileContent: Buffer,
   fileFormat: string,
-  metadata?: Record<string, string>
+  metadata?: Record<string, string>,
+  force?: boolean // FR-034: Force regeneration flag
 ) {
   // TODO: Implement after proto generation
   // return await client.processConversation({
@@ -33,6 +34,7 @@ export async function processConversation(
   //   file_format: mapFileFormat(fileFormat),
   //   file_content: fileContent,
   //   metadata: metadata || {},
+  //   force: force || false, // FR-034
   // });
 
   // Temporary placeholder

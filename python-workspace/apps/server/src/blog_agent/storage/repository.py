@@ -56,14 +56,15 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
                 """
                 INSERT INTO conversation_logs (
                     id, file_path, file_format, raw_content, parsed_content,
-                    metadata, language, message_count, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    content_hash, metadata, language, message_count, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 """,
                 entity_id,
                 entity.file_path,
                 entity.file_format,
                 entity.raw_content,
                 json.dumps(entity.parsed_content),
+                entity.content_hash,
                 json.dumps(entity.metadata) if entity.metadata else None,
                 entity.language,
                 entity.message_count,
@@ -83,7 +84,7 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
             row = await conn.fetchrow(
                 """
                 SELECT id, file_path, file_format, raw_content, parsed_content,
-                       metadata, language, message_count, created_at, updated_at
+                       content_hash, metadata, language, message_count, created_at, updated_at
                 FROM conversation_logs
                 WHERE id = $1
                 """,
@@ -99,6 +100,7 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
                 file_format=row["file_format"],
                 raw_content=row["raw_content"],
                 parsed_content=json.loads(row["parsed_content"]),
+                content_hash=row["content_hash"],
                 metadata=json.loads(row["metadata"]) if row["metadata"] else None,
                 language=row["language"],
                 message_count=row["message_count"],
@@ -112,7 +114,7 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
             rows = await conn.fetch(
                 """
                 SELECT id, file_path, file_format, raw_content, parsed_content,
-                       metadata, language, message_count, created_at, updated_at
+                       content_hash, metadata, language, message_count, created_at, updated_at
                 FROM conversation_logs
                 ORDER BY created_at DESC
                 LIMIT $1 OFFSET $2
@@ -128,6 +130,7 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
                     file_format=row["file_format"],
                     raw_content=row["raw_content"],
                     parsed_content=json.loads(row["parsed_content"]),
+                    content_hash=row["content_hash"],
                     metadata=json.loads(row["metadata"]) if row["metadata"] else None,
                     language=row["language"],
                     message_count=row["message_count"],
@@ -136,6 +139,92 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
                 )
                 for row in rows
             ]
+
+    async def get_by_file_path(self, file_path: str) -> Optional[ConversationLog]:
+        """
+        Get conversation log by file path (most recent if multiple exist).
+        
+        Args:
+            file_path: Path to the conversation log file
+        
+        Returns:
+            Most recent ConversationLog with matching file_path, or None if not found
+        """
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, file_path, file_format, raw_content, parsed_content,
+                       content_hash, metadata, language, message_count, created_at, updated_at
+                FROM conversation_logs
+                WHERE file_path = $1
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                file_path,
+            )
+
+            if not row:
+                return None
+
+            return ConversationLog(
+                id=row["id"],
+                file_path=row["file_path"],
+                file_format=row["file_format"],
+                raw_content=row["raw_content"],
+                parsed_content=json.loads(row["parsed_content"]),
+                content_hash=row["content_hash"],
+                metadata=json.loads(row["metadata"]) if row["metadata"] else None,
+                language=row["language"],
+                message_count=row["message_count"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+
+    async def get_by_file_path_and_hash(
+        self, file_path: str, content_hash: str
+    ) -> Optional[ConversationLog]:
+        """
+        Get conversation log by file path and content hash (FR-031, FR-032, FR-033).
+        
+        This method is used to check if a file with the same content has already been processed.
+        
+        Args:
+            file_path: Path to the conversation log file
+            content_hash: SHA-256 hash of the file content
+        
+        Returns:
+            ConversationLog with matching file_path and content_hash, or None if not found
+        """
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, file_path, file_format, raw_content, parsed_content,
+                       content_hash, metadata, language, message_count, created_at, updated_at
+                FROM conversation_logs
+                WHERE file_path = $1 AND content_hash = $2
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                file_path,
+                content_hash,
+            )
+
+            if not row:
+                return None
+
+            return ConversationLog(
+                id=row["id"],
+                file_path=row["file_path"],
+                file_format=row["file_format"],
+                raw_content=row["raw_content"],
+                parsed_content=json.loads(row["parsed_content"]),
+                content_hash=row["content_hash"],
+                metadata=json.loads(row["metadata"]) if row["metadata"] else None,
+                language=row["language"],
+                message_count=row["message_count"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
 
 
 class BlogPostRepository(BaseRepository[BlogPost]):

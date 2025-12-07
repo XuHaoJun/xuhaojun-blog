@@ -11,10 +11,41 @@ export interface FileReadResult {
 }
 
 /**
+ * Validate that file path is within conversations/ directory (FR-029)
+ */
+export function validateConversationsDirectory(filePath: string): { valid: boolean; error?: string } {
+  const resolvedPath = path.resolve(filePath);
+  const pathParts = resolvedPath.split(path.sep);
+  
+  if (!pathParts.includes("conversations")) {
+    return {
+      valid: false,
+      error: `File path must be within conversations/ directory. Got: ${filePath}`,
+    };
+  }
+  
+  const conversationsIdx = pathParts.indexOf("conversations");
+  if (conversationsIdx === pathParts.length - 1) {
+    return {
+      valid: false,
+      error: `File path points to conversations/ directory itself, not a file. Got: ${filePath}`,
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * Read file and detect format
  */
 export async function readConversationFile(filePath: string): Promise<FileReadResult> {
   try {
+    // Validate file path is in conversations/ directory (FR-029)
+    const validation = validateConversationsDirectory(filePath);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+    
     const content = await fs.readFile(filePath);
     const format = detectFileFormat(filePath, content);
 

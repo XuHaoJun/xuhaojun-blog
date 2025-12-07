@@ -34,6 +34,7 @@ class BlogAgentServiceImpl:
             file_content = request.file_content
             file_format = self._map_file_format(request.file_format)
             metadata = dict(request.metadata) if hasattr(request, "metadata") else {}
+            force = getattr(request, "force", False)  # FR-034: Support force flag
 
             # Process conversation
             processing, blog_post = await self.blog_service.process_conversation(
@@ -41,6 +42,7 @@ class BlogAgentServiceImpl:
                 file_content=file_content,
                 file_format=file_format,
                 metadata=metadata,
+                force=force,
             )
 
             # Build response

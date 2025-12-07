@@ -14,6 +14,7 @@ export function createProcessCommand(): Command {
     .requiredOption("-f, --file <path>", "Path to conversation log file")
     .option("--format <format>", "File format (markdown, json, csv, text). Auto-detected if not specified")
     .option("--server <url>", "gRPC server URL", "http://localhost:50051")
+    .option("--force", "Force regeneration even if file content hasn't changed (FR-034)", false)
     .action(async (options) => {
       try {
         console.log(`Reading file: ${options.file}`);
@@ -36,7 +37,9 @@ export function createProcessCommand(): Command {
         //   client,
         //   options.file,
         //   fileResult.content,
-        //   format
+        //   format,
+        //   undefined, // metadata
+        //   options.force // force flag (FR-034)
         // );
 
         // console.log("\n✓ Processing completed!");

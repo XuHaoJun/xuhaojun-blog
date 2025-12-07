@@ -47,10 +47,10 @@
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [x] T014 Setup PostgreSQL database schema and migrations in python-workspace/apps/server/src/blog_agent/storage/migrations/
-- [ ] T014a [P] Update database migration to add content_hash column to conversation_logs table in python-workspace/apps/server/src/blog_agent/storage/migrations/ (FR-031)
+- [x] T014a [P] Update database migration to add content_hash column to conversation_logs table in python-workspace/apps/server/src/blog_agent/storage/migrations/ (FR-031)
 - [x] T015 [P] Create database connection utility in python-workspace/apps/server/src/blog_agent/storage/db.py
 - [x] T016 [P] Implement base Pydantic models in python-workspace/apps/server/src/blog_agent/storage/models.py (ConversationLog, BlogPost, ProcessingHistory, ContentExtract, ReviewFindings, PromptSuggestion)
-- [ ] T016a [P] Update ConversationLog model to include content_hash field in python-workspace/apps/server/src/blog_agent/storage/models.py (FR-031)
+- [x] T016a [P] Update ConversationLog model to include content_hash field in python-workspace/apps/server/src/blog_agent/storage/models.py (FR-031)
 - [x] T017 [P] Create repository pattern base class in python-workspace/apps/server/src/blog_agent/storage/repository.py
 - [x] T018 [P] Setup structured logging (structlog) in python-workspace/apps/server/src/blog_agent/utils/logging.py
 - [x] T019 [P] Setup error handling infrastructure in python-workspace/apps/server/src/blog_agent/utils/errors.py
@@ -94,14 +94,14 @@
 - [x] T044 [US1] Implement CLI entry point in typescript-workspace/apps/cli/src/index.ts
 - [x] T045 [US1] Add handling for malformed logs with auto-fix in python-workspace/apps/server/src/blog_agent/parsers/json_parser.py (FR-026)
 - [x] T046 [US1] Add handling for empty/non-substantive content with low-quality marking in python-workspace/apps/server/src/blog_agent/workflows/extractor.py (FR-025)
-- [ ] T046a [P] [US1] Create conversations/ directory structure validation utility in python-workspace/apps/server/src/blog_agent/utils/file_validator.py (FR-029)
-- [ ] T046b [P] [US1] Implement file naming convention validator in python-workspace/apps/server/src/blog_agent/utils/file_validator.py (FR-030: YYYY-MM-DD_HH-MM-SS_Model_Provider.ext format)
-- [ ] T046c [P] [US1] Create SHA-256 hash calculation utility in python-workspace/apps/server/src/blog_agent/utils/hash_utils.py (FR-031)
-- [ ] T046d [US1] Implement content hash comparison logic in ConversationLog repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (FR-031, FR-032, FR-033)
-- [ ] T046e [US1] Add file change detection logic in ProcessConversation gRPC handler in python-workspace/apps/server/src/blog_agent/main.py (skip if unchanged unless force flag, FR-032, FR-033)
-- [ ] T046f [US1] Add --force flag support to CLI process command in typescript-workspace/apps/cli/src/commands/process.ts (FR-034)
-- [ ] T046g [US1] Update ProcessConversationRequest proto to include force flag in share/proto/blog_agent.proto (FR-034)
-- [ ] T046h [US1] Update file reader utility to validate file path is in conversations/ directory in typescript-workspace/apps/cli/src/utils/file-reader.ts (FR-029)
+- [x] T046a [P] [US1] Create conversations/ directory structure validation utility in python-workspace/apps/server/src/blog_agent/utils/file_validator.py (FR-029)
+- [x] T046b [P] [US1] Implement file naming convention validator in python-workspace/apps/server/src/blog_agent/utils/file_validator.py (FR-030: YYYY-MM-DD_HH-MM-SS_Model_Provider.ext format)
+- [x] T046c [P] [US1] Create SHA-256 hash calculation utility in python-workspace/apps/server/src/blog_agent/utils/hash_utils.py (FR-031)
+- [x] T046d [US1] Implement content hash comparison logic in ConversationLog repository methods in python-workspace/apps/server/src/blog_agent/storage/repository.py (FR-031, FR-032, FR-033)
+- [x] T046e [US1] Add file change detection logic in ProcessConversation gRPC handler in python-workspace/apps/server/src/blog_agent/main.py (skip if unchanged unless force flag, FR-032, FR-033)
+- [x] T046f [US1] Add --force flag support to CLI process command in typescript-workspace/apps/cli/src/commands/process.ts (FR-034)
+- [x] T046g [US1] Update ProcessConversationRequest proto to include force flag in share/proto/blog_agent.proto (FR-034)
+- [x] T046h [US1] Update file reader utility to validate file path is in conversations/ directory in typescript-workspace/apps/cli/src/utils/file-reader.ts (FR-029)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently - users can submit conversation logs and receive basic blog posts with file change detection and force regeneration support
 

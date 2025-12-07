@@ -29,6 +29,7 @@ message ProcessConversationRequest {
   FileFormat file_format = 2;              // 檔案格式
   bytes file_content = 3;                  // 檔案內容（二進位）
   map<string, string> metadata = 4;        // 額外 metadata
+  bool force = 5;                          // 強制重新處理，即使檔案內容未變更 (FR-034)
 }
 
 // 處理對話紀錄回應

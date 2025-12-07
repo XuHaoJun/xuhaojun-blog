@@ -23,6 +23,7 @@ class ConversationLog(BaseModel):
     file_format: str = Field(..., pattern="^(markdown|json|csv|text)$")
     raw_content: str
     parsed_content: Dict[str, Any]
+    content_hash: str  # SHA-256 hash of file content for change detection (FR-031)
     metadata: Optional[Dict[str, Any]] = None
     language: Optional[str] = None
     message_count: Optional[int] = None

@@ -17,6 +17,7 @@ from blog_agent.storage.repository import (
     ProcessingHistoryRepository,
 )
 from blog_agent.utils.errors import ProcessingError
+from blog_agent.utils.hash_utils import calculate_sha256_hash
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.blog_workflow import BlogWorkflow
 
@@ -34,14 +35,119 @@ class BlogService:
         self.workflow = BlogWorkflow()
 
     async def process_conversation(
-        self, file_path: str, file_content: bytes, file_format: str, metadata: dict = None
+        self,
+        file_path: str,
+        file_content: bytes,
+        file_format: str,
+        metadata: dict = None,
+        force: bool = False,
     ) -> tuple[ProcessingHistory, BlogPost]:
-        """Process conversation log and generate blog post."""
+        """
+        Process conversation log and generate blog post.
+        
+        Args:
+            file_path: Path to the conversation log file
+            file_content: File content as bytes
+            file_format: File format (markdown, json, csv, text)
+            metadata: Optional metadata dictionary
+            force: If True, force processing even if content hasn't changed (FR-034)
+        
+        Returns:
+            Tuple of (ProcessingHistory, BlogPost)
+        
+        Raises:
+            ProcessingError: If processing fails or file unchanged (unless force=True)
+        """
         processing_id = uuid4()
         conversation_log_id = None
         blog_post_id = None
 
         try:
+            # Calculate content hash (FR-031)
+            content_str = file_content.decode("utf-8")
+            content_hash = calculate_sha256_hash(content_str)
+            
+            # Check if file with same path and hash already exists (FR-032, FR-033)
+            existing_log = await self.conversation_repo.get_by_file_path_and_hash(
+                file_path, content_hash
+            )
+            
+            if existing_log and not force:
+                # File content hasn't changed, skip processing (FR-032)
+                logger.info(
+                    "File content unchanged, skipping processing",
+                    file_path=file_path,
+                    content_hash=content_hash,
+                    existing_log_id=str(existing_log.id),
+                )
+                
+                # Find existing blog post for this conversation log
+                # Query database directly for efficiency
+                from blog_agent.storage.db import get_db_connection
+                async with get_db_connection() as conn:
+                    row = await conn.fetchrow(
+                        """
+                        SELECT id, conversation_log_id, title, summary, tags, content,
+                               metadata, status, created_at, updated_at
+                        FROM blog_posts
+                        WHERE conversation_log_id = $1
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        existing_log.id,
+                    )
+                    
+                    if row:
+                        import json
+                        existing_blog_post = BlogPost(
+                            id=row["id"],
+                            conversation_log_id=row["conversation_log_id"],
+                            title=row["title"],
+                            summary=row["summary"],
+                            tags=list(row["tags"]) if row["tags"] else [],
+                            content=row["content"],
+                            metadata=json.loads(row["metadata"]) if row["metadata"] else None,
+                            status=row["status"],
+                            created_at=row["created_at"],
+                            updated_at=row["updated_at"],
+                        )
+                    else:
+                        existing_blog_post = None
+                
+                # Create a processing history record indicating skipped
+                processing = ProcessingHistory(
+                    id=processing_id,
+                    conversation_log_id=existing_log.id,
+                    blog_post_id=existing_blog_post.id if existing_blog_post else None,
+                    status="completed",
+                    processing_steps={"skipped": True, "reason": "content_unchanged"},
+                )
+                processing = await self.history_repo.create(processing)
+                
+                if existing_blog_post:
+                    return processing, existing_blog_post
+                else:
+                    raise ProcessingError(
+                        step="process_conversation",
+                        message="File content unchanged and no existing blog post found",
+                        details={
+                            "file_path": file_path,
+                            "content_hash": content_hash,
+                            "existing_log_id": str(existing_log.id),
+                        },
+                    )
+            
+            # Check if file path exists but hash is different (FR-033)
+            existing_log_by_path = await self.conversation_repo.get_by_file_path(file_path)
+            if existing_log_by_path and existing_log_by_path.content_hash != content_hash:
+                logger.info(
+                    "File content changed, will regenerate",
+                    file_path=file_path,
+                    old_hash=existing_log_by_path.content_hash,
+                    new_hash=content_hash,
+                )
+                # Continue with processing to regenerate blog post
+            
             # Create processing history
             processing = ProcessingHistory(
                 id=processing_id,
@@ -51,9 +157,11 @@ class BlogService:
             processing = await self.history_repo.create(processing)
 
             # Parse conversation log
-            content_str = file_content.decode("utf-8")
             parser = ParserFactory.create_parser(file_format)
             conversation_log = parser.parse(content_str, file_path)
+            
+            # Set content hash on conversation log
+            conversation_log.content_hash = content_hash
 
             # Apply role inference if needed (FR-028)
             if any(not msg.role or msg.role not in ["user", "assistant", "system"] for msg in conversation_log.parsed_content.get("messages", [])):
