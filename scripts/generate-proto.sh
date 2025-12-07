@@ -94,47 +94,43 @@ echo "Generating TypeScript code..."
 mkdir -p "$TYPESCRIPT_OUT"
 
 TYPESCRIPT_WORKSPACE="$REPO_ROOT/typescript-workspace"
+PROTO_GEN_DIR="$TYPESCRIPT_WORKSPACE/packages/proto-gen"
 
-# Check if protoc is available
-if ! command -v protoc &> /dev/null; then
-  echo "Error: protoc not found. Install protoc first: https://grpc.io/docs/protoc-installation/"
+# Check if pnpm is available
+if ! command -v pnpm &> /dev/null; then
+  echo "Error: pnpm not found. Install pnpm first: https://pnpm.io/installation"
   echo "Creating placeholder file..."
   cat > "$TYPESCRIPT_OUT/blog_agent_pb.ts" << 'EOF'
-// Placeholder - Install protoc and run 'pnpm generate-proto' in typescript-workspace
+// Placeholder - Install pnpm and run 'pnpm install' in typescript-workspace
 // This file will be generated from share/proto/blog_agent.proto
 export {};
 EOF
   exit 1
 fi
 
-# Check if buf is available (preferred method for Connect v2)
-if command -v buf &> /dev/null; then
-  # Use buf to generate code (supports protobuf v2)
-  cd "$TYPESCRIPT_WORKSPACE/packages/proto-gen"
-  echo "Using buf to generate TypeScript code..."
-  buf generate
-  echo "✓ TypeScript code generated with buf"
-elif [ -d "$TYPESCRIPT_WORKSPACE/node_modules/@bufbuild/protoc-gen-es" ]; then
-  # Fallback to protoc if buf is not available
-  echo "Using locally installed protoc-gen-es..."
-  cd "$TYPESCRIPT_WORKSPACE"
-  
-  # Generate protobuf messages with protoc-gen-es
-  protoc \
-    --proto_path="$PROTO_DIR" \
-    --plugin=protoc-gen-es="$TYPESCRIPT_WORKSPACE/node_modules/.bin/protoc-gen-es" \
-    --es_out="$TYPESCRIPT_OUT" \
-    "$PROTO_DIR/blog_agent.proto"
-  
-  echo "✓ TypeScript code generated with local protoc-gen-es"
-  echo "  Note: Connect service definitions need to be created manually for Connect v2"
-else
-  echo "Error: proto code generators not found."
-  echo "  Install buf: https://buf.build/docs/installation"
-  echo "  Or run: cd typescript-workspace && pnpm install"
+# Check if proto-gen package exists
+if [ ! -d "$PROTO_GEN_DIR" ]; then
+  echo "Error: proto-gen package not found at $PROTO_GEN_DIR"
   echo "Creating placeholder file..."
   cat > "$TYPESCRIPT_OUT/blog_agent_pb.ts" << 'EOF'
-// Placeholder - Run 'pnpm install' in typescript-workspace, then 'pnpm generate-proto'
+// Placeholder - proto-gen package not found
+// This file will be generated from share/proto/blog_agent.proto
+export {};
+EOF
+  exit 1
+fi
+
+# Use pnpm generate to run buf generate
+cd "$PROTO_GEN_DIR"
+echo "Running pnpm generate in proto-gen package..."
+if pnpm generate; then
+  echo "✓ TypeScript code generated with pnpm generate"
+else
+  echo "Error: Failed to generate TypeScript code."
+  echo "  Make sure dependencies are installed: cd typescript-workspace && pnpm install"
+  echo "Creating placeholder file..."
+  cat > "$TYPESCRIPT_OUT/blog_agent_pb.ts" << 'EOF'
+// Placeholder - Run 'pnpm install' in typescript-workspace, then run generate-proto.sh
 // This file will be generated from share/proto/blog_agent.proto
 export {};
 EOF
