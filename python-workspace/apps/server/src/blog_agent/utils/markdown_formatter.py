@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from blog_agent.storage.models import BlogPost
+from blog_agent.storage.models import BlogPost, PromptSuggestion
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -13,25 +13,58 @@ logger = get_logger(__name__)
 class MarkdownFormatter:
     """Formatter for generating Markdown with frontmatter from blog posts."""
 
-    def format(self, blog_post: BlogPost) -> str:
+    def format(self, blog_post: BlogPost, prompt_suggestion: Optional[PromptSuggestion] = None) -> str:
         """
         Format blog post as Markdown with YAML frontmatter.
         
         Args:
             blog_post: The blog post to format
+            prompt_suggestion: Optional prompt suggestion to include (T081)
             
         Returns:
             Markdown string with frontmatter
         """
-        frontmatter = self._generate_frontmatter(blog_post)
+        frontmatter = self._generate_frontmatter(blog_post, prompt_suggestion)
         content = blog_post.content
+        
+        # T081: Format prompt suggestions as side-by-side comparison if present
+        if prompt_suggestion and prompt_suggestion.original_prompt:
+            prompt_section = self._format_prompt_suggestions(prompt_suggestion)
+            content = f"{content}\n\n{prompt_section}"
         
         # Combine frontmatter and content
         markdown = f"---\n{frontmatter}---\n\n{content}\n"
         
         return markdown
 
-    def _generate_frontmatter(self, blog_post: BlogPost) -> str:
+    def _format_prompt_suggestions(self, prompt_suggestion: PromptSuggestion) -> str:
+        """
+        T081: Format prompt suggestions as side-by-side comparison.
+        
+        Creates a formatted section showing original prompt vs improved versions.
+        """
+        section = "## 提示詞優化建議\n\n"
+        
+        # Original prompt
+        section += f"### 原始提示詞\n\n```\n{prompt_suggestion.original_prompt}\n```\n\n"
+        
+        # Analysis
+        if prompt_suggestion.analysis:
+            section += f"### 分析\n\n{prompt_suggestion.analysis}\n\n"
+        
+        # Improved versions (side-by-side comparison)
+        if prompt_suggestion.better_candidates:
+            section += "### 改進版本\n\n"
+            for i, candidate in enumerate(prompt_suggestion.better_candidates[:5], 1):
+                section += f"#### 版本 {i}\n\n```\n{candidate}\n```\n\n"
+        
+        # Reasoning
+        if prompt_suggestion.reasoning:
+            section += f"### 改進理由\n\n{prompt_suggestion.reasoning}\n\n"
+        
+        return section
+
+    def _generate_frontmatter(self, blog_post: BlogPost, prompt_suggestion: Optional[PromptSuggestion] = None) -> str:
         """
         Generate YAML frontmatter from blog post metadata.
         
@@ -81,6 +114,11 @@ class MarkdownFormatter:
                 frontmatter_data["key_insights"] = blog_post.metadata["key_insights"]
             if "core_concepts" in blog_post.metadata:
                 frontmatter_data["core_concepts"] = blog_post.metadata["core_concepts"]
+            
+            # Prompt suggestion metadata (T081)
+            if prompt_suggestion:
+                frontmatter_data["has_prompt_suggestions"] = bool(prompt_suggestion.better_candidates)
+                frontmatter_data["prompt_candidates_count"] = len(prompt_suggestion.better_candidates)
         
         # Convert to YAML format (simple implementation)
         yaml_lines = []

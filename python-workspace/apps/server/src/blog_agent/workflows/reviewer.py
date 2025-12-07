@@ -7,6 +7,7 @@ from llama_index.core.workflow import Event, step
 
 if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent
+    from blog_agent.storage.models import PromptSuggestion
 
 from blog_agent.services.llm_service import get_llm_service
 from blog_agent.services.tavily_service import get_tavily_service
@@ -25,6 +26,7 @@ class ReviewEvent(Event):
     conversation_log_id: str
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     errors: List[str] = []  # Issues that cannot be auto-corrected (T062)
+    prompt_suggestion: Optional["PromptSuggestion"] = None  # T079: Include prompt suggestion from parallel branch
 
 
 class ContentReviewer:

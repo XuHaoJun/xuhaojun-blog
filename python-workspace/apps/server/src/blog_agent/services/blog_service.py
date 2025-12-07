@@ -1,5 +1,6 @@
 """Blog processing service."""
 
+import asyncio
 import traceback
 from uuid import UUID, uuid4
 
@@ -15,6 +16,7 @@ from blog_agent.storage.repository import (
     BlogPostRepository,
     ConversationLogRepository,
     ProcessingHistoryRepository,
+    PromptSuggestionRepository,
 )
 from blog_agent.utils.errors import ProcessingError
 from blog_agent.utils.hash_utils import calculate_sha256_hash
@@ -32,6 +34,7 @@ class BlogService:
         self.conversation_repo = ConversationLogRepository()
         self.blog_repo = BlogPostRepository()
         self.history_repo = ProcessingHistoryRepository()
+        self.prompt_suggestion_repo = PromptSuggestionRepository()  # T079: Add prompt suggestion repository
         self.workflow = BlogWorkflow()
 
     async def process_conversation(
@@ -202,21 +205,57 @@ class BlogService:
             # Extract metadata from conversation log (FR-015: preserve timestamps, participants)
             conversation_log_metadata = self._extract_conversation_metadata(conversation_log)
             
-            # Extract
+            # T079: Run prompt analysis in parallel with extraction
             extract_start = ExtractStartEvent(
                 messages=messages,
                 conversation_log_id=str(conversation_log_id),
                 conversation_log_metadata=conversation_log_metadata,
             )
-            extract_event = await extractor.extract(extract_start)
+            
+            # Run extraction and prompt analysis in parallel
+            from blog_agent.workflows.prompt_analyzer import PromptAnalyzer
+            
+            prompt_analyzer = PromptAnalyzer()
+            
+            extract_event, prompt_analysis_event = await asyncio.gather(
+                extractor.extract(extract_start),
+                prompt_analyzer.analyze(extract_start),
+            )
+            
+            # Save prompt suggestion to database
+            prompt_suggestion = prompt_analysis_event.prompt_suggestion
+            if prompt_suggestion:
+                prompt_suggestion.conversation_log_id = conversation_log_id
+                prompt_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
+                logger.info(
+                    "Prompt suggestion saved",
+                    conversation_log_id=str(conversation_log_id),
+                    suggestion_id=str(prompt_suggestion.id),
+                )
 
-            # Save content extract (optional, for tracking)
-            # content_extract = extract_event.content_extract
-            # content_extract.conversation_log_id = conversation_log_id
-            # await ContentExtractRepository().create(content_extract)
-
+            # Continue with full workflow: extender → reviewer → editor
+            from blog_agent.workflows.extender import ContentExtender
+            from blog_agent.workflows.reviewer import ContentReviewer
+            
+            extender = ContentExtender()
+            reviewer = ContentReviewer()
+            
+            # Extend
+            extend_event = await extender.extend(extract_event)
+            
+            # Review (pass prompt suggestion through ReviewEvent)
+            from blog_agent.workflows.extractor import ExtractEvent as ExtractorExtractEvent
+            review_extract_event = ExtractorExtractEvent(
+                content_extract=extend_event.content_extract,
+                conversation_log_id=extend_event.conversation_log_id,
+                conversation_log_metadata=extend_event.conversation_log_metadata,
+            )
+            review_event = await reviewer.review(review_extract_event)
+            # Add prompt suggestion to review event
+            review_event.prompt_suggestion = prompt_suggestion
+            
             # Edit
-            edit_event = await editor.edit(extract_event)
+            edit_event = await editor.edit(review_event)
 
             # Save blog post
             blog_post = edit_event.blog_post

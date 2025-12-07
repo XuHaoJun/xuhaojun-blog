@@ -586,13 +586,118 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
 
     async def create(self, entity: PromptSuggestion) -> PromptSuggestion:
         """Create a new prompt suggestion."""
-        raise NotImplementedError
+        async with get_db_connection() as conn:
+            entity_id = entity.id or uuid4()
+            now = datetime.utcnow()
+
+            await conn.execute(
+                """
+                INSERT INTO prompt_suggestions (
+                    id, conversation_log_id, original_prompt, analysis,
+                    better_candidates, reasoning, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                """,
+                entity_id,
+                entity.conversation_log_id,
+                entity.original_prompt,
+                entity.analysis,
+                entity.better_candidates,
+                entity.reasoning,
+                now,
+            )
+
+            entity.id = entity_id
+            entity.created_at = now
+
+            return entity
 
     async def get_by_id(self, entity_id: UUID) -> Optional[PromptSuggestion]:
         """Get prompt suggestion by ID."""
-        raise NotImplementedError
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, conversation_log_id, original_prompt, analysis,
+                       better_candidates, reasoning, created_at
+                FROM prompt_suggestions
+                WHERE id = $1
+                """,
+                entity_id,
+            )
+
+            if not row:
+                return None
+
+            return PromptSuggestion(
+                id=row["id"],
+                conversation_log_id=row["conversation_log_id"],
+                original_prompt=row["original_prompt"],
+                analysis=row["analysis"],
+                better_candidates=list(row["better_candidates"])
+                if row["better_candidates"]
+                else [],
+                reasoning=row["reasoning"],
+                created_at=row["created_at"],
+            )
 
     async def list(self, limit: int = 100, offset: int = 0) -> List[PromptSuggestion]:
         """List prompt suggestions."""
-        raise NotImplementedError
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, conversation_log_id, original_prompt, analysis,
+                       better_candidates, reasoning, created_at
+                FROM prompt_suggestions
+                ORDER BY created_at DESC
+                LIMIT $1 OFFSET $2
+                """,
+                limit,
+                offset,
+            )
+
+            return [
+                PromptSuggestion(
+                    id=row["id"],
+                    conversation_log_id=row["conversation_log_id"],
+                    original_prompt=row["original_prompt"],
+                    analysis=row["analysis"],
+                    better_candidates=list(row["better_candidates"])
+                    if row["better_candidates"]
+                    else [],
+                    reasoning=row["reasoning"],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
+    async def get_by_conversation_log_id(
+        self, conversation_log_id: UUID
+    ) -> Optional[PromptSuggestion]:
+        """Get prompt suggestion by conversation log ID."""
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, conversation_log_id, original_prompt, analysis,
+                       better_candidates, reasoning, created_at
+                FROM prompt_suggestions
+                WHERE conversation_log_id = $1
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                conversation_log_id,
+            )
+
+            if not row:
+                return None
+
+            return PromptSuggestion(
+                id=row["id"],
+                conversation_log_id=row["conversation_log_id"],
+                original_prompt=row["original_prompt"],
+                analysis=row["analysis"],
+                better_candidates=list(row["better_candidates"])
+                if row["better_candidates"]
+                else [],
+                reasoning=row["reasoning"],
+                created_at=row["created_at"],
+            )
 

@@ -9,6 +9,7 @@ from blog_agent.storage.models import Message
 from blog_agent.workflows.editor import BlogEditor, EditEvent
 from blog_agent.workflows.extractor import ContentExtractor, ExtractEvent, ExtractStartEvent
 from blog_agent.workflows.extender import ContentExtender, ExtendEvent
+from blog_agent.workflows.prompt_analyzer import PromptAnalyzer, PromptAnalysisEvent
 from blog_agent.workflows.reviewer import ContentReviewer, ReviewEvent
 from blog_agent.utils.logging import get_logger
 
@@ -41,6 +42,7 @@ class BlogWorkflow(Workflow):
         self.extender = ContentExtender()
         self.reviewer = ContentReviewer()
         self.editor = BlogEditor()
+        self.prompt_analyzer = PromptAnalyzer()  # T079: Add prompt analyzer for parallel execution
 
     async def extract_step(self, ev: BlogWorkflowStartEvent) -> ExtractEvent:
         """Content extraction step."""
@@ -51,6 +53,22 @@ class BlogWorkflow(Workflow):
             conversation_log_metadata=ev.conversation_log_metadata,
         )
         return await self.extractor.extract(extract_start)
+
+    @step
+    async def prompt_analysis_step(self, ev: BlogWorkflowStartEvent) -> PromptAnalysisEvent:
+        """
+        T079: Prompt analysis step (runs in parallel with main workflow).
+        
+        This step analyzes user prompts and generates improvement suggestions.
+        It runs in parallel with the main content processing pipeline.
+        """
+        logger.info("Starting prompt analysis", conversation_log_id=ev.conversation_log_id)
+        extract_start = ExtractStartEvent(
+            messages=ev.messages,
+            conversation_log_id=ev.conversation_log_id,
+            conversation_log_metadata=ev.conversation_log_metadata,
+        )
+        return await self.prompt_analyzer.analyze(extract_start)
 
     @step
     async def extend_step(self, ev: ExtractEvent) -> ExtendEvent:

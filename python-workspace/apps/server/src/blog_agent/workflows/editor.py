@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from llama_index.core.workflow import Event, step
 
+from blog_agent.storage.models import PromptSuggestion
+
 if TYPE_CHECKING:
     from blog_agent.workflows.reviewer import ReviewEvent
 
 from blog_agent.services.llm_service import get_llm_service
-from blog_agent.storage.models import BlogPost, ContentExtract, ReviewFindings
+from blog_agent.storage.models import BlogPost, ContentExtract, PromptSuggestion, ReviewFindings
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -19,6 +21,7 @@ class EditEvent(Event):
 
     blog_post: BlogPost
     conversation_log_id: str
+    prompt_suggestion: Optional[PromptSuggestion] = None  # T080: Include prompt suggestions (FR-014)
 
 
 class BlogEditor:
@@ -30,16 +33,23 @@ class BlogEditor:
 
     @step
     async def edit(self, ev: "ReviewEvent") -> EditEvent:  # type: ignore
-        """Generate blog post from extracted content with structured metadata, incorporating review findings."""
+        """
+        Generate blog post from extracted content with structured metadata, incorporating review findings.
+        
+        T080: Include prompt suggestions section in blog post (FR-014).
+        """
         try:
             content_extract = ev.content_extract
             review_findings = ev.review_findings
             conversation_log_id = ev.conversation_log_id
             conversation_log_metadata = ev.conversation_log_metadata or {}
             errors = ev.errors or []
+            prompt_suggestion = ev.prompt_suggestion  # T080: Get prompt suggestion from ReviewEvent
 
             # Generate blog post using LLM, incorporating review findings (T061)
-            blog_content = await self._generate_blog_content(content_extract, review_findings)
+            blog_content = await self._generate_blog_content(
+                content_extract, review_findings, prompt_suggestion
+            )
 
             # Extract metadata (title, summary, tags)
             title = await self._generate_title(content_extract)
@@ -48,7 +58,7 @@ class BlogEditor:
 
             # Build structured metadata from conversation log (FR-015: preserve timestamps, participants)
             blog_metadata = self._build_blog_metadata(
-                conversation_log_metadata, content_extract, review_findings, errors
+                conversation_log_metadata, content_extract, review_findings, errors, prompt_suggestion
             )
 
             blog_post = BlogPost(
@@ -64,6 +74,7 @@ class BlogEditor:
             return EditEvent(
                 blog_post=blog_post,
                 conversation_log_id=conversation_log_id,
+                prompt_suggestion=prompt_suggestion,
             )
 
         except Exception as e:
@@ -71,7 +82,10 @@ class BlogEditor:
             raise
 
     async def _generate_blog_content(
-        self, content_extract: ContentExtract, review_findings: ReviewFindings
+        self,
+        content_extract: ContentExtract,
+        review_findings: ReviewFindings,
+        prompt_suggestion: Optional[PromptSuggestion] = None,
     ) -> str:
         """Generate blog post content in Markdown format, incorporating review findings (T061)."""
         # Build review context for LLM
@@ -127,7 +141,14 @@ class BlogEditor:
 請直接輸出完整的 Markdown 文章，不要額外說明。"""
 
         response = await self.llm_service.generate(prompt)
-        return response.strip()
+        blog_content = response.strip()
+        
+        # T080: Add prompt suggestions section to blog content (FR-014)
+        if prompt_suggestion and prompt_suggestion.original_prompt:
+            prompt_section = self._format_prompt_suggestions(prompt_suggestion)
+            blog_content += f"\n\n{prompt_section}"
+        
+        return blog_content
 
     async def _generate_title(self, content_extract: ContentExtract) -> str:
         """Generate blog post title."""
@@ -168,12 +189,36 @@ class BlogEditor:
         response = await self.llm_service.generate(prompt)
         return response.strip()[:500]  # Limit length
 
+    def _format_prompt_suggestions(self, prompt_suggestion: PromptSuggestion) -> str:
+        """
+        T081: Format prompt suggestions as side-by-side comparison (FR-014).
+        
+        Formats the prompt suggestions section for inclusion in the blog post.
+        """
+        section = "## 提示詞優化建議\n\n"
+        
+        section += f"### 原始提示詞\n\n{prompt_suggestion.original_prompt}\n\n"
+        
+        if prompt_suggestion.analysis:
+            section += f"### 分析\n\n{prompt_suggestion.analysis}\n\n"
+        
+        if prompt_suggestion.better_candidates:
+            section += "### 改進版本\n\n"
+            for i, candidate in enumerate(prompt_suggestion.better_candidates[:5], 1):  # Show top 5
+                section += f"#### 版本 {i}\n\n{candidate}\n\n"
+        
+        if prompt_suggestion.reasoning:
+            section += f"### 改進理由\n\n{prompt_suggestion.reasoning}\n\n"
+        
+        return section
+
     def _build_blog_metadata(
         self,
         conversation_log_metadata: Optional[Dict[str, Any]],
         content_extract: ContentExtract,
         review_findings: Optional[ReviewFindings] = None,
         errors: Optional[List[str]] = None,
+        prompt_suggestion: Optional[PromptSuggestion] = None,
     ) -> Dict[str, Any]:
         """
         Build structured metadata for blog post from conversation log metadata (FR-015).
@@ -226,6 +271,13 @@ class BlogEditor:
         # Add errors that require human attention (T062)
         if errors:
             metadata["review_errors"] = errors
+        
+        # Add prompt suggestion metadata (T080, FR-014)
+        if prompt_suggestion:
+            metadata["prompt_suggestion"] = {
+                "has_suggestions": bool(prompt_suggestion.better_candidates),
+                "candidates_count": len(prompt_suggestion.better_candidates),
+            }
         
         return metadata
 
