@@ -196,6 +196,19 @@
 - [ ] T087 [P] Create CLI command for listing conversation logs in typescript-workspace/apps/cli/src/commands/list.ts
 - [ ] T088 [P] Create CLI command for retrieving blog posts in typescript-workspace/apps/cli/src/commands/retrieve.ts
 
+### Web UI Implementation (Next.js)
+
+- [ ] T106 [P] Initialize Next.js project in typescript-workspace/apps/web/ with App Router
+- [ ] T107 [P] Setup shadcn/ui components in typescript-workspace/apps/web/
+- [ ] T108 [P] Configure Connect-Web gRPC client for Next.js in typescript-workspace/apps/web/lib/grpc-client.ts
+- [ ] T109 [P] Create blog list page with static generation in typescript-workspace/apps/web/app/page.tsx (uses ListBlogPosts gRPC)
+- [ ] T110 [P] Create blog detail page with static generation in typescript-workspace/apps/web/app/blog/[id]/page.tsx (uses GetBlogPost gRPC)
+- [ ] T111 [P] Implement generateStaticParams for blog posts in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [ ] T112 [P] Create Markdown renderer component for blog content in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [ ] T113 [P] Create blog metadata display component in typescript-workspace/apps/web/components/blog-metadata.tsx
+- [ ] T114 [P] Add TailwindCSS styling and responsive layout in typescript-workspace/apps/web/
+- [ ] T115 [P] Configure Next.js static generation with gRPC client in typescript-workspace/apps/web/next.config.mjs
+
 ---
 
 ## Phase 9: Advanced Features
@@ -221,11 +234,13 @@
 - [ ] T098 [P] Add CLI help text and error messages in typescript-workspace/apps/cli/src/
 - [ ] T099 [P] Create README documentation in python-workspace/apps/server/README.md
 - [ ] T100 [P] Create README documentation in typescript-workspace/apps/cli/README.md
+- [ ] T116 [P] Create README documentation in typescript-workspace/apps/web/README.md
 - [ ] T101 Run quickstart.md validation to ensure all setup steps work
 - [ ] T102 [P] Add unit tests for parsers in python-workspace/apps/server/tests/unit/test_parsers.py
 - [ ] T103 [P] Add unit tests for workflow steps in python-workspace/apps/server/tests/unit/test_workflows.py
 - [ ] T104 [P] Add integration tests for end-to-end workflow in python-workspace/apps/server/tests/integration/test_workflow_integration.py
 - [ ] T105 [P] Add CLI tests in typescript-workspace/apps/cli/tests/
+- [ ] T117 [P] Add Web UI tests in typescript-workspace/apps/web/tests/ (React Testing Library)
 
 ---
 
@@ -239,6 +254,7 @@
   - User stories can then proceed in parallel (if staffed)
   - Or sequentially in priority order (US1/US5 → US2/US3 → US4)
 - **Additional Features (Phase 8)**: Can proceed in parallel with user stories after Phase 2
+  - **Web UI (T106-T115)**: Depends on gRPC handlers (T082-T086) completion for data retrieval
 - **Advanced Features (Phase 9)**: Depends on US1 completion
 - **Polish (Phase 10)**: Depends on all desired user stories being complete
 
@@ -268,6 +284,7 @@
 - Repository methods for different entities can run in parallel
 - gRPC handlers (T082-T086) can run in parallel
 - CLI commands (T087-T088) can run in parallel
+- Web UI tasks (T106-T115) can run in parallel after gRPC handlers are complete
 
 ---
 
