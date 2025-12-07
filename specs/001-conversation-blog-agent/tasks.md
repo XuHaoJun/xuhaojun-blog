@@ -157,16 +157,16 @@
 
 ### Implementation for User Story 3
 
-- [ ] T063 [P] [US3] Create Tavily service integration in python-workspace/apps/server/src/blog_agent/services/tavily_service.py
-- [ ] T064 [US3] Create extension workflow step in python-workspace/apps/server/src/blog_agent/workflows/extender.py
-- [ ] T065 [US3] Implement knowledge gap identification in python-workspace/apps/server/src/blog_agent/workflows/extender.py
-- [ ] T066 [US3] Implement Tavily search integration for content extension in python-workspace/apps/server/src/blog_agent/workflows/extender.py
-- [ ] T067 [US3] Implement content integration logic (merge research into content naturally) in python-workspace/apps/server/src/blog_agent/workflows/extender.py
-- [ ] T068 [US3] Add optional knowledge base query support in python-workspace/apps/server/src/blog_agent/services/vector_store.py (FR-018)
-- [ ] T069 [US3] Implement knowledge base priority (query KB first, then external sources) in python-workspace/apps/server/src/blog_agent/workflows/extender.py
-- [ ] T070 [US3] Integrate extension step into blog workflow in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py (extractor → extender → reviewer → editor)
-- [ ] T071 [US3] Add error handling for Tavily API failures in python-workspace/apps/server/src/blog_agent/services/tavily_service.py (FR-019)
-- [ ] T072 [US3] Implement fact-checking via Tavily in python-workspace/apps/server/src/blog_agent/workflows/reviewer.py (when fact-checking needs detected)
+- [x] T063 [P] [US3] Create Tavily service integration in python-workspace/apps/server/src/blog_agent/services/tavily_service.py
+- [x] T064 [US3] Create extension workflow step in python-workspace/apps/server/src/blog_agent/workflows/extender.py
+- [x] T065 [US3] Implement knowledge gap identification in python-workspace/apps/server/src/blog_agent/workflows/extender.py
+- [x] T066 [US3] Implement Tavily search integration for content extension in python-workspace/apps/server/src/blog_agent/workflows/extender.py
+- [x] T067 [US3] Implement content integration logic (merge research into content naturally) in python-workspace/apps/server/src/blog_agent/workflows/extender.py
+- [x] T068 [US3] Add optional knowledge base query support in python-workspace/apps/server/src/blog_agent/services/vector_store.py (FR-018)
+- [x] T069 [US3] Implement knowledge base priority (query KB first, then external sources) in python-workspace/apps/server/src/blog_agent/workflows/extender.py
+- [x] T070 [US3] Integrate extension step into blog workflow in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py (extractor → extender → reviewer → editor)
+- [x] T071 [US3] Add error handling for Tavily API failures in python-workspace/apps/server/src/blog_agent/services/tavily_service.py (FR-019)
+- [x] T072 [US3] Implement fact-checking via Tavily in python-workspace/apps/server/src/blog_agent/workflows/reviewer.py (when fact-checking needs detected)
 
 **Checkpoint**: At this point, User Stories 1, 2, 3, AND 5 should all work independently - content extension enhances comprehensiveness
 

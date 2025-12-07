@@ -8,6 +8,7 @@ from llama_index.core.workflow import StopEvent, Workflow, step
 from blog_agent.storage.models import Message
 from blog_agent.workflows.editor import BlogEditor, EditEvent
 from blog_agent.workflows.extractor import ContentExtractor, ExtractEvent, ExtractStartEvent
+from blog_agent.workflows.extender import ContentExtender, ExtendEvent
 from blog_agent.workflows.reviewer import ContentReviewer, ReviewEvent
 from blog_agent.utils.logging import get_logger
 
@@ -31,12 +32,13 @@ class BlogWorkflowStopEvent(StopEvent):
 
 
 class BlogWorkflow(Workflow):
-    """Main blog generation workflow (extractor → reviewer → editor)."""
+    """Main blog generation workflow (extractor → extender → reviewer → editor)."""
 
     def __init__(self, timeout: int = 300, verbose: bool = True):
         """Initialize blog workflow."""
         super().__init__(timeout=timeout, verbose=verbose)
         self.extractor = ContentExtractor()
+        self.extender = ContentExtender()
         self.reviewer = ContentReviewer()
         self.editor = BlogEditor()
 
@@ -51,10 +53,25 @@ class BlogWorkflow(Workflow):
         return await self.extractor.extract(extract_start)
 
     @step
-    async def review_step(self, ev: ExtractEvent) -> ReviewEvent:
+    async def extend_step(self, ev: ExtractEvent) -> ExtendEvent:
+        """Content extension step (T070)."""
+        logger.info("Starting content extension", conversation_log_id=ev.conversation_log_id)
+        return await self.extender.extend(ev)
+
+    @step
+    async def review_step(self, ev: ExtendEvent) -> ReviewEvent:
         """Content review step."""
         logger.info("Starting content review", conversation_log_id=ev.conversation_log_id)
-        return await self.reviewer.review(ev)
+        # Convert ExtendEvent to ExtractEvent for reviewer (reviewer expects ExtractEvent structure)
+        # The reviewer will use the extended content from ExtendEvent
+        from blog_agent.workflows.extractor import ExtractEvent as ExtractorExtractEvent
+        
+        extract_ev = ExtractorExtractEvent(
+            content_extract=ev.content_extract,
+            conversation_log_id=ev.conversation_log_id,
+            conversation_log_metadata=ev.conversation_log_metadata,
+        )
+        return await self.reviewer.review(extract_ev)
 
     @step
     async def edit_step(self, ev: ReviewEvent) -> EditEvent:

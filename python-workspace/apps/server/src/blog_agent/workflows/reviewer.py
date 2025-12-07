@@ -9,7 +9,9 @@ if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent
 
 from blog_agent.services.llm_service import get_llm_service
+from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.storage.models import ContentExtract, ReviewFindings
+from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -28,9 +30,10 @@ class ReviewEvent(Event):
 class ContentReviewer:
     """Content review step for identifying issues and suggesting improvements."""
 
-    def __init__(self, llm_service=None):
+    def __init__(self, llm_service=None, tavily_service=None):
         """Initialize content reviewer."""
         self.llm_service = llm_service or get_llm_service()
+        self.tavily_service = tavily_service or get_tavily_service()
 
     @step
     async def review(self, ev: "ExtractEvent") -> ReviewEvent:  # type: ignore
@@ -44,12 +47,20 @@ class ContentReviewer:
             factual_inconsistencies = await self._detect_factual_inconsistencies(content_extract)
             unclear_explanations = await self._detect_unclear_explanations(content_extract)
             fact_checking_needs = await self._detect_fact_checking_needs(content_extract)  # FR-010
+            
+            # Perform fact-checking via Tavily if needs detected (T072)
+            fact_check_results = []
+            if fact_checking_needs:
+                fact_check_results = await self._fact_check_via_tavily(fact_checking_needs)
+                # Store fact-check results in issues for reference
+                # The original fact_checking_needs list is preserved for ReviewFindings
 
             # Combine all issues
             issues = {
                 "logical_gaps": logical_gaps,
                 "factual_inconsistencies": factual_inconsistencies,
                 "unclear_explanations": unclear_explanations,
+                "fact_check_results": fact_check_results,  # Store Tavily fact-check results (T072)
             }
 
             # Generate improvement suggestions
@@ -421,4 +432,51 @@ class ContentReviewer:
 
         logger.info("Identified uncorrectable errors", count=len(errors))
         return errors
+
+    async def _fact_check_via_tavily(
+        self, fact_checking_needs: List[str]
+    ) -> List[str]:
+        """
+        Perform fact-checking using Tavily API (T072).
+        
+        Args:
+            fact_checking_needs: List of claims that need fact-checking
+            
+        Returns:
+            List of fact-check results (formatted strings with verification status)
+        """
+        fact_check_results = []
+
+        for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid API overload
+            try:
+                result = await self.tavily_service.fact_check(claim, max_results=3)
+                
+                verified = result.get("verified", False)
+                sources_count = len(result.get("sources", []))
+                
+                if verified and sources_count > 0:
+                    fact_check_results.append(
+                        f"✓ 驗證通過：{claim} (找到 {sources_count} 個相關來源)"
+                    )
+                else:
+                    fact_check_results.append(
+                        f"✗ 無法驗證：{claim} (未找到足夠的支援來源)"
+                    )
+                    
+                logger.info(
+                    "Fact-check completed via Tavily",
+                    claim=claim,
+                    verified=verified,
+                    sources_count=sources_count,
+                )
+
+            except ExternalServiceError as e:
+                # Tavily failure should stop processing (FR-019)
+                logger.error("Tavily fact-check failed", claim=claim, error=str(e))
+                raise
+            except Exception as e:
+                logger.warning("Fact-check failed for claim", claim=claim, error=str(e))
+                fact_check_results.append(f"? 檢查失敗：{claim} (錯誤：{str(e)})")
+
+        return fact_check_results
 
