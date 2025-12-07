@@ -256,18 +256,18 @@
 
 ### Phase 11.1: 基礎佈局 (P1)
 
-- [ ] T116 [P1] Implement Desktop 70/30 dual-column layout in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T117 [P1] Create Sticky Sidebar component in typescript-workspace/apps/web/components/prompt-sidebar.tsx
-- [ ] T118 [P1] Create Prompt Clinic Card component in typescript-workspace/apps/web/components/prompt-card.tsx with 4 sections (Original, Diagnosis, Candidates, Expected Effect)
-- [ ] T119 [P1] Integrate Markdown renderer with content blocks structure (text + prompt_meta) in typescript-workspace/apps/web/components/markdown-renderer.tsx
-- [ ] T119a [P1] Create ContentBlock component that renders text and optional prompt_meta in typescript-workspace/apps/web/components/content-block.tsx (UI/UX P0)
+- [x] T116 [P1] Implement Desktop 70/30 dual-column layout in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [x] T117 [P1] Create Sticky Sidebar component in typescript-workspace/apps/web/components/prompt-sidebar.tsx
+- [x] T118 [P1] Create Prompt Clinic Card component in typescript-workspace/apps/web/components/prompt-card.tsx with 4 sections (Original, Diagnosis, Candidates, Expected Effect)
+- [x] T119 [P1] Integrate Markdown renderer with content blocks structure (text + prompt_meta) in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [x] T119a [P1] Create ContentBlock component that renders text and optional prompt_meta in typescript-workspace/apps/web/components/content-block.tsx (UI/UX P0)
 
 ### Phase 11.2: 互動功能 (P1)
 
-- [ ] T120 [P1] Implement Intersection Observer API for scroll tracking in typescript-workspace/apps/web/hooks/use-intersection-observer.ts
-- [ ] T121 [P1] Implement automatic sidebar card switching based on scroll position in typescript-workspace/apps/web/components/prompt-sidebar.tsx
-- [ ] T122 [P1] Add anchor icon (⚓ or 💡) to content blocks with hover highlight effect in typescript-workspace/apps/web/components/content-block.tsx
-- [ ] T123 [P1] Implement Copy to Clipboard functionality for optimized prompts in typescript-workspace/apps/web/components/prompt-card.tsx
+- [x] T120 [P1] Implement Intersection Observer API for scroll tracking in typescript-workspace/apps/web/hooks/use-intersection-observer.ts
+- [x] T121 [P1] Implement automatic sidebar card switching based on scroll position in typescript-workspace/apps/web/components/prompt-sidebar.tsx
+- [x] T122 [P1] Add anchor icon (⚓ or 💡) to content blocks with hover highlight effect in typescript-workspace/apps/web/components/content-block.tsx
+- [x] T123 [P1] Implement Copy to Clipboard functionality for optimized prompts in typescript-workspace/apps/web/components/prompt-card.tsx
 
 ### Phase 11.3: Mobile 適配 (P2)
 

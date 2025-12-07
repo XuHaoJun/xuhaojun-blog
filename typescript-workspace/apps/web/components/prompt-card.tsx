@@ -1,0 +1,142 @@
+"use client";
+
+import { useState } from "react";
+import type { PromptMeta, PromptCandidate } from "@blog-agent/proto-gen";
+import { cn } from "@/lib/utils";
+
+interface PromptCardProps {
+  promptMeta: PromptMeta;
+  className?: string;
+}
+
+export function PromptCard({ promptMeta, className }: PromptCardProps) {
+  const [activeTab, setActiveTab] = useState(0);
+  const candidates = promptMeta.betterCandidates || [];
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // You could add a toast notification here
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm",
+        className
+      )}
+    >
+      {/* 1. 🔴 原始提問 (The User's Attempt) */}
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-red-600 dark:text-red-400 font-semibold">
+            🔴 原始提問
+          </span>
+          <span className="text-xs text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded">
+            Original Prompt
+          </span>
+        </div>
+        <p className="text-sm text-gray-700 dark:text-gray-300 font-mono leading-relaxed">
+          {promptMeta.originalPrompt}
+        </p>
+      </div>
+
+      {/* 2. 🧐 AI 診斷 (The Critique) */}
+      {promptMeta.analysis && (
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-yellow-700 dark:text-yellow-400 font-semibold">
+              🧐 AI 診斷
+            </span>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+            {promptMeta.analysis}
+          </p>
+        </div>
+      )}
+
+      {/* 3. 🟢 優化建議 (The Better Candidates) */}
+      {candidates.length > 0 && (
+        <div className="p-4 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-green-700 dark:text-green-400 font-semibold">
+              🟢 優化建議
+            </span>
+          </div>
+
+          {/* Tab Navigation */}
+          {candidates.length > 1 && (
+            <div className="flex gap-2 mb-3 border-b border-green-200 dark:border-green-800">
+              {candidates.map((candidate, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveTab(idx)}
+                  className={cn(
+                    "px-3 py-2 text-sm font-medium transition-colors",
+                    activeTab === idx
+                      ? "text-green-700 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400"
+                      : "text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-300"
+                  )}
+                >
+                  {getCandidateTypeLabel(candidate.type)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Active Candidate Content */}
+          {candidates[activeTab] && (
+            <div className="space-y-3">
+              <div className="bg-white dark:bg-gray-900 rounded p-3 border border-green-200 dark:border-green-800">
+                <p className="text-sm text-gray-800 dark:text-gray-200 font-mono leading-relaxed whitespace-pre-wrap">
+                  {candidates[activeTab].prompt}
+                </p>
+              </div>
+
+              {candidates[activeTab].reasoning && (
+                <p className="text-xs text-gray-600 dark:text-gray-400 italic">
+                  {candidates[activeTab].reasoning}
+                </p>
+              )}
+
+              {/* Copy Button */}
+              <button
+                onClick={() => copyToClipboard(candidates[activeTab].prompt)}
+                className="w-full px-3 py-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded transition-colors"
+              >
+                📋 複製此 Prompt
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. 🚀 預期效果 (Why it works) */}
+      {promptMeta.expectedEffect && (
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-gray-700 dark:text-gray-300 font-semibold text-sm">
+              🚀 預期效果
+            </span>
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+            {promptMeta.expectedEffect}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getCandidateTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    structured: "結構化版",
+    "role-play": "角色扮演版",
+    "chain-of-thought": "思維鏈版",
+  };
+  return labels[type] || type;
+}
+
