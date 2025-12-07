@@ -237,16 +237,16 @@
 
 **Purpose**: Build Next.js web application for blog post display
 
-- [ ] T106 [P] Initialize Next.js project in typescript-workspace/apps/web/ with App Router
-- [ ] T107 [P] Setup shadcn/ui components in typescript-workspace/apps/web/
-- [ ] T108 [P] Configure Connect-Web gRPC client for Next.js in typescript-workspace/apps/web/lib/grpc-client.ts
-- [ ] T109 [P] Create blog list page with static generation in typescript-workspace/apps/web/app/page.tsx (uses ListBlogPosts gRPC)
-- [ ] T110 [P] Create blog detail page with static generation in typescript-workspace/apps/web/app/blog/[id]/page.tsx (uses GetBlogPostWithPrompts gRPC for UI/UX support)
-- [ ] T111 [P] Implement generateStaticParams for blog posts in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T112 [P] Create Markdown renderer component for blog content in typescript-workspace/apps/web/components/markdown-renderer.tsx
-- [ ] T113 [P] Create blog metadata display component in typescript-workspace/apps/web/components/blog-metadata.tsx
-- [ ] T114 [P] Add TailwindCSS styling and responsive layout in typescript-workspace/apps/web/
-- [ ] T115 [P] Configure Next.js static generation with gRPC client in typescript-workspace/apps/web/next.config.mjs
+- [x] T106 [P] Initialize Next.js project in typescript-workspace/apps/web/ with App Router
+- [x] T107 [P] Setup shadcn/ui components in typescript-workspace/apps/web/
+- [x] T108 [P] Configure Connect-Web gRPC client for Next.js in typescript-workspace/apps/web/lib/grpc-client.ts
+- [x] T109 [P] Create blog list page with static generation in typescript-workspace/apps/web/app/page.tsx (uses ListBlogPosts gRPC)
+- [x] T110 [P] Create blog detail page with static generation in typescript-workspace/apps/web/app/blog/[id]/page.tsx (uses GetBlogPostWithPrompts gRPC for UI/UX support)
+- [x] T111 [P] Implement generateStaticParams for blog posts in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [x] T112 [P] Create Markdown renderer component for blog content in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [x] T113 [P] Create blog metadata display component in typescript-workspace/apps/web/components/blog-metadata.tsx
+- [x] T114 [P] Add TailwindCSS styling and responsive layout in typescript-workspace/apps/web/
+- [x] T115 [P] Configure Next.js static generation with gRPC client in typescript-workspace/apps/web/next.config.mjs
 
 ---
 

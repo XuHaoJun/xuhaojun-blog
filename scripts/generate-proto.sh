@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PROTO_DIR="$REPO_ROOT/share/proto"
 PYTHON_OUT="$REPO_ROOT/python-workspace/apps/server/src/blog_agent/proto"
-TYPESCRIPT_OUT="$REPO_ROOT/typescript-workspace/apps/proto-gen/src"
+TYPESCRIPT_OUT="$REPO_ROOT/typescript-workspace/packages/proto-gen/src"
 
 echo "Generating gRPC code from Protocol Buffers..."
 
@@ -107,11 +107,17 @@ EOF
   exit 1
 fi
 
-# Check if tools are installed in typescript-workspace
-cd "$TYPESCRIPT_WORKSPACE"
-if [ -d "node_modules/@bufbuild/protoc-gen-es" ] && [ -d "node_modules/@bufbuild/protoc-gen-connect-es" ]; then
-  # Use pnpm to run locally installed tools
-  echo "Using locally installed proto code generators..."
+# Check if buf is available (preferred method for Connect v2)
+if command -v buf &> /dev/null; then
+  # Use buf to generate code (supports protobuf v2)
+  cd "$TYPESCRIPT_WORKSPACE/packages/proto-gen"
+  echo "Using buf to generate TypeScript code..."
+  buf generate
+  echo "✓ TypeScript code generated with buf"
+elif [ -d "$TYPESCRIPT_WORKSPACE/node_modules/@bufbuild/protoc-gen-es" ]; then
+  # Fallback to protoc if buf is not available
+  echo "Using locally installed protoc-gen-es..."
+  cd "$TYPESCRIPT_WORKSPACE"
   
   # Generate protobuf messages with protoc-gen-es
   protoc \
@@ -120,23 +126,12 @@ if [ -d "node_modules/@bufbuild/protoc-gen-es" ] && [ -d "node_modules/@bufbuild
     --es_out="$TYPESCRIPT_OUT" \
     "$PROTO_DIR/blog_agent.proto"
   
-  # Generate Connect RPC services with protoc-gen-connect-es
-  protoc \
-    --proto_path="$PROTO_DIR" \
-    --plugin=protoc-gen-connect-es="$TYPESCRIPT_WORKSPACE/node_modules/.bin/protoc-gen-connect-es" \
-    --connect-es_out="$TYPESCRIPT_OUT" \
-    "$PROTO_DIR/blog_agent.proto"
-  
-  echo "✓ TypeScript code generated with local protoc-gen-es and protoc-gen-connect-es"
-elif command -v buf &> /dev/null; then
-  # Fallback to buf if available
-  cd "$REPO_ROOT"
-  buf generate "$PROTO_DIR"
-  echo "✓ TypeScript code generated with buf"
+  echo "✓ TypeScript code generated with local protoc-gen-es"
+  echo "  Note: Connect service definitions need to be created manually for Connect v2"
 else
   echo "Error: proto code generators not found."
-  echo "  Run: cd typescript-workspace && pnpm install"
-  echo "  Or install buf: https://buf.build/docs/installation"
+  echo "  Install buf: https://buf.build/docs/installation"
+  echo "  Or run: cd typescript-workspace && pnpm install"
   echo "Creating placeholder file..."
   cat > "$TYPESCRIPT_OUT/blog_agent_pb.ts" << 'EOF'
 // Placeholder - Run 'pnpm install' in typescript-workspace, then 'pnpm generate-proto'
