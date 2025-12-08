@@ -1,19 +1,26 @@
 """Content review workflow step for quality enhancement."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 from llama_index.core.workflow import Event, step
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 
 if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent
     from blog_agent.storage.models import PromptSuggestion
 
-from blog_agent.services.llm_service import get_llm_service
+from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.storage.models import ContentExtract, ReviewFindings
 from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
+from blog_agent.workflows.schemas import (
+    FactualInconsistenciesResponse,
+    LogicalGapsResponse,
+    UnclearExplanationsResponse,
+)
 
 logger = get_logger(__name__)
 
@@ -32,9 +39,9 @@ class ReviewEvent(Event):
 class ContentReviewer:
     """Content review step for identifying issues and suggesting improvements."""
 
-    def __init__(self, llm_service=None, tavily_service=None):
+    def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None, tavily_service=None):
         """Initialize content reviewer."""
-        self.llm_service = llm_service or get_llm_service()
+        self.llm = llm or get_llm()
         self.tavily_service = tavily_service or get_tavily_service()
 
     @step
@@ -109,62 +116,36 @@ class ContentReviewer:
 
     async def _detect_logical_gaps(self, content_extract: ContentExtract) -> List[Dict[str, Any]]:
         """Detect logical gaps in the content (T055)."""
-        prompt = f"""請分析以下內容，找出邏輯上的斷層或缺失。
+        prompt_template = """請分析以下內容，找出邏輯上的斷層或缺失。
 
 核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+{key_insights}
 
 核心概念：
-{', '.join(content_extract.core_concepts)}
+{core_concepts}
 
 內容：
-{content_extract.filtered_content}
+{content}
 
 請找出以下類型的邏輯問題：
 1. 概念之間的跳躍（缺少中間步驟）
 2. 論證鏈中的斷層
 3. 前提假設未明確說明
-4. 結論與前提不一致
-
-請以 JSON 格式輸出，格式如下：
-{{
-  "gaps": [
-    {{
-      "type": "類型（如：概念跳躍、論證斷層等）",
-      "description": "問題描述",
-      "location": "在內容中的位置或相關段落",
-      "severity": "嚴重程度（high/medium/low）"
-    }}
-  ]
-}}
-
-只輸出 JSON，不要額外說明。"""
+4. 結論與前提不一致"""
 
         try:
-            response = await self.llm_service.generate_structured(
-                prompt,
-                output_schema={
-                    "type": "object",
-                    "properties": {
-                        "gaps": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "type": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "location": {"type": "string"},
-                                    "severity": {"type": "string"},
-                                },
-                                "required": ["type", "description", "location", "severity"],
-                            },
-                        }
-                    },
-                    "required": ["gaps"],
-                },
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            core_concepts_str = ", ".join(content_extract.core_concepts)
+            
+            response = await self.llm.structured_predict(
+                LogicalGapsResponse,
+                prompt_template,
+                key_insights=key_insights_str,
+                core_concepts=core_concepts_str,
+                content=content_extract.filtered_content,
             )
 
-            gaps = response.get("gaps", [])
+            gaps = [gap.model_dump() for gap in response.gaps]
             logger.info("Detected logical gaps", count=len(gaps))
             return gaps
 
@@ -176,64 +157,36 @@ class ContentReviewer:
         self, content_extract: ContentExtract
     ) -> List[Dict[str, Any]]:
         """Detect factual inconsistencies in the content (T056)."""
-        prompt = f"""請分析以下內容，找出事實上的不一致或矛盾。
+        prompt_template = """請分析以下內容，找出事實上的不一致或矛盾。
 
 核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+{key_insights}
 
 核心概念：
-{', '.join(content_extract.core_concepts)}
+{core_concepts}
 
 內容：
-{content_extract.filtered_content}
+{content}
 
 請找出以下類型的事實問題：
 1. 前後矛盾的陳述
 2. 與已知事實不符的聲稱
 3. 數據或統計資料的不一致
-4. 時間線或因果關係的矛盾
-
-請以 JSON 格式輸出，格式如下：
-{{
-  "inconsistencies": [
-    {{
-      "type": "類型（如：前後矛盾、事實不符等）",
-      "description": "問題描述",
-      "claim1": "第一個矛盾的聲稱",
-      "claim2": "與之矛盾的聲稱",
-      "severity": "嚴重程度（high/medium/low）"
-    }}
-  ]
-}}
-
-只輸出 JSON，不要額外說明。"""
+4. 時間線或因果關係的矛盾"""
 
         try:
-            response = await self.llm_service.generate_structured(
-                prompt,
-                output_schema={
-                    "type": "object",
-                    "properties": {
-                        "inconsistencies": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "type": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "claim1": {"type": "string"},
-                                    "claim2": {"type": "string"},
-                                    "severity": {"type": "string"},
-                                },
-                                "required": ["type", "description", "claim1", "claim2", "severity"],
-                            },
-                        }
-                    },
-                    "required": ["inconsistencies"],
-                },
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            core_concepts_str = ", ".join(content_extract.core_concepts)
+            
+            response = await self.llm.structured_predict(
+                FactualInconsistenciesResponse,
+                prompt_template,
+                key_insights=key_insights_str,
+                core_concepts=core_concepts_str,
+                content=content_extract.filtered_content,
             )
 
-            inconsistencies = response.get("inconsistencies", [])
+            inconsistencies = [inc.model_dump() for inc in response.inconsistencies]
             logger.info("Detected factual inconsistencies", count=len(inconsistencies))
             return inconsistencies
 
@@ -245,65 +198,37 @@ class ContentReviewer:
         self, content_extract: ContentExtract
     ) -> List[Dict[str, Any]]:
         """Detect unclear explanations in the content (T057)."""
-        prompt = f"""請分析以下內容，找出不清楚或需要澄清的解釋。
+        prompt_template = """請分析以下內容，找出不清楚或需要澄清的解釋。
 
 核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+{key_insights}
 
 核心概念：
-{', '.join(content_extract.core_concepts)}
+{core_concepts}
 
 內容：
-{content_extract.filtered_content}
+{content}
 
 請找出以下類型的不清楚之處：
 1. 術語未定義或解釋不清
 2. 步驟說明不夠詳細
 3. 概念解釋過於抽象
 4. 缺少必要的背景知識
-5. 範例或類比不夠清楚
-
-請以 JSON 格式輸出，格式如下：
-{{
-  "unclear_points": [
-    {{
-      "type": "類型（如：術語未定義、步驟不清等）",
-      "description": "問題描述",
-      "location": "在內容中的位置或相關段落",
-      "suggestion": "如何改進的建議",
-      "severity": "嚴重程度（high/medium/low）"
-    }}
-  ]
-}}
-
-只輸出 JSON，不要額外說明。"""
+5. 範例或類比不夠清楚"""
 
         try:
-            response = await self.llm_service.generate_structured(
-                prompt,
-                output_schema={
-                    "type": "object",
-                    "properties": {
-                        "unclear_points": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "type": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "location": {"type": "string"},
-                                    "suggestion": {"type": "string"},
-                                    "severity": {"type": "string"},
-                                },
-                                "required": ["type", "description", "location", "suggestion", "severity"],
-                            },
-                        }
-                    },
-                    "required": ["unclear_points"],
-                },
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            core_concepts_str = ", ".join(content_extract.core_concepts)
+            
+            response = await self.llm.structured_predict(
+                UnclearExplanationsResponse,
+                prompt_template,
+                key_insights=key_insights_str,
+                core_concepts=core_concepts_str,
+                content=content_extract.filtered_content,
             )
 
-            unclear_points = response.get("unclear_points", [])
+            unclear_points = [point.model_dump() for point in response.unclear_points]
             logger.info("Detected unclear explanations", count=len(unclear_points))
             return unclear_points
 
@@ -333,12 +258,12 @@ class ContentReviewer:
 請以列表形式輸出，每個需要查核的聲稱一行。只輸出聲稱內容，不要額外說明。"""
 
         try:
-            response = await self.llm_service.generate(prompt)
+            response = await self.llm.complete(prompt)
 
             # Parse response into list
             claims = [
                 line.strip()
-                for line in response.split("\n")
+                for line in response.text.split("\n")
                 if line.strip()
                 and not line.strip().startswith("#")
                 and len(line.strip()) > 10  # Filter out very short lines
@@ -373,12 +298,12 @@ class ContentReviewer:
 只輸出建議列表，不要額外說明。"""
 
         try:
-            response = await self.llm_service.generate(prompt)
+            response = await self.llm.complete(prompt)
 
             # Parse response into list
             suggestions = [
                 line.strip()
-                for line in response.split("\n")
+                for line in response.text.split("\n")
                 if line.strip()
                 and not line.strip().startswith("#")
                 and (line.strip().startswith("-") or line.strip()[0].isdigit())

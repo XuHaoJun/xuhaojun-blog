@@ -1,15 +1,18 @@
 """Prompt analysis workflow step for optimization suggestions."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from llama_index.core.workflow import Event, step
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 
 if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent, ExtractStartEvent
 
-from blog_agent.services.llm_service import get_llm_service
+from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import Message, PromptCandidate, PromptSuggestion
 from blog_agent.utils.logging import get_logger
+from blog_agent.workflows.schemas import PromptCandidatesResponse
 
 logger = get_logger(__name__)
 
@@ -25,9 +28,9 @@ class PromptAnalysisEvent(Event):
 class PromptAnalyzer:
     """Prompt analysis step for analyzing user prompts and suggesting improvements."""
 
-    def __init__(self, llm_service=None):
+    def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None):
         """Initialize prompt analyzer."""
-        self.llm_service = llm_service or get_llm_service()
+        self.llm = llm or get_llm()
 
     @step
     async def analyze(self, ev: "ExtractStartEvent") -> PromptAnalysisEvent:  # type: ignore
@@ -211,10 +214,10 @@ class PromptAnalyzer:
 請只輸出 JSON 陣列，不要額外說明。"""
 
         try:
-            response = await self.llm_service.generate(prompt)
+            response = await self.llm.complete(prompt)
             # Try to parse JSON response
             import json
-            prompts = json.loads(response.strip())
+            prompts = json.loads(response.text.strip())
             if isinstance(prompts, list):
                 return [p for p in prompts if isinstance(p, str) and len(p) > 10]
         except Exception as e:
@@ -248,8 +251,8 @@ class PromptAnalyzer:
 
 請提供詳細的分析，以正體中文撰寫。"""
 
-        response = await self.llm_service.generate(evaluation_prompt)
-        return response.strip()
+        response = await self.llm.complete(evaluation_prompt)
+        return response.text.strip()
 
     async def _generate_structured_alternative_prompts(
         self, original_prompt: str, messages: List[Message]
@@ -262,7 +265,7 @@ class PromptAnalyzer:
         """
         context_summary = self._summarize_conversation_context(messages)
         
-        generation_prompt = f"""請根據以下原始提示詞，生成至少 3 個改進版本的提示詞候選。
+        prompt_template = """請根據以下原始提示詞，生成至少 3 個改進版本的提示詞候選。
 
 原始提示詞：
 {original_prompt}
@@ -281,53 +284,36 @@ class PromptAnalyzer:
    - prompt: 完整的改進後提示詞
    - reasoning: 為什麼這個版本更好（簡短說明）
 4. 改進版本應該更清晰、更具體、更有效
-5. 每個候選應該完整且可以直接使用
-
-請以 JSON 陣列格式返回，例如：
-[
-  {{
-    "type": "structured",
-    "prompt": "改進版本1（結構化）",
-    "reasoning": "為什麼這個版本更好"
-  }},
-  {{
-    "type": "role-play",
-    "prompt": "改進版本2（角色扮演）",
-    "reasoning": "為什麼這個版本更好"
-  }},
-  {{
-    "type": "chain-of-thought",
-    "prompt": "改進版本3（思維鏈）",
-    "reasoning": "為什麼這個版本更好"
-  }}
-]
-
-請只輸出 JSON 陣列，不要額外說明。"""
+5. 每個候選應該完整且可以直接使用"""
 
         try:
-            response = await self.llm_service.generate(generation_prompt)
-            import json
-            candidates_data = json.loads(response.strip())
-            if isinstance(candidates_data, list):
-                # Convert to PromptCandidate objects
-                candidates = []
-                for item in candidates_data:
-                    if isinstance(item, dict) and "type" in item and "prompt" in item and "reasoning" in item:
-                        try:
-                            candidate = PromptCandidate(
-                                type=item["type"],  # Will validate against Literal
-                                prompt=item["prompt"],
-                                reasoning=item["reasoning"],
-                            )
-                            if len(candidate.prompt) > 20:  # Filter out too short prompts
-                                candidates.append(candidate)
-                        except Exception as e:
-                            logger.warning("Failed to create PromptCandidate", error=str(e), data=item)
-                            continue
-                if len(candidates) >= 3:
-                    return candidates[:10]  # Limit to 10 candidates
+            # Use structured_predict with Pydantic model
+            response = await self.llm.structured_predict(
+                PromptCandidatesResponse,
+                prompt_template,
+                original_prompt=original_prompt,
+                context_summary=context_summary,
+            )
+            
+            # Convert to PromptCandidate objects
+            candidates = []
+            for item in response.candidates:
+                try:
+                    candidate = PromptCandidate(
+                        type=item.type,
+                        prompt=item.prompt,
+                        reasoning=item.reasoning,
+                    )
+                    if len(candidate.prompt) > 20:  # Filter out too short prompts
+                        candidates.append(candidate)
+                except Exception as e:
+                    logger.warning("Failed to create PromptCandidate", error=str(e), data=item)
+                    continue
+            
+            if len(candidates) >= 3:
+                return candidates[:10]  # Limit to 10 candidates
         except Exception as e:
-            logger.warning("Failed to parse structured alternative prompts", error=str(e))
+            logger.warning("Failed to generate structured alternative prompts", error=str(e))
         
         # Fallback: generate simple structured alternatives
         return await self._generate_fallback_structured_alternatives(original_prompt)
@@ -338,7 +324,7 @@ class PromptAnalyzer:
         """Generate additional structured prompt candidates if we don't have enough."""
         context_summary = self._summarize_conversation_context(messages)
         
-        generation_prompt = f"""請根據以下原始提示詞，再生成 {needed} 個不同的改進版本。
+        prompt_template = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本。
 
 原始提示詞：
 {original_prompt}
@@ -353,39 +339,33 @@ class PromptAnalyzer:
    - type: 類型
    - prompt: 完整的改進後提示詞
    - reasoning: 為什麼這個版本更好
-4. 每個候選應該完整且可以直接使用
-
-請以 JSON 陣列格式返回，例如：
-[
-  {{
-    "type": "structured",
-    "prompt": "改進版本",
-    "reasoning": "為什麼更好"
-  }}
-]
-
-請只輸出 JSON 陣列，不要額外說明。"""
+4. 每個候選應該完整且可以直接使用"""
 
         try:
-            response = await self.llm_service.generate(generation_prompt)
-            import json
-            candidates_data = json.loads(response.strip())
-            if isinstance(candidates_data, list):
-                candidates = []
-                for item in candidates_data:
-                    if isinstance(item, dict) and "type" in item and "prompt" in item and "reasoning" in item:
-                        try:
-                            candidate = PromptCandidate(
-                                type=item["type"],
-                                prompt=item["prompt"],
-                                reasoning=item["reasoning"],
-                            )
-                            if len(candidate.prompt) > 20:
-                                candidates.append(candidate)
-                        except Exception as e:
-                            logger.warning("Failed to create additional PromptCandidate", error=str(e))
-                            continue
-                return candidates
+            # Use structured_predict with Pydantic model
+            response = await self.llm.structured_predict(
+                PromptCandidatesResponse,
+                prompt_template,
+                original_prompt=original_prompt,
+                context_summary=context_summary,
+                needed=needed,
+            )
+            
+            # Convert to PromptCandidate objects
+            candidates = []
+            for item in response.candidates:
+                try:
+                    candidate = PromptCandidate(
+                        type=item.type,
+                        prompt=item.prompt,
+                        reasoning=item.reasoning,
+                    )
+                    if len(candidate.prompt) > 20:
+                        candidates.append(candidate)
+                except Exception as e:
+                    logger.warning("Failed to create additional PromptCandidate", error=str(e))
+                    continue
+            return candidates
         except Exception as e:
             logger.warning("Failed to generate additional structured candidates", error=str(e))
         
@@ -466,8 +446,8 @@ class PromptAnalyzer:
 
 請提供詳細的分析，以正體中文撰寫，結構清晰。"""
 
-        response = await self.llm_service.generate(reasoning_prompt)
-        return response.strip()
+        response = await self.llm.complete(reasoning_prompt)
+        return response.text.strip()
 
     async def _generate_expected_effect(
         self, original_prompt: str, better_candidates: List[PromptCandidate], messages: List[Message]
@@ -503,8 +483,8 @@ class PromptAnalyzer:
 請提供簡潔明瞭的說明（100-200字），以正體中文撰寫。"""
 
         try:
-            response = await self.llm_service.generate(effect_prompt)
-            return response.strip()[:500]  # Limit length
+            response = await self.llm.complete(effect_prompt)
+            return response.text.strip()[:500]  # Limit length
         except Exception as e:
             logger.warning("Failed to generate expected effect", error=str(e))
             return "使用優化後的提示詞可以獲得更清晰、更具體、更符合需求的 AI 回答。"

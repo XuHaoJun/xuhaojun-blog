@@ -1,10 +1,12 @@
 """Content extraction workflow step."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from llama_index.core.workflow import Event, step
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 
-from blog_agent.services.llm_service import get_llm_service
+from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import ContentExtract, Message
 from blog_agent.utils.logging import get_logger
 
@@ -31,9 +33,9 @@ class ExtractStartEvent(Event):
 class ContentExtractor:
     """Content extraction step for blog workflow."""
 
-    def __init__(self, llm_service=None):
+    def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None):
         """Initialize content extractor."""
-        self.llm_service = llm_service or get_llm_service()
+        self.llm = llm or get_llm()
 
     async def extract(self, ev: ExtractStartEvent) -> ExtractEvent:
         """Extract key insights and core concepts from conversation."""
@@ -154,12 +156,12 @@ class ContentExtractor:
 
 請以簡潔的列表形式輸出，每個觀點一行。只輸出觀點，不要額外說明。"""
 
-        response = await self.llm_service.generate(prompt)
+        response = await self.llm.complete(prompt)
 
         # Parse response into list
         insights = [
             line.strip()
-            for line in response.split("\n")
+            for line in response.text.split("\n")
             if line.strip() and not line.strip().startswith("#")
         ]
 
@@ -178,12 +180,12 @@ class ContentExtractor:
 
 請以簡潔的列表形式輸出核心概念，每個概念一行。只輸出概念名稱，不要額外說明。"""
 
-        response = await self.llm_service.generate(prompt)
+        response = await self.llm.complete(prompt)
 
         # Parse response into list
         concepts = [
             line.strip()
-            for line in response.split("\n")
+            for line in response.text.split("\n")
             if line.strip() and not line.strip().startswith("#")
         ]
 

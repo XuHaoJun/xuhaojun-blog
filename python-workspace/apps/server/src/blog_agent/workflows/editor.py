@@ -1,16 +1,17 @@
 """Blog editor workflow step (simple version without review/extension)."""
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
-from uuid import uuid4
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from llama_index.core.workflow import Event, step
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 
 from blog_agent.storage.models import PromptSuggestion
 
 if TYPE_CHECKING:
     from blog_agent.workflows.reviewer import ReviewEvent
 
-from blog_agent.services.llm_service import get_llm_service
+from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import BlogPost, ContentBlock, ContentExtract, PromptSuggestion, ReviewFindings
 from blog_agent.utils.logging import get_logger
 
@@ -29,9 +30,9 @@ class EditEvent(Event):
 class BlogEditor:
     """Blog editor step for generating final blog post."""
 
-    def __init__(self, llm_service=None):
+    def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None):
         """Initialize blog editor."""
-        self.llm_service = llm_service or get_llm_service()
+        self.llm = llm or get_llm()
 
     @step
     async def edit(self, ev: "ReviewEvent") -> EditEvent:  # type: ignore
@@ -150,8 +151,8 @@ class BlogEditor:
 
 請直接輸出完整的 Markdown 文章，不要額外說明。"""
 
-        response = await self.llm_service.generate(prompt)
-        blog_content = response.strip()
+        response = await self.llm.complete(prompt)
+        blog_content = response.text.strip()
         
         # T080: Add prompt suggestions section to blog content (FR-014)
         if prompt_suggestion and prompt_suggestion.original_prompt:
@@ -177,9 +178,9 @@ class BlogEditor:
 
 請只輸出標題，不要額外說明。"""
 
-        response = await self.llm_service.generate(prompt)
+        response = await self.llm.complete(prompt)
         # Clean up title (remove quotes, extra spaces)
-        title = response.strip().strip('"').strip("'").strip()
+        title = response.text.strip().strip('"').strip("'").strip()
         return title[:200]  # Limit length
 
     async def _generate_summary(self, content_extract: ContentExtract) -> str:
@@ -196,8 +197,8 @@ class BlogEditor:
 
 請只輸出摘要，不要額外說明。"""
 
-        response = await self.llm_service.generate(prompt)
-        return response.strip()[:500]  # Limit length
+        response = await self.llm.complete(prompt)
+        return response.text.strip()[:500]  # Limit length
 
     def _format_prompt_suggestions(self, prompt_suggestion: PromptSuggestion) -> str:
         """

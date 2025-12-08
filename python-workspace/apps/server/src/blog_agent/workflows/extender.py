@@ -1,18 +1,21 @@
 """Content extension workflow step for research and knowledge gap filling."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from llama_index.core.workflow import Event, step
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 
 if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent
 
-from blog_agent.services.llm_service import get_llm_service
+from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.services.vector_store import VectorStore
 from blog_agent.storage.models import ContentExtract
 from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
+from blog_agent.workflows.schemas import KnowledgeGapResponse
 
 logger = get_logger(__name__)
 
@@ -32,12 +35,12 @@ class ContentExtender:
 
     def __init__(
         self,
-        llm_service=None,
+        llm: Optional[Union[Ollama, OpenAI]] = None,
         tavily_service=None,
         vector_store: Optional[VectorStore] = None,
     ):
         """Initialize content extender."""
-        self.llm_service = llm_service or get_llm_service()
+        self.llm = llm or get_llm()
         self.tavily_service = tavily_service or get_tavily_service()
         self.vector_store = vector_store or VectorStore()
 
@@ -115,65 +118,37 @@ class ContentExtender:
             - location: Where in the content the gap appears
             - query: Search query to find information about this gap
         """
-        prompt = f"""請分析以下內容，找出缺少足夠上下文或細節的區域。
+        prompt_template = """請分析以下內容，找出缺少足夠上下文或細節的區域。
 
 核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+{key_insights}
 
 核心概念：
-{', '.join(content_extract.core_concepts)}
+{core_concepts}
 
 內容：
-{content_extract.filtered_content}
+{content}
 
 請找出以下類型的知識缺口：
 1. 缺少必要的背景知識
 2. 概念或術語未充分解釋
 3. 缺少相關的技術細節
 4. 缺少實際範例或應用場景
-5. 缺少相關的歷史或發展脈絡
-
-請以 JSON 格式輸出，格式如下：
-{{
-  "gaps": [
-    {{
-      "type": "類型（如：missing_context、unclear_concept等）",
-      "description": "缺口描述",
-      "location": "在內容中的位置或相關段落",
-      "query": "用於搜尋相關資訊的查詢字串",
-      "priority": "優先級（high/medium/low）"
-    }}
-  ]
-}}
-
-只輸出 JSON，不要額外說明。"""
+5. 缺少相關的歷史或發展脈絡"""
 
         try:
-            response = await self.llm_service.generate_structured(
-                prompt,
-                output_schema={
-                    "type": "object",
-                    "properties": {
-                        "gaps": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "type": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "location": {"type": "string"},
-                                    "query": {"type": "string"},
-                                    "priority": {"type": "string"},
-                                },
-                                "required": ["type", "description", "location", "query", "priority"],
-                            },
-                        }
-                    },
-                    "required": ["gaps"],
-                },
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            core_concepts_str = ", ".join(content_extract.core_concepts)
+            
+            response = await self.llm.structured_predict(
+                KnowledgeGapResponse,
+                prompt_template,
+                key_insights=key_insights_str,
+                core_concepts=core_concepts_str,
+                content=content_extract.filtered_content,
             )
 
-            gaps = response.get("gaps", [])
+            gaps = [gap.model_dump() for gap in response.gaps]
             logger.info("Identified knowledge gaps", count=len(gaps))
             return gaps
 
@@ -325,7 +300,8 @@ class ContentExtender:
 請直接輸出整合後的完整內容，不要額外說明。"""
 
         try:
-            extended_content = await self.llm_service.generate(prompt)
+            response = await self.llm.complete(prompt)
+            extended_content = response.text
             logger.info("Research integrated into content", original_length=len(content_extract.filtered_content), extended_length=len(extended_content))
             return extended_content.strip()
 

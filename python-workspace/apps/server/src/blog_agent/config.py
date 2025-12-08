@@ -22,9 +22,11 @@ class Config:
     GRPC_HOST: str = os.getenv("GRPC_HOST", "0.0.0.0")
 
     # LLM Service
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:14b")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
     # Tavily API
     TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
@@ -35,8 +37,8 @@ class Config:
     @classmethod
     def validate(cls) -> None:
         """Validate required configuration."""
-        if not cls.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY is required")
+        if cls.LLM_PROVIDER == "openai" and not cls.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'")
         if not cls.TAVILY_API_KEY:
             raise ValueError("TAVILY_API_KEY is required")
 
