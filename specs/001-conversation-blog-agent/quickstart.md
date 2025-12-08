@@ -96,10 +96,10 @@ mkdir -p conversations
 ```bash
 # 處理對話紀錄（從 conversations/ 目錄）
 cd typescript-workspace/apps/cli
-pnpm start process --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md --format markdown
+pnpm start process --file ../../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md --format markdown
 
 # 強制重新處理（即使檔案未更新）
-pnpm start process --file-path ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md --format markdown --force
+pnpm start process --file ../../conversations/2025-12-07_15-30-59_Gemini_Google_Gemini.md --format markdown --force
 
 # 列出所有已處理的對話紀錄
 pnpm start list

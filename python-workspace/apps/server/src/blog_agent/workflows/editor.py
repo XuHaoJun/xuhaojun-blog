@@ -1,19 +1,39 @@
 """Blog editor workflow step (simple version without review/extension)."""
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from uuid import uuid4
 
 from llama_index.core.workflow import Event, step
-from llama_index.llms.ollama import Ollama
-from llama_index.llms.openai import OpenAI
+
+# Try to import LLM classes - they may be in separate packages
+if TYPE_CHECKING:
+    from llama_index.llms.ollama import Ollama
+    from llama_index.llms.openai import OpenAI
+else:
+    try:
+        from llama_index.llms.ollama import Ollama
+    except ImportError:
+        try:
+            from llama_index_llms_ollama import Ollama
+        except ImportError:
+            Ollama = None
+
+    try:
+        from llama_index.llms.openai import OpenAI
+    except ImportError:
+        try:
+            from llama_index_llms_openai import OpenAI
+        except ImportError:
+            OpenAI = None
 
 from blog_agent.storage.models import PromptSuggestion
-
-if TYPE_CHECKING:
-    from blog_agent.workflows.reviewer import ReviewEvent
 
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import BlogPost, ContentBlock, ContentExtract, PromptSuggestion, ReviewFindings
 from blog_agent.utils.logging import get_logger
+
+# Import ReviewEvent for type hints (needed at runtime for @step decorator)
+from blog_agent.workflows.reviewer import ReviewEvent
 
 logger = get_logger(__name__)
 
@@ -30,12 +50,12 @@ class EditEvent(Event):
 class BlogEditor:
     """Blog editor step for generating final blog post."""
 
-    def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None):
+    def __init__(self, llm: Optional[Union["Ollama", "OpenAI"]] = None):
         """Initialize blog editor."""
         self.llm = llm or get_llm()
 
     @step
-    async def edit(self, ev: "ReviewEvent") -> EditEvent:  # type: ignore
+    async def edit(self, ev: ReviewEvent) -> EditEvent:  # type: ignore
         """
         Generate blog post from extracted content with structured metadata, incorporating review findings.
         

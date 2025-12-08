@@ -2,8 +2,8 @@
  * Shared gRPC client for Blog Agent Service
  */
 
-import { createPromiseClient, PromiseClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { createClient, Client } from "@connectrpc/connect";
+import { createGrpcTransport } from "@connectrpc/connect-node";
 import { BlogAgentService } from "@blog-agent/proto-gen";
 import type {
   ProcessConversationRequest,
@@ -28,7 +28,7 @@ export interface BlogAgentClientConfig {
 /**
  * Blog Agent gRPC client type
  */
-export type BlogAgentClient = PromiseClient<typeof BlogAgentService>;
+export type BlogAgentClient = Client<typeof BlogAgentService>;
 
 /**
  * Create a Blog Agent gRPC client
@@ -38,12 +38,11 @@ export function createBlogAgentClient(
 ): BlogAgentClient {
   const baseUrl = config.baseUrl || "http://localhost:50051";
 
-  const transport = createConnectTransport({
+  const transport = createGrpcTransport({
     baseUrl,
-    useBinaryFormat: true,
   });
 
-  return createPromiseClient(BlogAgentService, transport);
+  return createClient(BlogAgentService, transport);
 }
 
 // Export types for convenience

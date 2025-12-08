@@ -1,6 +1,15 @@
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- Migration history table (must be first to track all migrations)
+CREATE TABLE IF NOT EXISTS migration_history (
+    id SERIAL PRIMARY KEY,
+    migration_name TEXT NOT NULL UNIQUE,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_migration_history_name ON migration_history (migration_name);
+
 -- conversation_logs table
 CREATE TABLE conversation_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

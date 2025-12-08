@@ -30,7 +30,7 @@ class Config:
 
     # Embedding Service
     EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "ollama")  # "ollama" or "openai"
-    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-embedding:0.6b")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-embedding:4b")
 
     # Tavily API
     TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")

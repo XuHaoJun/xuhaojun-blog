@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from llama_index.core.workflow import StopEvent, Workflow, step
+from llama_index.core.workflow import Event, StartEvent, StopEvent, Workflow, step
 
 from blog_agent.storage.models import Message
 from blog_agent.workflows.editor import BlogEditor, EditEvent
@@ -16,13 +16,12 @@ from blog_agent.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class BlogWorkflowStartEvent:
+class BlogWorkflowStartEvent(StartEvent):
     """Start event for blog workflow."""
 
-    def __init__(self, messages: List[Message], conversation_log_id: str, conversation_log_metadata: Optional[Dict[str, Any]] = None):
-        self.messages = messages
-        self.conversation_log_id = conversation_log_id
-        self.conversation_log_metadata = conversation_log_metadata or {}
+    messages: List[Message]
+    conversation_log_id: str
+    conversation_log_metadata: Optional[Dict[str, Any]] = None
 
 
 class BlogWorkflowStopEvent(StopEvent):
@@ -44,6 +43,7 @@ class BlogWorkflow(Workflow):
         self.editor = BlogEditor()
         self.prompt_analyzer = PromptAnalyzer()  # T079: Add prompt analyzer for parallel execution
 
+    @step
     async def extract_step(self, ev: BlogWorkflowStartEvent) -> ExtractEvent:
         """Content extraction step."""
         logger.info("Starting content extraction", conversation_log_id=ev.conversation_log_id)

@@ -2,7 +2,7 @@
  * gRPC client wrapper for Blog Agent Service
  */
 
-import { createBlogAgentClient } from "@blog-agent/rpc-client";
+import { BlogAgentClient, createBlogAgentClient } from "@blog-agent/rpc-client";
 
 export interface BlogAgentClientConfig {
   baseUrl?: string;
@@ -21,24 +21,20 @@ export function createClient(config: BlogAgentClientConfig = {}) {
  * Process conversation log
  */
 export async function processConversation(
-  client: any, // TODO: Type after proto generation
+  client: BlogAgentClient,
   filePath: string,
   fileContent: Buffer,
   fileFormat: string,
   metadata?: Record<string, string>,
   force?: boolean // FR-034: Force regeneration flag
 ) {
-  // TODO: Implement after proto generation
-  // return await client.processConversation({
-  //   file_path: filePath,
-  //   file_format: mapFileFormat(fileFormat),
-  //   file_content: fileContent,
-  //   metadata: metadata || {},
-  //   force: force || false, // FR-034
-  // });
-
-  // Temporary placeholder
-  throw new Error("Proto generation required (T021)");
+  return await client.processConversation({
+    filePath: filePath,
+    fileFormat: mapFileFormat(fileFormat),
+    fileContent: fileContent,
+    metadata: metadata || {},
+    // force: force || false, // FR-034
+  });
 }
 
 function mapFileFormat(format: string): number {
@@ -51,4 +47,3 @@ function mapFileFormat(format: string): number {
 
   return formatMap[format.toLowerCase()] || 1;
 }
-

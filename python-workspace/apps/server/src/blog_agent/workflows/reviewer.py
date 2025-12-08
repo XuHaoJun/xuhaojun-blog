@@ -4,11 +4,29 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 from llama_index.core.workflow import Event, step
-from llama_index.llms.ollama import Ollama
-from llama_index.llms.openai import OpenAI
+
+# Try to import LLM classes - they may be in separate packages
+if TYPE_CHECKING:
+    from llama_index.llms.ollama import Ollama
+    from llama_index.llms.openai import OpenAI
+else:
+    try:
+        from llama_index.llms.ollama import Ollama
+    except ImportError:
+        try:
+            from llama_index_llms_ollama import Ollama
+        except ImportError:
+            Ollama = None
+
+    try:
+        from llama_index.llms.openai import OpenAI
+    except ImportError:
+        try:
+            from llama_index_llms_openai import OpenAI
+        except ImportError:
+            OpenAI = None
 
 if TYPE_CHECKING:
-    from blog_agent.workflows.extractor import ExtractEvent
     from blog_agent.storage.models import PromptSuggestion
 
 from blog_agent.services.llm import get_llm
@@ -16,6 +34,7 @@ from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.storage.models import ContentExtract, ReviewFindings
 from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
+from blog_agent.workflows.extractor import ExtractEvent
 from blog_agent.workflows.schemas import (
     FactualInconsistenciesResponse,
     LogicalGapsResponse,
@@ -45,7 +64,7 @@ class ContentReviewer:
         self.tavily_service = tavily_service or get_tavily_service()
 
     @step
-    async def review(self, ev: "ExtractEvent") -> ReviewEvent:  # type: ignore
+    async def review(self, ev: ExtractEvent) -> ReviewEvent:  # type: ignore
         """Review extracted content for errors, inconsistencies, and unclear explanations."""
         try:
             content_extract = ev.content_extract

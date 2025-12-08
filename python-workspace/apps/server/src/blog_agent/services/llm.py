@@ -1,18 +1,39 @@
 """LlamaIndex LLM initialization helper."""
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 from llama_index.core import Settings
-from llama_index.llms.ollama import Ollama
-from llama_index.llms.openai import OpenAI
 
 from blog_agent.config import config
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Try to import LLM classes - they may be in separate packages
+if TYPE_CHECKING:
+    from llama_index.llms.ollama import Ollama
+    from llama_index.llms.openai import OpenAI
+else:
+    try:
+        from llama_index.llms.ollama import Ollama
+    except ImportError:
+        try:
+            # Fallback: try alternative import path
+            from llama_index_llms_ollama import Ollama
+        except ImportError:
+            Ollama = None
 
-def get_llm() -> Union[Ollama, OpenAI]:
+    try:
+        from llama_index.llms.openai import OpenAI
+    except ImportError:
+        try:
+            # Fallback: try alternative import path
+            from llama_index_llms_openai import OpenAI
+        except ImportError:
+            OpenAI = None
+
+
+def get_llm() -> Union["Ollama", "OpenAI"]:
     """
     Get LlamaIndex LLM instance configured from environment.
     
@@ -22,6 +43,10 @@ def get_llm() -> Union[Ollama, OpenAI]:
         Configured LLM instance (Ollama or OpenAI)
     """
     if config.LLM_PROVIDER.lower() == "ollama":
+        if Ollama is None:
+            raise ImportError(
+                "Ollama LLM not available. Install with: pip install llama-index-llms-ollama"
+            )
         llm = Ollama(
             model=config.LLM_MODEL,
             temperature=config.LLM_TEMPERATURE,
@@ -30,6 +55,10 @@ def get_llm() -> Union[Ollama, OpenAI]:
         )
         logger.debug("Initialized LlamaIndex Ollama LLM", model=config.LLM_MODEL, base_url=config.OLLAMA_BASE_URL)
     elif config.LLM_PROVIDER.lower() == "openai":
+        if OpenAI is None:
+            raise ImportError(
+                "OpenAI LLM not available. Install with: pip install llama-index-llms-openai"
+            )
         if not config.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'")
         llm = OpenAI(

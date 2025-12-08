@@ -1,5 +1,7 @@
 """Conversation log parsers."""
 
+from typing import Optional
+
 from blog_agent.parsers.csv_parser import CSVParser
 from blog_agent.parsers.json_parser import JSONParser
 from blog_agent.parsers.markdown_parser import MarkdownParser
@@ -66,8 +68,4 @@ class ParserFactory:
 
         # Default to text/markdown
         return "text"
-
-
-# Import Optional
-from typing import Optional
 

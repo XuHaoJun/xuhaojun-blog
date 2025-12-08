@@ -5,6 +5,8 @@ description = "Blog Agent gRPC Server with LlamaIndex workflows"
 requires-python = ">=3.11"
 dependencies = [
     "llama-index>=0.10.0",
+    "llama-index-llms-ollama>=0.1.0",
+    "llama-index-llms-openai>=0.1.0",
     "grpcio>=1.60.0",
     "grpcio-tools>=1.60.0",
     "asyncpg>=0.29.0",

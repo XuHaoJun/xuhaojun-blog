@@ -19,7 +19,10 @@ export function createProcessCommand(): Command {
   command
     .description("Process a conversation log and generate a blog post")
     .requiredOption("-f, --file <path>", "Path to conversation log file")
-    .option("--format <format>", "File format (markdown, json, csv, text). Auto-detected if not specified")
+    .option(
+      "--format <format>",
+      "File format (markdown, json, csv, text). Auto-detected if not specified"
+    )
     .option("--server <url>", "gRPC server URL", "http://localhost:50051")
     .option("--force", "Force regeneration even if file content hasn't changed (FR-034)", false)
     .option("--export-markdown <path>", "Export blog post as Markdown file with frontmatter")
@@ -41,60 +44,49 @@ export function createProcessCommand(): Command {
         console.log("Processing conversation...");
 
         // Process
-        // TODO: Uncomment after proto generation
-        // const result = await processConversation(
-        //   client,
-        //   options.file,
-        //   fileResult.content,
-        //   format,
-        //   undefined, // metadata
-        //   options.force // force flag (FR-034)
-        // );
+        const result = await processConversation(
+          client,
+          options.file,
+          fileResult.content,
+          format,
+          undefined // metadata
+          // options.force // force flag (FR-034)
+        );
 
-        // console.log("\n✓ Processing completed!");
-        // console.log(`Processing ID: ${result.processing_id}`);
-        
-        // if (result.blog_post) {
-        //   const blogPost: BlogPostMetadata = {
-        //     id: result.blog_post.id,
-        //     conversation_log_id: result.blog_post.conversation_log_id,
-        //     title: result.blog_post.title,
-        //     summary: result.blog_post.summary,
-        //     tags: result.blog_post.tags || [],
-        //     content: result.blog_post.content,
-        //     metadata: result.blog_post.metadata ? JSON.parse(result.blog_post.metadata) : undefined,
-        //     status: result.blog_post.status,
-        //     created_at: result.blog_post.created_at,
-        //     updated_at: result.blog_post.updated_at,
-        //   };
+        console.log("\n✓ Processing completed!");
+        console.log(`Processing ID: ${result.processingId}`);
 
-        //   // Display structured metadata
-        //   console.log("\n" + formatBlogPostMetadata(blogPost));
+        if (result.blogPost) {
+          const blogPost: BlogPostMetadata = {
+            id: result.blogPost.id,
+            conversation_log_id: result.blogPost.conversationLogId,
+            title: result.blogPost.title,
+            summary: result.blogPost.summary,
+            tags: result.blogPost.tags || [],
+            content: result.blogPost.content,
+            metadata: result.blogPost.metadata ? result.blogPost.metadata : undefined,
+            status: result.blogPost.status.toString(),
+            created_at: result.blogPost.createdAt,
+            updated_at: result.blogPost.updatedAt,
+          };
 
-        //   // Export Markdown if requested
-        //   if (options.exportMarkdown) {
-        //     const markdown = formatBlogPostAsMarkdown(blogPost);
-        //     await fs.writeFile(options.exportMarkdown, markdown, "utf-8");
-        //     console.log(`\n✓ Markdown exported to: ${options.exportMarkdown}`);
-        //   }
+          // Display structured metadata
+          console.log("\n" + formatBlogPostMetadata(blogPost));
 
-        //   // Export metadata JSON if requested
-        //   if (options.exportMetadata) {
-        //     const metadataJson = JSON.stringify(blogPost, null, 2);
-        //     await fs.writeFile(options.exportMetadata, metadataJson, "utf-8");
-        //     console.log(`\n✓ Metadata exported to: ${options.exportMetadata}`);
-        //   }
-        // }
+          // Export Markdown if requested
+          if (options.exportMarkdown) {
+            const markdown = formatBlogPostAsMarkdown(blogPost);
+            await fs.writeFile(options.exportMarkdown, markdown, "utf-8");
+            console.log(`\n✓ Markdown exported to: ${options.exportMarkdown}`);
+          }
 
-        // Temporary placeholder until proto generation
-        console.log("\n⚠ Proto generation required (T021)");
-        console.log("Please run: ./scripts/generate-proto.sh");
-        console.log("\nFor now, processing is not available.");
-        console.log("\nNote: Once proto generation is complete, this command will:");
-        console.log("  - Display structured metadata (title, summary, tags, timestamps, participants)");
-        console.log("  - Support --export-markdown to export blog post with frontmatter");
-        console.log("  - Support --export-metadata to export metadata as JSON");
-
+          // Export metadata JSON if requested
+          if (options.exportMetadata) {
+            const metadataJson = JSON.stringify(blogPost, null, 2);
+            await fs.writeFile(options.exportMetadata, metadataJson, "utf-8");
+            console.log(`\n✓ Metadata exported to: ${options.exportMetadata}`);
+          }
+        }
       } catch (error: any) {
         console.error("\n✗ Processing failed:");
         console.error(error.message);
@@ -108,4 +100,3 @@ export function createProcessCommand(): Command {
 
   return command;
 }
-

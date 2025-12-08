@@ -3,15 +3,32 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from llama_index.core.workflow import Event, step
-from llama_index.llms.ollama import Ollama
-from llama_index.llms.openai import OpenAI
 
+# Try to import LLM classes - they may be in separate packages
 if TYPE_CHECKING:
-    from blog_agent.workflows.extractor import ExtractEvent, ExtractStartEvent
+    from llama_index.llms.ollama import Ollama
+    from llama_index.llms.openai import OpenAI
+else:
+    try:
+        from llama_index.llms.ollama import Ollama
+    except ImportError:
+        try:
+            from llama_index_llms_ollama import Ollama
+        except ImportError:
+            Ollama = None
+
+    try:
+        from llama_index.llms.openai import OpenAI
+    except ImportError:
+        try:
+            from llama_index_llms_openai import OpenAI
+        except ImportError:
+            OpenAI = None
 
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import Message, PromptCandidate, PromptSuggestion
 from blog_agent.utils.logging import get_logger
+from blog_agent.workflows.extractor import ExtractEvent, ExtractStartEvent
 from blog_agent.workflows.schemas import PromptCandidatesResponse
 
 logger = get_logger(__name__)
@@ -33,7 +50,7 @@ class PromptAnalyzer:
         self.llm = llm or get_llm()
 
     @step
-    async def analyze(self, ev: "ExtractStartEvent") -> PromptAnalysisEvent:  # type: ignore
+    async def analyze(self, ev: ExtractStartEvent) -> PromptAnalysisEvent:  # type: ignore
         """
         Analyze user prompts from conversation logs and suggest improvements.
         

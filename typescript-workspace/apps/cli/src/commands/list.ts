@@ -23,50 +23,39 @@ export function createListCommand(): Command {
 
         console.log("Fetching conversation logs...");
 
-        // TODO: Uncomment after proto generation
-        // const result = await client.listConversationLogs({
-        //   page_size: parseInt(options.pageSize, 10),
-        //   page_token: options.pageToken,
-        //   language_filter: options.language || undefined,
-        // });
+        const result = await client.listConversationLogs({
+          pageSize: parseInt(options.pageSize, 10),
+          pageToken: options.pageToken,
+          languageFilter: options.language || undefined,
+        });
 
-        // console.log(`\n✓ Found ${result.total_count} conversation log(s)\n`);
+        console.log(`\n✓ Found ${result.totalCount} conversation log(s)\n`);
 
-        // if (result.conversation_logs && result.conversation_logs.length > 0) {
-        //   console.log("對話紀錄列表 (Conversation Logs):\n");
-        //   result.conversation_logs.forEach((log, index) => {
-        //     console.log(`${index + 1}. ${log.file_path}`);
-        //     console.log(`   ID: ${log.id}`);
-        //     console.log(`   格式: ${log.file_format}`);
-        //     if (log.language) {
-        //       console.log(`   語言: ${log.language}`);
-        //     }
-        //     if (log.message_count) {
-        //       console.log(`   訊息數量: ${log.message_count}`);
-        //     }
-        //     if (log.created_at) {
-        //       console.log(`   建立時間: ${log.created_at}`);
-        //     }
-        //     console.log("");
-        //   });
+        if (result.conversationLogs && result.conversationLogs.length > 0) {
+          console.log("對話紀錄列表 (Conversation Logs):\n");
+          result.conversationLogs.forEach((log, index) => {
+            console.log(`${index + 1}. ${log.filePath}`);
+            console.log(`   ID: ${log.id}`);
+            console.log(`   格式: ${log.fileFormat}`);
+            if (log.language) {
+              console.log(`   語言: ${log.language}`);
+            }
+            if (log.messageCount) {
+              console.log(`   訊息數量: ${log.messageCount}`);
+            }
+            if (log.createdAt) {
+              console.log(`   建立時間: ${log.createdAt}`);
+            }
+            console.log("");
+          });
 
-        //   if (result.next_page_token) {
-        //     console.log(`\n下一頁 token: ${result.next_page_token}`);
-        //     console.log("使用 --page-token 參數來取得下一頁");
-        //   }
-        // } else {
-        //   console.log("沒有找到對話紀錄");
-        // }
-
-        // Temporary placeholder until proto generation
-        console.log("\n⚠ Proto generation required (T021)");
-        console.log("Please run: ./scripts/generate-proto.sh");
-        console.log("\nFor now, listing is not available.");
-        console.log("\nNote: Once proto generation is complete, this command will:");
-        console.log("  - List all processed conversation logs");
-        console.log("  - Support pagination with --page-size and --page-token");
-        console.log("  - Support language filtering with --language");
-
+          if (result.nextPageToken) {
+            console.log(`\n下一頁 token: ${result.nextPageToken}`);
+            console.log("使用 --page-token 參數來取得下一頁");
+          }
+        } else {
+          console.log("沒有找到對話紀錄");
+        }
       } catch (error: any) {
         console.error("\n✗ Listing failed:");
         console.error(error.message);
@@ -80,4 +69,3 @@ export function createListCommand(): Command {
 
   return command;
 }
-

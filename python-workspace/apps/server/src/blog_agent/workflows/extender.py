@@ -3,17 +3,34 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from llama_index.core.workflow import Event, step
-from llama_index.llms.ollama import Ollama
-from llama_index.llms.openai import OpenAI
 
+# Try to import LLM classes - they may be in separate packages
 if TYPE_CHECKING:
-    from blog_agent.workflows.extractor import ExtractEvent
+    from llama_index.llms.ollama import Ollama
+    from llama_index.llms.openai import OpenAI
+else:
+    try:
+        from llama_index.llms.ollama import Ollama
+    except ImportError:
+        try:
+            from llama_index_llms_ollama import Ollama
+        except ImportError:
+            Ollama = None
+
+    try:
+        from llama_index.llms.openai import OpenAI
+    except ImportError:
+        try:
+            from llama_index_llms_openai import OpenAI
+        except ImportError:
+            OpenAI = None
 
 from blog_agent.services.embedding import generate_embedding
 from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.services.vector_store import VectorStore
 from blog_agent.storage.models import ContentExtract
+from blog_agent.workflows.extractor import ExtractEvent
 from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.schemas import KnowledgeGapResponse
@@ -46,7 +63,7 @@ class ContentExtender:
         self.vector_store = vector_store or VectorStore()
 
     @step
-    async def extend(self, ev: "ExtractEvent") -> ExtendEvent:  # type: ignore
+    async def extend(self, ev: ExtractEvent) -> ExtendEvent:  # type: ignore
         """
         Extend content by identifying knowledge gaps and researching additional information.
         

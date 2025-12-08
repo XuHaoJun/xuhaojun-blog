@@ -31,8 +31,7 @@ from blog_agent.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-# TODO: Uncomment after proto generation (T021)
-# from blog_agent.proto import blog_agent_pb2, blog_agent_pb2_grpc
+from blog_agent.proto import blog_agent_pb2, blog_agent_pb2_grpc
 
 
 class BlogAgentServiceImpl:
@@ -67,16 +66,12 @@ class BlogAgentServiceImpl:
             )
 
             # Build response
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.ProcessConversationResponse(
-            #     processing_id=str(processing.id),
-            #     status=self._map_processing_status(processing.status),
-            #     blog_post=self._blog_post_to_proto(blog_post),
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {"processing_id": str(processing.id), "status": processing.status}
+            response = blog_agent_pb2.ProcessConversationResponse(
+                processing_id=str(processing.id),
+                status=self._map_processing_status(processing.status),
+                blog_post=self._blog_post_to_proto(blog_post) if blog_post else None,
+            )
+            return response
 
         except BlogAgentError as e:
             logger.error("Processing error", error=str(e), details=e.to_dict())
@@ -107,10 +102,51 @@ class BlogAgentServiceImpl:
         }
         return status_map.get(status.lower(), 0)  # PROCESSING_STATUS_UNSPECIFIED
 
+    def _conversation_log_to_proto(self, conversation_log):
+        """Convert ConversationLog model to proto message."""
+        import json
+        return blog_agent_pb2.ConversationLog(
+            id=str(conversation_log.id) if conversation_log.id else "",
+            file_path=conversation_log.file_path,
+            file_format=self._map_file_format_to_proto(conversation_log.file_format),
+            raw_content=conversation_log.raw_content,
+            parsed_content_json=json.dumps(conversation_log.parsed_content),
+            metadata=conversation_log.metadata or {},
+            language=conversation_log.language or "",
+            message_count=conversation_log.message_count or 0,
+            created_at=conversation_log.created_at.isoformat() if conversation_log.created_at else "",
+            updated_at=conversation_log.updated_at.isoformat() if conversation_log.updated_at else "",
+        )
+
     def _blog_post_to_proto(self, blog_post):
         """Convert BlogPost model to proto message."""
-        # TODO: Implement after proto generation
-        pass
+        return blog_agent_pb2.BlogPost(
+            id=str(blog_post.id) if blog_post.id else "",
+            conversation_log_id=str(blog_post.conversation_log_id),
+            title=blog_post.title,
+            summary=blog_post.summary or "",
+            tags=blog_post.tags or [],
+            content=blog_post.content,
+            metadata=blog_post.metadata or {},
+            status=self._map_blog_post_status_to_proto(blog_post.status),
+            created_at=blog_post.created_at.isoformat() if blog_post.created_at else "",
+            updated_at=blog_post.updated_at.isoformat() if blog_post.updated_at else "",
+        )
+
+    def _processing_history_to_proto(self, processing_history):
+        """Convert ProcessingHistory model to proto message."""
+        import json
+        return blog_agent_pb2.ProcessingHistory(
+            id=str(processing_history.id) if processing_history.id else "",
+            conversation_log_id=str(processing_history.conversation_log_id),
+            blog_post_id=str(processing_history.blog_post_id) if processing_history.blog_post_id else "",
+            status=self._map_processing_status_to_proto(processing_history.status),
+            error_message=processing_history.error_message or "",
+            processing_steps_json=json.dumps(processing_history.processing_steps) if processing_history.processing_steps else "",
+            started_at=processing_history.started_at.isoformat() if processing_history.started_at else "",
+            completed_at=processing_history.completed_at.isoformat() if processing_history.completed_at else "",
+            created_at=processing_history.created_at.isoformat() if processing_history.created_at else "",
+        )
 
     # T082: GetConversationLog handler
     async def GetConversationLog(self, request, context):
@@ -124,14 +160,10 @@ class BlogAgentServiceImpl:
                 context.set_details(f"Conversation log not found: {request.conversation_log_id}")
                 return None
 
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.GetConversationLogResponse(
-            #     conversation_log=self._conversation_log_to_proto(conversation_log)
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {"conversation_log": self._conversation_log_to_dict(conversation_log)}
+            response = blog_agent_pb2.GetConversationLogResponse(
+                conversation_log=self._conversation_log_to_proto(conversation_log)
+            )
+            return response
 
         except ValueError as e:
             logger.error("Invalid conversation log ID", error=str(e))
@@ -169,22 +201,14 @@ class BlogAgentServiceImpl:
             # Generate next page token
             next_page_token = str(offset + len(conversation_logs)) if len(conversation_logs) == page_size else ""
 
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.ListConversationLogsResponse(
-            #     conversation_logs=[
-            #         self._conversation_log_to_proto(log) for log in conversation_logs
-            #     ],
-            #     next_page_token=next_page_token,
-            #     total_count=len(conversation_logs),  # Note: This is approximate without full count
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {
-                "conversation_logs": [self._conversation_log_to_dict(log) for log in conversation_logs],
-                "next_page_token": next_page_token,
-                "total_count": len(conversation_logs),
-            }
+            response = blog_agent_pb2.ListConversationLogsResponse(
+                conversation_logs=[
+                    self._conversation_log_to_proto(log) for log in conversation_logs
+                ],
+                next_page_token=next_page_token,
+                total_count=len(conversation_logs),  # Note: This is approximate without full count
+            )
+            return response
 
         except Exception as e:
             logger.error("ListConversationLogs error", error=str(e), exc_info=True)
@@ -204,14 +228,10 @@ class BlogAgentServiceImpl:
                 context.set_details(f"Blog post not found: {request.blog_post_id}")
                 return None
 
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.GetBlogPostResponse(
-            #     blog_post=self._blog_post_to_proto(blog_post)
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {"blog_post": self._blog_post_to_dict(blog_post)}
+            response = blog_agent_pb2.GetBlogPostResponse(
+                blog_post=self._blog_post_to_proto(blog_post)
+            )
+            return response
 
         except ValueError as e:
             logger.error("Invalid blog post ID", error=str(e))
@@ -254,37 +274,37 @@ class BlogAgentServiceImpl:
                     if prompt_suggestion:
                         prompt_meta = build_prompt_meta(prompt_suggestion)
                 
-                # TODO: Uncomment after proto generation
-                # content_block_proto = blog_agent_pb2.ContentBlock(
-                #     id=str(block.id) if block.id else "",
-                #     blog_post_id=str(block.blog_post_id),
-                #     block_order=block.block_order,
-                #     text=block.text,
-                #     prompt_meta=blog_agent_pb2.PromptMeta(**prompt_meta) if prompt_meta else None,
-                # )
-                # content_block_protos.append(content_block_proto)
+                # Build PromptMeta proto if available
+                prompt_meta_proto = None
+                if prompt_meta:
+                    prompt_meta_proto = blog_agent_pb2.PromptMeta(
+                        original_prompt=prompt_meta.get("original_prompt", ""),
+                        analysis=prompt_meta.get("analysis", ""),
+                        better_candidates=[
+                            blog_agent_pb2.PromptCandidate(
+                                type=candidate.get("type", ""),
+                                prompt=candidate.get("prompt", ""),
+                                reasoning=candidate.get("reasoning", ""),
+                            )
+                            for candidate in prompt_meta.get("better_candidates", [])
+                        ],
+                        expected_effect=prompt_meta.get("expected_effect", ""),
+                    )
                 
-                # Temporary placeholder
-                content_block_protos.append({
-                    "id": str(block.id) if block.id else "",
-                    "blog_post_id": str(block.blog_post_id),
-                    "block_order": block.block_order,
-                    "text": block.text,
-                    "prompt_meta": prompt_meta,
-                })
+                content_block_proto = blog_agent_pb2.ContentBlock(
+                    id=str(block.id) if block.id else "",
+                    blog_post_id=str(block.blog_post_id),
+                    block_order=block.block_order,
+                    text=block.text,
+                    prompt_meta=prompt_meta_proto,
+                )
+                content_block_protos.append(content_block_proto)
 
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.GetBlogPostWithPromptsResponse(
-            #     blog_post=self._blog_post_to_proto(blog_post),
-            #     content_blocks=content_block_protos,
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {
-                "blog_post": self._blog_post_to_dict(blog_post),
-                "content_blocks": content_block_protos,
-            }
+            response = blog_agent_pb2.GetBlogPostWithPromptsResponse(
+                blog_post=self._blog_post_to_proto(blog_post),
+                content_blocks=content_block_protos,
+            )
+            return response
 
         except ValueError as e:
             logger.error("Invalid blog post ID", error=str(e))
@@ -323,22 +343,14 @@ class BlogAgentServiceImpl:
             # Generate next page token
             next_page_token = str(offset + len(blog_posts)) if len(blog_posts) == page_size else ""
 
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.ListBlogPostsResponse(
-            #     blog_posts=[
-            #         self._blog_post_to_proto(post) for post in blog_posts
-            #     ],
-            #     next_page_token=next_page_token,
-            #     total_count=len(blog_posts),  # Note: This is approximate without full count
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {
-                "blog_posts": [self._blog_post_to_dict(post) for post in blog_posts],
-                "next_page_token": next_page_token,
-                "total_count": len(blog_posts),
-            }
+            response = blog_agent_pb2.ListBlogPostsResponse(
+                blog_posts=[
+                    self._blog_post_to_proto(post) for post in blog_posts
+                ],
+                next_page_token=next_page_token,
+                total_count=len(blog_posts),  # Note: This is approximate without full count
+            )
+            return response
 
         except Exception as e:
             logger.error("ListBlogPosts error", error=str(e), exc_info=True)
@@ -358,14 +370,10 @@ class BlogAgentServiceImpl:
                 context.set_details(f"Processing history not found: {request.processing_id}")
                 return None
 
-            # TODO: Uncomment after proto generation
-            # response = blog_agent_pb2.GetProcessingHistoryResponse(
-            #     processing_history=self._processing_history_to_proto(processing_history)
-            # )
-            # return response
-
-            # Temporary placeholder
-            return {"processing_history": self._processing_history_to_dict(processing_history)}
+            response = blog_agent_pb2.GetProcessingHistoryResponse(
+                processing_history=self._processing_history_to_proto(processing_history)
+            )
+            return response
 
         except ValueError as e:
             logger.error("Invalid processing ID", error=str(e))
@@ -486,10 +494,9 @@ async def serve():
 
         # Add service implementation
         service_impl = BlogAgentServiceImpl()
-        # TODO: Uncomment after proto generation (T021)
-        # blog_agent_pb2_grpc.add_BlogAgentServiceServicer_to_server(
-        #     service_impl, server
-        # )
+        blog_agent_pb2_grpc.add_BlogAgentServiceServicer_to_server(
+            service_impl, server
+        )
 
         # Listen on port
         listen_addr = f"{config.GRPC_HOST}:{config.GRPC_PORT}"
