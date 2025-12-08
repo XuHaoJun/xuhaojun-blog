@@ -13,12 +13,12 @@ RUN apt-get update && apt-get install -y \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy workspace files
-COPY python-workspace/pyproject.toml python-workspace/
 COPY python-workspace/apps/server/pyproject.toml python-workspace/apps/server/
+COPY python-workspace/apps/server/uv.lock python-workspace/apps/server/
 COPY python-workspace/apps/server/src/ python-workspace/apps/server/src/
 
 # Install dependencies
-WORKDIR /app/python-workspace
+WORKDIR /app/python-workspace/apps/server
 RUN uv sync --frozen
 
 # Expose gRPC port
