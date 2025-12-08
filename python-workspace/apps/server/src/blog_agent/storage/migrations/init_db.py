@@ -19,11 +19,10 @@ async def init_db():
         sql = f.read()
     
     async with get_db_connection() as conn:
-        async with conn.cursor() as cur:
-            # Execute all statements
-            await cur.execute(sql)
-            await conn.commit()
-            print("✓ Database schema initialized successfully")
+        # Execute all statements in a transaction
+        async with conn.transaction():
+            await conn.execute(sql)
+        print("✓ Database schema initialized successfully")
 
 
 if __name__ == "__main__":

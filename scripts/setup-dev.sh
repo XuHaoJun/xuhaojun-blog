@@ -45,6 +45,6 @@ echo "✓ Development environment setup complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Set up environment variables (.env files)"
-echo "  2. Run database migrations: cd python-workspace/apps/server && uv run python -m blog_agent.storage.migrations init_db"
+echo "  2. Run database migrations: cd python-workspace/apps/server && uv run python -m blog_agent.storage.migrations.init_db"
 echo "  3. Start the gRPC server: cd python-workspace/apps/server && uv run python -m blog_agent.main"
 

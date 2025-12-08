@@ -9,6 +9,7 @@ from llama_index.llms.openai import OpenAI
 if TYPE_CHECKING:
     from blog_agent.workflows.extractor import ExtractEvent
 
+from blog_agent.services.embedding import generate_embedding
 from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.services.vector_store import VectorStore
@@ -231,17 +232,22 @@ class ContentExtender:
             List of knowledge base results, empty if KB not available or no results
         """
         try:
-            # For now, we need to generate an embedding for the query
-            # In a full implementation, we'd use an embedding service (e.g., OpenAI embeddings)
-            # For now, return empty list (KB integration is optional, FR-018)
-            # TODO: Implement embedding generation and KB query when KB is available
-            # Example: query_embedding = await embedding_service.generate_embedding(query)
-            #          return await self.vector_store.query_knowledge_base(query, query_embedding)
-            logger.debug("Knowledge base query attempted", query=query)
-            return []
+            # Generate embedding for the query
+            query_embedding = await generate_embedding(query)
+            logger.debug("Generated embedding for KB query", query=query, embedding_dim=len(query_embedding))
+            
+            # Query knowledge base with the embedding
+            results = await self.vector_store.query_knowledge_base(
+                query=query,
+                query_embedding=query_embedding,
+            )
+            
+            logger.info("Knowledge base query completed", query=query, results_count=len(results))
+            return results
 
         except Exception as e:
             logger.warning("Knowledge base query failed", query=query, error=str(e))
+            # Return empty list on failure (KB is optional, FR-018)
             return []
 
     async def _integrate_research(

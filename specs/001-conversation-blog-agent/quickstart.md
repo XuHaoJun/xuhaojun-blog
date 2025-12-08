@@ -61,7 +61,7 @@ GRPC_SERVER_URL=http://localhost:50051
 ```bash
 # 執行資料庫遷移
 cd python-workspace/apps/server
-uv run python -m blog_agent.storage.migrations init_db
+uv run python -m blog_agent.storage.migrations.init_db
 ```
 
 ### 5. 生成 Protocol Buffers 程式碼
