@@ -1,6 +1,7 @@
 """gRPC server entry point."""
 
 import asyncio
+import signal
 import sys
 from pathlib import Path
 
@@ -485,36 +486,58 @@ class BlogAgentServiceImpl:
 
 async def serve():
     """Start gRPC server."""
+    import grpc
+    from grpc import aio
+
+    # Create gRPC server
+    server = aio.server()
+
+    # Add service implementation
+    service_impl = BlogAgentServiceImpl()
+    blog_agent_pb2_grpc.add_BlogAgentServiceServicer_to_server(
+        service_impl, server
+    )
+
+    # Listen on port
+    listen_addr = f"{config.GRPC_HOST}:{config.GRPC_PORT}"
+    server.add_insecure_port(listen_addr)
+
+    logger.info("Starting gRPC server", address=listen_addr)
+    await server.start()
+
+    logger.info("gRPC server started", port=config.GRPC_PORT)
+
+    # Set up signal handlers for graceful shutdown
+    shutdown_event = asyncio.Event()
+
+    def signal_handler():
+        """Handle shutdown signals."""
+        logger.info("Received shutdown signal, initiating graceful shutdown")
+        shutdown_event.set()
+
+    # Register signal handlers
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, signal_handler)
+        except NotImplementedError:
+            # Signal handlers are only available on Unix
+            logger.warning("Signal handlers not available on this platform")
+            break
+
     try:
-        import grpc
-        from grpc import aio
-
-        # Create gRPC server
-        server = aio.server()
-
-        # Add service implementation
-        service_impl = BlogAgentServiceImpl()
-        blog_agent_pb2_grpc.add_BlogAgentServiceServicer_to_server(
-            service_impl, server
-        )
-
-        # Listen on port
-        listen_addr = f"{config.GRPC_HOST}:{config.GRPC_PORT}"
-        server.add_insecure_port(listen_addr)
-
-        logger.info("Starting gRPC server", address=listen_addr)
-        await server.start()
-
-        logger.info("gRPC server started", port=config.GRPC_PORT)
-
-        # Wait for termination
-        await server.wait_for_termination()
-
-    except KeyboardInterrupt:
-        logger.info("Shutting down gRPC server")
+        # Wait for shutdown signal
+        await shutdown_event.wait()
     except Exception as e:
-        logger.error("gRPC server error", error=str(e), exc_info=True)
-        raise
+        logger.error("Error waiting for shutdown signal", error=str(e), exc_info=True)
+    finally:
+        # Gracefully stop the server
+        logger.info("Stopping gRPC server")
+        try:
+            await server.stop(grace=5)  # Give 5 seconds for graceful shutdown
+            logger.info("gRPC server stopped")
+        except Exception as e:
+            logger.error("Error stopping server", error=str(e), exc_info=True)
 
 
 if __name__ == "__main__":
