@@ -20,7 +20,7 @@ if [ ! -d ".venv" ]; then
   uv venv
 fi
 source .venv/bin/activate || source .venv/Scripts/activate  # Windows compatibility
-uv sync
+uv sync --extra dev
 
 # Setup TypeScript environment
 echo "Setting up TypeScript workspace..."

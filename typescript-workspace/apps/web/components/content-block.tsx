@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ContentBlock as ContentBlockType } from "@blog-agent/proto-gen";
 import { cn } from "@/lib/utils";
+import rehypePrismPlus from "rehype-prism-plus";
 
 interface ContentBlockProps {
   block: ContentBlockType;
@@ -12,12 +13,7 @@ interface ContentBlockProps {
   isActive?: boolean;
 }
 
-export function ContentBlock({
-  block,
-  onHover,
-  onLeave,
-  isActive = false,
-}: ContentBlockProps) {
+export function ContentBlock({ block, onHover, onLeave, isActive = false }: ContentBlockProps) {
   return (
     <div
       id={`block-${block.id}`}
@@ -40,11 +36,10 @@ export function ContentBlock({
 
       {/* Content */}
       <div className="prose prose-lg dark:prose-invert max-w-none font-serif transition-colors duration-300">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePrismPlus]}>
           {block.text}
         </ReactMarkdown>
       </div>
     </div>
   );
 }
-

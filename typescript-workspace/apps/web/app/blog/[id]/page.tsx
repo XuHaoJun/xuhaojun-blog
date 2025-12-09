@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { create } from "@bufbuild/protobuf";
 import { createServerClient } from "@/lib/grpc-client";
-import {
-  GetBlogPostRequestSchema,
-  ListBlogPostsRequestSchema,
-} from "@blog-agent/proto-gen";
+import { GetBlogPostRequestSchema, ListBlogPostsRequestSchema } from "@blog-agent/proto-gen";
 import { BlogPostClient } from "@/app/blog/[id]/blog-post-client";
 import { BlogMetadata } from "@/components/blog-metadata";
+
+import "@/styles/prism-plus.css";
+import "@/styles/prism-xonokai.css";
 
 export const revalidate = 3600; // Revalidate every hour
 
@@ -44,12 +44,9 @@ export async function generateStaticParams() {
   }
 }
 
-export default async function BlogPostPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const data = await getBlogPost(params.id);
+export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const data = await getBlogPost(id);
 
   if (!data || !data.blogPost) {
     notFound();
@@ -66,12 +63,8 @@ export default async function BlogPostPage({
         </header>
 
         {/* Main Content - 70/30 Layout on Desktop */}
-        <BlogPostClient
-          blogPost={blogPost}
-          contentBlocks={contentBlocks || []}
-        />
+        <BlogPostClient blogPost={blogPost} contentBlocks={contentBlocks || []} />
       </div>
     </div>
   );
 }
-
