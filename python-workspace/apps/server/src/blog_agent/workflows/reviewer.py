@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
+from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
 
 # Try to import LLM classes - they may be in separate packages
@@ -137,7 +138,7 @@ class ContentReviewer:
 
     async def _detect_logical_gaps(self, content_extract: ContentExtract) -> List[Dict[str, Any]]:
         """Detect logical gaps in the content (T055)."""
-        prompt_template = """請分析以下內容，找出邏輯上的斷層或缺失。
+        template_str = """請分析以下內容，找出邏輯上的斷層或缺失。
 
 核心觀點：
 {key_insights}
@@ -158,16 +159,15 @@ class ContentReviewer:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            # Format the prompt template first
-            formatted_prompt = prompt_template.format(
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            response = await self.llm.astructured_predict(
+                LogicalGapsResponse,
+                prompt_tmpl,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
-            )
-            
-            response = await self.llm.structured_predict(
-                LogicalGapsResponse,
-                formatted_prompt,
             )
 
             gaps = [gap.model_dump() for gap in response.gaps]
@@ -182,7 +182,7 @@ class ContentReviewer:
         self, content_extract: ContentExtract
     ) -> List[Dict[str, Any]]:
         """Detect factual inconsistencies in the content (T056)."""
-        prompt_template = """請分析以下內容，找出事實上的不一致或矛盾。
+        template_str = """請分析以下內容，找出事實上的不一致或矛盾。
 
 核心觀點：
 {key_insights}
@@ -203,16 +203,15 @@ class ContentReviewer:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            # Format the prompt template first
-            formatted_prompt = prompt_template.format(
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            response = await self.llm.astructured_predict(
+                FactualInconsistenciesResponse,
+                prompt_tmpl,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
-            )
-            
-            response = await self.llm.structured_predict(
-                FactualInconsistenciesResponse,
-                formatted_prompt,
             )
 
             inconsistencies = [inc.model_dump() for inc in response.inconsistencies]
@@ -227,7 +226,7 @@ class ContentReviewer:
         self, content_extract: ContentExtract
     ) -> List[Dict[str, Any]]:
         """Detect unclear explanations in the content (T057)."""
-        prompt_template = """請分析以下內容，找出不清楚或需要澄清的解釋。
+        template_str = """請分析以下內容，找出不清楚或需要澄清的解釋。
 
 核心觀點：
 {key_insights}
@@ -249,16 +248,15 @@ class ContentReviewer:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            # Format the prompt template first
-            formatted_prompt = prompt_template.format(
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            response = await self.llm.astructured_predict(
+                UnclearExplanationsResponse,
+                prompt_tmpl,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
-            )
-            
-            response = await self.llm.structured_predict(
-                UnclearExplanationsResponse,
-                formatted_prompt,
             )
 
             unclear_points = [point.model_dump() for point in response.unclear_points]
@@ -437,7 +435,7 @@ class ContentReviewer:
                     ]
                 )
                 
-                analysis_prompt = f"""請分析以下聲稱是否被提供的來源所驗證、反駁，或無法確定。
+                template_str = """請分析以下聲稱是否被提供的來源所驗證、反駁，或無法確定。
 
 聲稱：
 {claim}
@@ -455,9 +453,14 @@ class ContentReviewer:
 請提供結構化的分析結果。"""
 
                 try:
-                    analysis_response = await self.llm.structured_predict(
+                    # Convert template string to PromptTemplate object
+                    prompt_tmpl = PromptTemplate(template_str)
+                    
+                    analysis_response = await self.llm.astructured_predict(
                         FactCheckAnalysisResponse,
-                        analysis_prompt,
+                        prompt_tmpl,
+                        claim=claim,
+                        sources_text=sources_text,
                     )
                     
                     analysis = analysis_response.analysis

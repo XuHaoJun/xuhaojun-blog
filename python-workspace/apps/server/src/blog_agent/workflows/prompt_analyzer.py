@@ -4,6 +4,7 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
+from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
 
 # Try to import LLM classes - they may be in separate packages
@@ -283,7 +284,7 @@ class PromptAnalyzer:
         """
         context_summary = self._summarize_conversation_context(messages)
         
-        prompt_template = """請根據以下原始提示詞，生成至少 3 個改進版本的提示詞候選。
+        template_str = """請根據以下原始提示詞，生成至少 3 個改進版本的提示詞候選。
 
 原始提示詞：
 {original_prompt}
@@ -305,17 +306,16 @@ class PromptAnalyzer:
 5. 每個候選應該完整且可以直接使用"""
 
         try:
-            # Format the prompt template first
-            formatted_prompt = prompt_template.format(
-                original_prompt=original_prompt,
-                context_summary=context_summary,
-            )
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
             
-            # Try to use structured_predict first
+            # Try to use astructured_predict first
             try:
-                response = await self.llm.structured_predict(
+                response = await self.llm.astructured_predict(
                     PromptCandidatesResponse,
-                    formatted_prompt,
+                    prompt_tmpl,
+                    original_prompt=original_prompt,
+                    context_summary=context_summary,
                 )
                 
                 # Convert to PromptCandidate objects
@@ -336,10 +336,15 @@ class PromptAnalyzer:
                 if len(candidates) >= 3:
                     return candidates[:10]  # Limit to 10 candidates
             except Exception as e:
-                # structured_predict failed, fall through to JSON parsing
-                logger.debug("structured_predict failed, using JSON parsing fallback", error=str(e))
+                # astructured_predict failed, fall through to JSON parsing
+                logger.debug("astructured_predict failed, using JSON parsing fallback", error=str(e))
             
             # Fallback: Use JSON mode with manual parsing
+            # Format the template for fallback
+            formatted_prompt = template_str.format(
+                original_prompt=original_prompt,
+                context_summary=context_summary,
+            )
             json_prompt = f"""{formatted_prompt}
 
 請以 JSON 格式返回，格式如下：
@@ -412,7 +417,7 @@ class PromptAnalyzer:
         """Generate additional structured prompt candidates if we don't have enough."""
         context_summary = self._summarize_conversation_context(messages)
         
-        prompt_template = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本。
+        template_str = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本。
 
 原始提示詞：
 {original_prompt}
@@ -430,18 +435,17 @@ class PromptAnalyzer:
 4. 每個候選應該完整且可以直接使用"""
 
         try:
-            # Format the prompt template first
-            formatted_prompt = prompt_template.format(
-                original_prompt=original_prompt,
-                context_summary=context_summary,
-                needed=needed,
-            )
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
             
-            # Try to use structured_predict first
+            # Try to use astructured_predict first
             try:
-                response = await self.llm.structured_predict(
+                response = await self.llm.astructured_predict(
                     PromptCandidatesResponse,
-                    formatted_prompt,
+                    prompt_tmpl,
+                    original_prompt=original_prompt,
+                    context_summary=context_summary,
+                    needed=needed,
                 )
                 
                 # Convert to PromptCandidate objects
@@ -460,10 +464,16 @@ class PromptAnalyzer:
                         continue
                 return candidates
             except Exception as e:
-                # structured_predict failed, fall through to JSON parsing
-                logger.debug("structured_predict failed, using JSON parsing fallback", error=str(e))
+                # astructured_predict failed, fall through to JSON parsing
+                logger.debug("astructured_predict failed, using JSON parsing fallback", error=str(e))
             
             # Fallback: Use JSON mode with manual parsing
+            # Format the template for fallback
+            formatted_prompt = template_str.format(
+                original_prompt=original_prompt,
+                context_summary=context_summary,
+                needed=needed,
+            )
             json_prompt = f"""{formatted_prompt}
 
 請以 JSON 格式返回，格式如下：

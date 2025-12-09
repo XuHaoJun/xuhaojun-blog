@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
+from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
 
 # Try to import LLM classes - they may be in separate packages
@@ -136,7 +137,7 @@ class ContentExtender:
             - location: Where in the content the gap appears
             - query: Search query to find information about this gap
         """
-        prompt_template = """請分析以下內容，找出缺少足夠上下文或細節的區域。
+        template_str = """請分析以下內容，找出缺少足夠上下文或細節的區域。
 
 核心觀點：
 {key_insights}
@@ -158,16 +159,15 @@ class ContentExtender:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            # Format the prompt template first
-            formatted_prompt = prompt_template.format(
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            response = await self.llm.astructured_predict(
+                KnowledgeGapResponse,
+                prompt_tmpl,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
-            )
-            
-            response = await self.llm.structured_predict(
-                KnowledgeGapResponse,
-                formatted_prompt,
             )
 
             gaps = [gap.model_dump() for gap in response.gaps]
