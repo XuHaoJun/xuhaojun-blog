@@ -158,17 +158,29 @@ class ContentExtender:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            response = await self.llm.structured_predict(
-                KnowledgeGapResponse,
-                prompt_template,
+            # Format the prompt template first
+            formatted_prompt = prompt_template.format(
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
             )
-
-            gaps = [gap.model_dump() for gap in response.gaps]
-            logger.info("Identified knowledge gaps", count=len(gaps))
-            return gaps
+            
+            # Try to use structured_predict if available
+            if hasattr(self.llm, 'structured_predict'):
+                try:
+                    response = await self.llm.structured_predict(
+                        KnowledgeGapResponse,
+                        formatted_prompt,
+                    )
+                    gaps = [gap.model_dump() for gap in response.gaps]
+                    logger.info("Identified knowledge gaps", count=len(gaps))
+                    return gaps
+                except (AttributeError, TypeError) as e:
+                    logger.debug("structured_predict failed, using fallback", error=str(e))
+            
+            # Fallback: return empty list if structured_predict not available
+            logger.warning("structured_predict not available for knowledge gaps detection")
+            return []
 
         except Exception as e:
             logger.warning("Failed to identify knowledge gaps", error=str(e))
@@ -323,7 +335,7 @@ class ContentExtender:
 請直接輸出整合後的完整內容，不要額外說明。"""
 
         try:
-            response = await self.llm.complete(prompt)
+            response = await self.llm.acomplete(prompt)
             extended_content = response.text
             logger.info("Research integrated into content", original_length=len(content_extract.filtered_content), extended_length=len(extended_content))
             return extended_content.strip()

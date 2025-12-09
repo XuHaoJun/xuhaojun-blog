@@ -105,7 +105,7 @@ CREATE TABLE embeddings (
     entity_type TEXT NOT NULL CHECK (entity_type IN ('conversation_log', 'blog_post', 'content_extract')),
     entity_id UUID NOT NULL,
     content TEXT NOT NULL,
-    embedding vector(1536),
+    embedding vector(1024),
     metadata JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

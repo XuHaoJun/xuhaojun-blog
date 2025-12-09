@@ -66,6 +66,7 @@ class BlogService:
         processing_id = uuid4()
         conversation_log_id = None
         blog_post_id = None
+        processing = None
 
         try:
             # Calculate content hash (FR-031)
@@ -153,14 +154,6 @@ class BlogService:
                 )
                 # Continue with processing to regenerate blog post
             
-            # Create processing history
-            processing = ProcessingHistory(
-                id=processing_id,
-                conversation_log_id=UUID(int=0),  # Temporary, will update
-                status="processing",
-            )
-            processing = await self.history_repo.create(processing)
-
             # Parse conversation log
             parser = ParserFactory.create_parser(file_format)
             conversation_log = parser.parse(content_str, file_path)
@@ -169,21 +162,25 @@ class BlogService:
             conversation_log.content_hash = content_hash
 
             # Apply role inference if needed (FR-028)
-            if any(not msg.role or msg.role not in ["user", "assistant", "system"] for msg in conversation_log.parsed_content.get("messages", [])):
+            if any(not msg.get("role") or msg.get("role") not in ["user", "assistant", "system"] for msg in conversation_log.parsed_content.get("messages", [])):
                 messages, uncertainties = RoleInference.infer_roles_with_uncertainty(
                     [Message(**msg) for msg in conversation_log.parsed_content["messages"]]
                 )
-                conversation_log.parsed_content["messages"] = [msg.model_dump() for msg in messages]
+                conversation_log.parsed_content["messages"] = [msg.model_dump(mode='json') for msg in messages]
                 if any(uncertainties):
                     logger.warning("Some message roles inferred with uncertainty", uncertainties=uncertainties)
 
-            # Save conversation log
+            # Save conversation log first (needed for foreign key constraint)
             conversation_log = await self.conversation_repo.create(conversation_log)
             conversation_log_id = conversation_log.id
 
-            # Update processing history
-            processing.conversation_log_id = conversation_log_id
-            processing = await self.history_repo.update(processing)
+            # Create processing history after conversation log exists
+            processing = ProcessingHistory(
+                id=processing_id,
+                conversation_log_id=conversation_log_id,
+                status="processing",
+            )
+            processing = await self.history_repo.create(processing)
 
             # Run workflow
             messages = [
@@ -292,12 +289,12 @@ class BlogService:
             )
 
             # Update processing history with error (FR-024)
-            error_message = f"{str(e)}\n\nStack Trace:\n{traceback.format_exc()}"
-            processing.status = "failed"
-            processing.error_message = error_message
-            if conversation_log_id:
-                processing.conversation_log_id = conversation_log_id
-            await self.history_repo.update(processing)
+            # Only update if processing history was created
+            if processing and conversation_log_id:
+                error_message = f"{str(e)}\n\nStack Trace:\n{traceback.format_exc()}"
+                processing.status = "failed"
+                processing.error_message = error_message
+                await self.history_repo.update(processing)
 
             raise ProcessingError(
                 step="process_conversation",

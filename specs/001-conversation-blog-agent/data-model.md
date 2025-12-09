@@ -182,7 +182,7 @@ CREATE TABLE embeddings (
     entity_type TEXT NOT NULL CHECK (entity_type IN ('conversation_log', 'blog_post', 'content_extract')),
     entity_id UUID NOT NULL,
     content TEXT NOT NULL,
-    embedding vector(1536),                     -- OpenAI ada-002 dimension
+    embedding vector(1024),                     -- qwen3-embedding:0.6b dimension
     metadata JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

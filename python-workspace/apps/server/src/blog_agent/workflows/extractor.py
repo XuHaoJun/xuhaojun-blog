@@ -175,7 +175,7 @@ class ContentExtractor:
 
 請以簡潔的列表形式輸出，每個觀點一行。只輸出觀點，不要額外說明。"""
 
-        response = await self.llm.complete(prompt)
+        response = await self.llm.acomplete(prompt)
 
         # Parse response into list
         insights = [
@@ -199,7 +199,7 @@ class ContentExtractor:
 
 請以簡潔的列表形式輸出核心概念，每個概念一行。只輸出概念名稱，不要額外說明。"""
 
-        response = await self.llm.complete(prompt)
+        response = await self.llm.acomplete(prompt)
 
         # Parse response into list
         concepts = [

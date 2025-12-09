@@ -60,8 +60,11 @@ export function formatBlogPostMetadata(blogPost: BlogPostMetadata): string {
     }
 
     if (blogPost.metadata.conversation_participants) {
+      const participants = Array.isArray(blogPost.metadata.conversation_participants)
+        ? blogPost.metadata.conversation_participants
+        : [blogPost.metadata.conversation_participants];
       lines.push(
-        `參與者 (Participants): ${blogPost.metadata.conversation_participants.join(", ")}`
+        `參與者 (Participants): ${participants.join(", ")}`
       );
       lines.push("");
     }
@@ -76,20 +79,30 @@ export function formatBlogPostMetadata(blogPost: BlogPostMetadata): string {
       lines.push("");
     }
 
-    if (blogPost.metadata.key_insights && blogPost.metadata.key_insights.length > 0) {
-      lines.push("核心觀點 (Key Insights):");
-      blogPost.metadata.key_insights.forEach((insight: string) => {
-        lines.push(`  - ${insight}`);
-      });
-      lines.push("");
+    if (blogPost.metadata.key_insights) {
+      const keyInsights = Array.isArray(blogPost.metadata.key_insights)
+        ? blogPost.metadata.key_insights
+        : [blogPost.metadata.key_insights];
+      if (keyInsights.length > 0) {
+        lines.push("核心觀點 (Key Insights):");
+        keyInsights.forEach((insight: string) => {
+          lines.push(`  - ${insight}`);
+        });
+        lines.push("");
+      }
     }
 
-    if (blogPost.metadata.core_concepts && blogPost.metadata.core_concepts.length > 0) {
-      lines.push("核心概念 (Core Concepts):");
-      blogPost.metadata.core_concepts.forEach((concept: string) => {
-        lines.push(`  - ${concept}`);
-      });
-      lines.push("");
+    if (blogPost.metadata.core_concepts) {
+      const coreConcepts = Array.isArray(blogPost.metadata.core_concepts)
+        ? blogPost.metadata.core_concepts
+        : [blogPost.metadata.core_concepts];
+      if (coreConcepts.length > 0) {
+        lines.push("核心概念 (Core Concepts):");
+        coreConcepts.forEach((concept: string) => {
+          lines.push(`  - ${concept}`);
+        });
+        lines.push("");
+      }
     }
   }
 
@@ -148,7 +161,10 @@ export function formatBlogPostAsMarkdown(blogPost: BlogPostMetadata): string {
 
     if (blogPost.metadata.conversation_participants) {
       frontmatter.push("conversation_participants:");
-      blogPost.metadata.conversation_participants.forEach((p: string) => {
+      const participants = Array.isArray(blogPost.metadata.conversation_participants)
+        ? blogPost.metadata.conversation_participants
+        : [blogPost.metadata.conversation_participants];
+      participants.forEach((p: string) => {
         frontmatter.push(`  - "${escapeYamlString(p)}"`);
       });
     }

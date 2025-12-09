@@ -31,7 +31,7 @@ class JSONParser:
                 )
 
             parsed_content = {
-                "messages": [msg.model_dump() for msg in messages],
+                "messages": [msg.model_dump(mode='json') for msg in messages],
                 "raw_data": data,
             }
 

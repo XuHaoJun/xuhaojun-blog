@@ -171,7 +171,7 @@ class BlogEditor:
 
 請直接輸出完整的 Markdown 文章，不要額外說明。"""
 
-        response = await self.llm.complete(prompt)
+        response = await self.llm.acomplete(prompt)
         blog_content = response.text.strip()
         
         # T080: Add prompt suggestions section to blog content (FR-014)
@@ -198,7 +198,7 @@ class BlogEditor:
 
 請只輸出標題，不要額外說明。"""
 
-        response = await self.llm.complete(prompt)
+        response = await self.llm.acomplete(prompt)
         # Clean up title (remove quotes, extra spaces)
         title = response.text.strip().strip('"').strip("'").strip()
         return title[:200]  # Limit length
@@ -217,7 +217,7 @@ class BlogEditor:
 
 請只輸出摘要，不要額外說明。"""
 
-        response = await self.llm.complete(prompt)
+        response = await self.llm.acomplete(prompt)
         return response.text.strip()[:500]  # Limit length
 
     def _format_prompt_suggestions(self, prompt_suggestion: PromptSuggestion) -> str:

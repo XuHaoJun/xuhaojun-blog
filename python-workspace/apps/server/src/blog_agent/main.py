@@ -18,6 +18,7 @@ except ImportError:
 
 from blog_agent.config import config
 from blog_agent.services.blog_service import BlogService
+from blog_agent.services.llm import get_llm
 from blog_agent.storage.repository import (
     BlogPostRepository,
     ContentBlockRepository,
@@ -106,13 +107,26 @@ class BlogAgentServiceImpl:
     def _conversation_log_to_proto(self, conversation_log):
         """Convert ConversationLog model to proto message."""
         import json
+        
+        # Convert metadata values to strings (protobuf requires map<string, string>)
+        metadata_dict = {}
+        if conversation_log.metadata:
+            for key, value in conversation_log.metadata.items():
+                if value is None:
+                    metadata_dict[str(key)] = ""
+                elif isinstance(value, (str, int, float, bool)):
+                    metadata_dict[str(key)] = str(value)
+                else:
+                    # For complex types (list, dict, etc.), serialize to JSON string
+                    metadata_dict[str(key)] = json.dumps(value, ensure_ascii=False)
+        
         return blog_agent_pb2.ConversationLog(
             id=str(conversation_log.id) if conversation_log.id else "",
-            file_path=conversation_log.file_path,
+            file_path=conversation_log.file_path or "",
             file_format=self._map_file_format_to_proto(conversation_log.file_format),
-            raw_content=conversation_log.raw_content,
-            parsed_content_json=json.dumps(conversation_log.parsed_content),
-            metadata=conversation_log.metadata or {},
+            raw_content=conversation_log.raw_content or "",
+            parsed_content_json=json.dumps(conversation_log.parsed_content) if conversation_log.parsed_content else "",
+            metadata=metadata_dict,
             language=conversation_log.language or "",
             message_count=conversation_log.message_count or 0,
             created_at=conversation_log.created_at.isoformat() if conversation_log.created_at else "",
@@ -121,14 +135,31 @@ class BlogAgentServiceImpl:
 
     def _blog_post_to_proto(self, blog_post):
         """Convert BlogPost model to proto message."""
+        import json
+        
+        # Convert metadata values to strings (protobuf requires map<string, string>)
+        metadata_dict = {}
+        if blog_post.metadata:
+            for key, value in blog_post.metadata.items():
+                if value is None:
+                    metadata_dict[str(key)] = ""
+                elif isinstance(value, (str, int, float, bool)):
+                    metadata_dict[str(key)] = str(value)
+                else:
+                    # For complex types (list, dict, etc.), serialize to JSON string
+                    metadata_dict[str(key)] = json.dumps(value, ensure_ascii=False)
+        
+        # Ensure tags is a list
+        tags_list = blog_post.tags if isinstance(blog_post.tags, list) else list(blog_post.tags) if blog_post.tags else []
+        
         return blog_agent_pb2.BlogPost(
             id=str(blog_post.id) if blog_post.id else "",
             conversation_log_id=str(blog_post.conversation_log_id),
-            title=blog_post.title,
+            title=blog_post.title or "",
             summary=blog_post.summary or "",
-            tags=blog_post.tags or [],
-            content=blog_post.content,
-            metadata=blog_post.metadata or {},
+            tags=tags_list,
+            content=blog_post.content or "",
+            metadata=metadata_dict,
             status=self._map_blog_post_status_to_proto(blog_post.status),
             created_at=blog_post.created_at.isoformat() if blog_post.created_at else "",
             updated_at=blog_post.updated_at.isoformat() if blog_post.updated_at else "",
@@ -488,6 +519,35 @@ async def serve():
     """Start gRPC server."""
     import grpc
     from grpc import aio
+
+    # Check LLM structured_predict support
+    try:
+        llm = get_llm()
+        has_structured_predict = hasattr(llm, 'structured_predict')
+        llm_type = type(llm).__name__
+        llm_provider = config.LLM_PROVIDER
+        llm_model = config.LLM_MODEL
+        
+        logger.info(
+            "LLM structured_predict support check",
+            provider=llm_provider,
+            model=llm_model,
+            llm_type=llm_type,
+            has_structured_predict=has_structured_predict,
+        )
+        
+        if not has_structured_predict:
+            logger.warning(
+                "LLM does not support structured_predict - workflows will use fallback methods",
+                provider=llm_provider,
+                model=llm_model,
+            )
+    except Exception as e:
+        logger.warning(
+            "Failed to check LLM structured_predict support",
+            error=str(e),
+            exc_info=True,
+        )
 
     # Create gRPC server
     server = aio.server()

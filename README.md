@@ -72,8 +72,8 @@ npm install -g pnpm
 docker-compose up -d db
 
 # 設定 Python 環境
-cd python-workspace
-uv sync
+cd python-workspace/apps/server
+uv sync --extra dev
 
 # 設定 TypeScript 環境
 cd ../typescript-workspace

@@ -26,16 +26,14 @@ else:
         except ImportError:
             OpenAI = None
 
-if TYPE_CHECKING:
-    from blog_agent.storage.models import PromptSuggestion
-
 from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
-from blog_agent.storage.models import ContentExtract, ReviewFindings
+from blog_agent.storage.models import ContentExtract, PromptSuggestion, ReviewFindings
 from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.extractor import ExtractEvent
 from blog_agent.workflows.schemas import (
+    FactCheckAnalysisResponse,
     FactualInconsistenciesResponse,
     LogicalGapsResponse,
     UnclearExplanationsResponse,
@@ -52,7 +50,11 @@ class ReviewEvent(Event):
     conversation_log_id: str
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     errors: List[str] = []  # Issues that cannot be auto-corrected (T062)
-    prompt_suggestion: Optional["PromptSuggestion"] = None  # T079: Include prompt suggestion from parallel branch
+    prompt_suggestion: Optional[PromptSuggestion] = None  # T079: Include prompt suggestion from parallel branch
+
+
+# Rebuild model to resolve forward references
+ReviewEvent.model_rebuild()
 
 
 class ContentReviewer:
@@ -156,17 +158,29 @@ class ContentReviewer:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            response = await self.llm.structured_predict(
-                LogicalGapsResponse,
-                prompt_template,
+            # Format the prompt template first
+            formatted_prompt = prompt_template.format(
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
             )
-
-            gaps = [gap.model_dump() for gap in response.gaps]
-            logger.info("Detected logical gaps", count=len(gaps))
-            return gaps
+            
+            # Try to use structured_predict if available
+            if hasattr(self.llm, 'structured_predict'):
+                try:
+                    response = await self.llm.structured_predict(
+                        LogicalGapsResponse,
+                        formatted_prompt,
+                    )
+                    gaps = [gap.model_dump() for gap in response.gaps]
+                    logger.info("Detected logical gaps", count=len(gaps))
+                    return gaps
+                except (AttributeError, TypeError) as e:
+                    logger.debug("structured_predict failed, using fallback", error=str(e))
+            
+            # Fallback: return empty list if structured_predict not available
+            logger.warning("structured_predict not available for logical gaps detection")
+            return []
 
         except Exception as e:
             logger.warning("Failed to detect logical gaps", error=str(e))
@@ -197,17 +211,29 @@ class ContentReviewer:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            response = await self.llm.structured_predict(
-                FactualInconsistenciesResponse,
-                prompt_template,
+            # Format the prompt template first
+            formatted_prompt = prompt_template.format(
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
             )
-
-            inconsistencies = [inc.model_dump() for inc in response.inconsistencies]
-            logger.info("Detected factual inconsistencies", count=len(inconsistencies))
-            return inconsistencies
+            
+            # Try to use structured_predict if available
+            if hasattr(self.llm, 'structured_predict'):
+                try:
+                    response = await self.llm.structured_predict(
+                        FactualInconsistenciesResponse,
+                        formatted_prompt,
+                    )
+                    inconsistencies = [inc.model_dump() for inc in response.inconsistencies]
+                    logger.info("Detected factual inconsistencies", count=len(inconsistencies))
+                    return inconsistencies
+                except (AttributeError, TypeError) as e:
+                    logger.debug("structured_predict failed, using fallback", error=str(e))
+            
+            # Fallback: return empty list if structured_predict not available
+            logger.warning("structured_predict not available for factual inconsistencies detection")
+            return []
 
         except Exception as e:
             logger.warning("Failed to detect factual inconsistencies", error=str(e))
@@ -239,17 +265,29 @@ class ContentReviewer:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
             core_concepts_str = ", ".join(content_extract.core_concepts)
             
-            response = await self.llm.structured_predict(
-                UnclearExplanationsResponse,
-                prompt_template,
+            # Format the prompt template first
+            formatted_prompt = prompt_template.format(
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
             )
-
-            unclear_points = [point.model_dump() for point in response.unclear_points]
-            logger.info("Detected unclear explanations", count=len(unclear_points))
-            return unclear_points
+            
+            # Try to use structured_predict if available
+            if hasattr(self.llm, 'structured_predict'):
+                try:
+                    response = await self.llm.structured_predict(
+                        UnclearExplanationsResponse,
+                        formatted_prompt,
+                    )
+                    unclear_points = [point.model_dump() for point in response.unclear_points]
+                    logger.info("Detected unclear explanations", count=len(unclear_points))
+                    return unclear_points
+                except (AttributeError, TypeError) as e:
+                    logger.debug("structured_predict failed, using fallback", error=str(e))
+            
+            # Fallback: return empty list if structured_predict not available
+            logger.warning("structured_predict not available for unclear explanations detection")
+            return []
 
         except Exception as e:
             logger.warning("Failed to detect unclear explanations", error=str(e))
@@ -277,7 +315,7 @@ class ContentReviewer:
 請以列表形式輸出，每個需要查核的聲稱一行。只輸出聲稱內容，不要額外說明。"""
 
         try:
-            response = await self.llm.complete(prompt)
+            response = await self.llm.acomplete(prompt)
 
             # Parse response into list
             claims = [
@@ -317,7 +355,7 @@ class ContentReviewer:
 只輸出建議列表，不要額外說明。"""
 
         try:
-            response = await self.llm.complete(prompt)
+            response = await self.llm.acomplete(prompt)
 
             # Parse response into list
             suggestions = [
@@ -383,7 +421,10 @@ class ContentReviewer:
         self, fact_checking_needs: List[str]
     ) -> List[str]:
         """
-        Perform fact-checking using Tavily API (T072).
+        Perform fact-checking using Tavily API with LLM analysis (T072).
+        
+        Uses Tavily to find sources, then LLM to analyze whether sources actually
+        support or contradict the claim.
         
         Args:
             fact_checking_needs: List of claims that need fact-checking
@@ -395,25 +436,112 @@ class ContentReviewer:
 
         for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid API overload
             try:
-                result = await self.tavily_service.fact_check(claim, max_results=3)
+                # Step 1: Get sources from Tavily
+                result = await self.tavily_service.fact_check(claim, max_results=5)
+                sources = result.get("sources", [])
+                sources_count = len(sources)
                 
-                verified = result.get("verified", False)
-                sources_count = len(result.get("sources", []))
+                if sources_count == 0:
+                    fact_check_results.append(
+                        f"✗ 無法驗證：{claim} (未找到相關來源)"
+                    )
+                    logger.info(
+                        "Fact-check: no sources found",
+                        claim=claim,
+                    )
+                    continue
                 
-                if verified and sources_count > 0:
-                    fact_check_results.append(
-                        f"✓ 驗證通過：{claim} (找到 {sources_count} 個相關來源)"
-                    )
-                else:
-                    fact_check_results.append(
-                        f"✗ 無法驗證：{claim} (未找到足夠的支援來源)"
-                    )
-                    
-                logger.info(
-                    "Fact-check completed via Tavily",
+                # Step 2: Use LLM to analyze whether sources support/contradict the claim
+                sources_text = "\n\n".join(
+                    [
+                        f"來源 {i+1}: {src.get('title', '無標題')}\n"
+                        f"URL: {src.get('url', '無URL')}\n"
+                        f"內容摘要: {src.get('content', '無內容')[:500]}"
+                        for i, src in enumerate(sources)
+                    ]
+                )
+                
+                analysis_prompt = f"""請分析以下聲稱是否被提供的來源所驗證、反駁，或無法確定。
+
+聲稱：
+{claim}
+
+來源資訊：
+{sources_text}
+
+請仔細分析：
+1. 這些來源是否支持這個聲稱？（verified/contradicted/unclear/unverifiable）
+2. 信心程度如何？（high/medium/low）
+3. 關鍵證據是什麼？
+4. 是否有任何矛盾或反駁的資訊？
+5. 分析理由
+
+請提供結構化的分析結果。"""
+
+                # Try to use structured_predict if available
+                if hasattr(self.llm, 'structured_predict'):
+                    try:
+                        analysis_response = await self.llm.structured_predict(
+                            FactCheckAnalysisResponse,
+                            analysis_prompt,
+                        )
+                        
+                        analysis = analysis_response.analysis
+                        status = analysis.verification_status
+                        confidence = analysis.confidence
+                        evidence = analysis.evidence[:200] if analysis.evidence else "無"
+                        
+                        # Format result based on verification status
+                        if status == "verified":
+                            status_icon = "✓"
+                            status_text = "驗證通過"
+                        elif status == "contradicted":
+                            status_icon = "✗"
+                            status_text = "被反駁"
+                        elif status == "unclear":
+                            status_icon = "?"
+                            status_text = "無法確定"
+                        else:  # unverifiable
+                            status_icon = "✗"
+                            status_text = "無法驗證"
+                        
+                        result_text = (
+                            f"{status_icon} {status_text}：{claim}\n"
+                            f"  信心程度：{confidence}\n"
+                            f"  來源數量：{sources_count}\n"
+                            f"  關鍵證據：{evidence}"
+                        )
+                        
+                        if analysis.contradictions:
+                            contradictions_text = "; ".join(analysis.contradictions[:2])
+                            result_text += f"\n  矛盾資訊：{contradictions_text}"
+                        
+                        fact_check_results.append(result_text)
+                        
+                        logger.info(
+                            "Fact-check completed with LLM analysis",
+                            claim=claim,
+                            status=status,
+                            confidence=confidence,
+                            sources_count=sources_count,
+                        )
+                        continue  # Success, move to next claim
+                        
+                    except (AttributeError, TypeError) as llm_error:
+                        # structured_predict may not work with this LLM
+                        logger.debug(
+                            "structured_predict failed for fact-check, using simple verification",
+                            claim=claim,
+                            error=str(llm_error),
+                        )
+                
+                # Fallback to simple verification if structured_predict not available or failed
+                logger.warning(
+                    "LLM fact-check analysis not available, using simple verification",
                     claim=claim,
-                    verified=verified,
-                    sources_count=sources_count,
+                )
+                fact_check_results.append(
+                    f"? 部分驗證：{claim} (找到 {sources_count} 個相關來源，但無法進行深度分析)"
                 )
 
             except ExternalServiceError as e:

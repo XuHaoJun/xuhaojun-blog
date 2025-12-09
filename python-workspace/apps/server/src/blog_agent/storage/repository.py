@@ -48,11 +48,27 @@ class BaseRepository(ABC, Generic[T]):
 class ConversationLogRepository(BaseRepository[ConversationLog]):
     """Repository for conversation logs."""
 
+    @staticmethod
+    def _json_serialize_datetime(obj):
+        """Recursively convert datetime objects to ISO format strings for JSON serialization."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {key: ConversationLogRepository._json_serialize_datetime(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [ConversationLogRepository._json_serialize_datetime(item) for item in obj]
+        else:
+            return obj
+
     async def create(self, entity: ConversationLog) -> ConversationLog:
         """Create a new conversation log."""
         async with get_db_connection() as conn:
             entity_id = entity.id or uuid4()
             now = datetime.utcnow()
+
+            # Serialize parsed_content with datetime handling
+            serialized_parsed_content = self._json_serialize_datetime(entity.parsed_content)
+            serialized_metadata = self._json_serialize_datetime(entity.metadata) if entity.metadata else None
 
             await conn.execute(
                 """
@@ -65,9 +81,9 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
                 entity.file_path,
                 entity.file_format,
                 entity.raw_content,
-                json.dumps(entity.parsed_content),
+                json.dumps(serialized_parsed_content),
                 entity.content_hash,
-                json.dumps(entity.metadata) if entity.metadata else None,
+                json.dumps(serialized_metadata) if serialized_metadata else None,
                 entity.language,
                 entity.message_count,
                 now,

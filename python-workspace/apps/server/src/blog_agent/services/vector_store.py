@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class VectorStore:
     """Vector store using PostgreSQL + pgvector."""
 
-    def __init__(self, dimension: int = 1536):
+    def __init__(self, dimension: int = 1024):
         """Initialize vector store with embedding dimension."""
         self.dimension = dimension
 

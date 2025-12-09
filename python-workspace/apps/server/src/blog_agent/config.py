@@ -24,13 +24,13 @@ class Config:
     # LLM Service
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:14b")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:8b")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
     # Embedding Service
     EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "ollama")  # "ollama" or "openai"
-    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-embedding:4b")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-embedding:0.6b")
 
     # Tavily API
     TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")

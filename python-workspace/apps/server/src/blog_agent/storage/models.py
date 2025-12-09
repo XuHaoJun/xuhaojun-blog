@@ -23,7 +23,7 @@ class ConversationLog(BaseModel):
     file_format: str = Field(..., pattern="^(markdown|json|csv|text)$")
     raw_content: str
     parsed_content: Dict[str, Any]
-    content_hash: str  # SHA-256 hash of file content for change detection (FR-031)
+    content_hash: Optional[str] = None  # SHA-256 hash of file content for change detection (FR-031)
     metadata: Optional[Dict[str, Any]] = None
     language: Optional[str] = None
     message_count: Optional[int] = None
@@ -97,7 +97,7 @@ class PromptSuggestion(BaseModel):
     conversation_log_id: UUID
     original_prompt: str
     analysis: str
-    better_candidates: List[PromptCandidate] = Field(..., min_items=3)  # At least 3 structured candidates (FR-012)
+    better_candidates: List[PromptCandidate] = Field(..., min_length=3)  # At least 3 structured candidates (FR-012)
     reasoning: str  # Overall reasoning (kept for backward compatibility)
     expected_effect: Optional[str] = None  # Expected effect description (UI/UX support)
     created_at: Optional[datetime] = None

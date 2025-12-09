@@ -15,26 +15,27 @@ class MarkdownParser:
     """Parser for Markdown format conversation logs."""
 
     # Common role markers in Chinese/English
+    # Note: Patterns match role names without ## prefix since we split by ^##\s+
     ROLE_PATTERNS = {
         "user": [
-            r"^##\s*使用者",
-            r"^##\s*User",
-            r"^##\s*用戶",
-            r"^##\s*提问",
-            r"^##\s*提问者",
+            r"^使用者\s*$",
+            r"^User\s*$",
+            r"^用戶\s*$",
+            r"^提问\s*$",
+            r"^提问者\s*$",
         ],
         "assistant": [
-            r"^##\s*Gemini",
-            r"^##\s*Assistant",
-            r"^##\s*AI",
-            r"^##\s*回答",
-            r"^##\s*回答者",
-            r"^##\s*ChatGPT",
-            r"^##\s*Claude",
+            r"^Gemini\s*$",
+            r"^Assistant\s*$",
+            r"^AI\s*$",
+            r"^回答\s*$",
+            r"^回答者\s*$",
+            r"^ChatGPT\s*$",
+            r"^Claude\s*$",
         ],
         "system": [
-            r"^##\s*System",
-            r"^##\s*系統",
+            r"^System\s*$",
+            r"^系統\s*$",
         ],
     }
 
@@ -54,7 +55,7 @@ class MarkdownParser:
             language = self._detect_language(messages)
 
             parsed_content = {
-                "messages": [msg.model_dump() for msg in messages],
+                "messages": [msg.model_dump(mode='json') for msg in messages],
                 "frontmatter": frontmatter,
             }
 
@@ -145,7 +146,8 @@ class MarkdownParser:
 
         # Heuristic: if starts with question words, likely user
         question_words = ["什麼", "如何", "為什麼", "怎麼", "what", "how", "why", "when", "where"]
-        if any(content.startswith(word) for word in question_words):
+        content_lower = content.lower()
+        if any(content_lower.startswith(word.lower()) for word in question_words):
             return "user"
 
         # Default to assistant if unclear
@@ -158,11 +160,25 @@ class MarkdownParser:
         # Copy frontmatter fields
         if frontmatter:
             metadata.update(frontmatter)
+            # Serialize datetime objects to ISO strings for consistency
+            for key, value in metadata.items():
+                if isinstance(value, datetime):
+                    # Format as ISO 8601 with Z suffix if UTC, matching YAML export format
+                    if value.tzinfo is not None:
+                        offset = value.utcoffset()
+                        if offset is not None and offset.total_seconds() == 0:
+                            # UTC timezone - use Z suffix, format milliseconds (3 digits)
+                            metadata[key] = value.strftime("%Y-%m-%dT%H:%M:%S") + f".{value.microsecond // 1000:03d}Z"
+                        else:
+                            metadata[key] = value.isoformat()
+                    else:
+                        metadata[key] = value.isoformat()
 
-        # Extract title if present
-        title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-        if title_match:
-            metadata["title"] = title_match.group(1).strip()
+        # Extract title from markdown only if not already in frontmatter
+        if "title" not in metadata:
+            title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+            if title_match:
+                metadata["title"] = title_match.group(1).strip()
 
         return metadata
 

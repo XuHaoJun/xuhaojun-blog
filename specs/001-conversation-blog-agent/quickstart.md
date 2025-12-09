@@ -34,8 +34,8 @@ cd xuhaojun-blog
 docker-compose up -d db
 
 # 設定 Python 環境
-cd python-workspace
-uv sync
+cd python-workspace/apps/server
+uv sync --extra dev
 
 # 設定 TypeScript 環境
 cd ../typescript-workspace
@@ -236,9 +236,9 @@ curl http://localhost:50051/health  # 如果實作 health check
 
 ```bash
 # Python: 清除快取並重新安裝
-cd python-workspace
+cd python-workspace/apps/server
 uv cache clean
-uv sync
+uv sync --extra dev
 
 # TypeScript: 清除 node_modules
 cd typescript-workspace

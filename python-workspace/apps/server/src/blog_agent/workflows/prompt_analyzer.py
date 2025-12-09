@@ -1,5 +1,7 @@
 """Prompt analysis workflow step for optimization suggestions."""
 
+import json
+import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from llama_index.core.workflow import Event, step
@@ -231,9 +233,8 @@ class PromptAnalyzer:
 請只輸出 JSON 陣列，不要額外說明。"""
 
         try:
-            response = await self.llm.complete(prompt)
+            response = await self.llm.acomplete(prompt)
             # Try to parse JSON response
-            import json
             prompts = json.loads(response.text.strip())
             if isinstance(prompts, list):
                 return [p for p in prompts if isinstance(p, str) and len(p) > 10]
@@ -268,7 +269,7 @@ class PromptAnalyzer:
 
 請提供詳細的分析，以正體中文撰寫。"""
 
-        response = await self.llm.complete(evaluation_prompt)
+        response = await self.llm.acomplete(evaluation_prompt)
         return response.text.strip()
 
     async def _generate_structured_alternative_prompts(
@@ -304,17 +305,88 @@ class PromptAnalyzer:
 5. 每個候選應該完整且可以直接使用"""
 
         try:
-            # Use structured_predict with Pydantic model
-            response = await self.llm.structured_predict(
-                PromptCandidatesResponse,
-                prompt_template,
+            # Format the prompt template first
+            formatted_prompt = prompt_template.format(
                 original_prompt=original_prompt,
                 context_summary=context_summary,
             )
             
+            # Try to use structured_predict if available
+            # Some LLMs (like Ollama) may not support structured_predict directly
+            if hasattr(self.llm, 'structured_predict'):
+                try:
+                    response = await self.llm.structured_predict(
+                        PromptCandidatesResponse,
+                        formatted_prompt,
+                    )
+                    
+                    # Convert to PromptCandidate objects
+                    candidates = []
+                    for item in response.candidates:
+                        try:
+                            candidate = PromptCandidate(
+                                type=item.type,
+                                prompt=item.prompt,
+                                reasoning=item.reasoning,
+                            )
+                            if len(candidate.prompt) > 20:  # Filter out too short prompts
+                                candidates.append(candidate)
+                        except Exception as e:
+                            logger.warning("Failed to create PromptCandidate", error=str(e), data=item)
+                            continue
+                    
+                    if len(candidates) >= 3:
+                        return candidates[:10]  # Limit to 10 candidates
+                except (AttributeError, TypeError) as e:
+                    # structured_predict may not work with this LLM, fall through to JSON parsing
+                    logger.debug("structured_predict not available, using JSON parsing fallback", error=str(e))
+            
+            # Fallback: Use JSON mode with manual parsing
+            json_prompt = f"""{formatted_prompt}
+
+請以 JSON 格式返回，格式如下：
+{{
+  "candidates": [
+    {{
+      "type": "structured",
+      "prompt": "改進後的提示詞",
+      "reasoning": "為什麼這個版本更好"
+    }},
+    {{
+      "type": "role-play",
+      "prompt": "改進後的提示詞",
+      "reasoning": "為什麼這個版本更好"
+    }},
+    {{
+      "type": "chain-of-thought",
+      "prompt": "改進後的提示詞",
+      "reasoning": "為什麼這個版本更好"
+    }}
+  ]
+}}
+
+請只輸出 JSON，不要額外說明。"""
+            
+            response = await self.llm.acomplete(json_prompt)
+            response_text = response.text.strip()
+            
+            # Try to extract JSON from response (may be wrapped in markdown code blocks)
+            # Remove markdown code blocks if present
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            else:
+                # Try to find JSON object directly
+                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(0)
+            
+            parsed_response = json.loads(response_text)
+            response_obj = PromptCandidatesResponse(**parsed_response)
+            
             # Convert to PromptCandidate objects
             candidates = []
-            for item in response.candidates:
+            for item in response_obj.candidates:
                 try:
                     candidate = PromptCandidate(
                         type=item.type,
@@ -329,6 +401,7 @@ class PromptAnalyzer:
             
             if len(candidates) >= 3:
                 return candidates[:10]  # Limit to 10 candidates
+                
         except Exception as e:
             logger.warning("Failed to generate structured alternative prompts", error=str(e))
         
@@ -359,18 +432,76 @@ class PromptAnalyzer:
 4. 每個候選應該完整且可以直接使用"""
 
         try:
-            # Use structured_predict with Pydantic model
-            response = await self.llm.structured_predict(
-                PromptCandidatesResponse,
-                prompt_template,
+            # Format the prompt template first
+            formatted_prompt = prompt_template.format(
                 original_prompt=original_prompt,
                 context_summary=context_summary,
                 needed=needed,
             )
             
+            # Try to use structured_predict if available
+            if hasattr(self.llm, 'structured_predict'):
+                try:
+                    response = await self.llm.structured_predict(
+                        PromptCandidatesResponse,
+                        formatted_prompt,
+                    )
+                    
+                    # Convert to PromptCandidate objects
+                    candidates = []
+                    for item in response.candidates:
+                        try:
+                            candidate = PromptCandidate(
+                                type=item.type,
+                                prompt=item.prompt,
+                                reasoning=item.reasoning,
+                            )
+                            if len(candidate.prompt) > 20:
+                                candidates.append(candidate)
+                        except Exception as e:
+                            logger.warning("Failed to create additional PromptCandidate", error=str(e))
+                            continue
+                    return candidates
+                except (AttributeError, TypeError) as e:
+                    # structured_predict may not work with this LLM, fall through to JSON parsing
+                    logger.debug("structured_predict not available, using JSON parsing fallback", error=str(e))
+            
+            # Fallback: Use JSON mode with manual parsing
+            json_prompt = f"""{formatted_prompt}
+
+請以 JSON 格式返回，格式如下：
+{{
+  "candidates": [
+    {{
+      "type": "structured",
+      "prompt": "改進後的提示詞",
+      "reasoning": "為什麼這個版本更好"
+    }}
+  ]
+}}
+
+請只輸出 JSON，不要額外說明。"""
+            
+            response = await self.llm.acomplete(json_prompt)
+            response_text = response.text.strip()
+            
+            # Try to extract JSON from response (may be wrapped in markdown code blocks)
+            # Remove markdown code blocks if present
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            else:
+                # Try to find JSON object directly
+                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(0)
+            
+            parsed_response = json.loads(response_text)
+            response_obj = PromptCandidatesResponse(**parsed_response)
+            
             # Convert to PromptCandidate objects
             candidates = []
-            for item in response.candidates:
+            for item in response_obj.candidates:
                 try:
                     candidate = PromptCandidate(
                         type=item.type,
@@ -463,7 +594,7 @@ class PromptAnalyzer:
 
 請提供詳細的分析，以正體中文撰寫，結構清晰。"""
 
-        response = await self.llm.complete(reasoning_prompt)
+        response = await self.llm.acomplete(reasoning_prompt)
         return response.text.strip()
 
     async def _generate_expected_effect(
@@ -500,7 +631,7 @@ class PromptAnalyzer:
 請提供簡潔明瞭的說明（100-200字），以正體中文撰寫。"""
 
         try:
-            response = await self.llm.complete(effect_prompt)
+            response = await self.llm.acomplete(effect_prompt)
             return response.text.strip()[:500]  # Limit length
         except Exception as e:
             logger.warning("Failed to generate expected effect", error=str(e))

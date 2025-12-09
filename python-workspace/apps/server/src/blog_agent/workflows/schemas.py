@@ -90,3 +90,30 @@ class PromptCandidatesResponse(BaseModel):
         default_factory=list, description="List of alternative prompt candidates"
     )
 
+
+# Fact-checking schemas
+class FactCheckAnalysis(BaseModel):
+    """Represents fact-check analysis result for a claim."""
+
+    verification_status: Literal["verified", "contradicted", "unclear", "unverifiable"] = Field(
+        ..., description="Whether the claim is verified, contradicted, unclear, or unverifiable"
+    )
+    confidence: Literal["high", "medium", "low"] = Field(
+        ..., description="Confidence level in the verification"
+    )
+    evidence: str = Field(
+        ..., description="Key evidence from sources that supports or contradicts the claim"
+    )
+    contradictions: List[str] = Field(
+        default_factory=list, description="List of contradictions found in sources"
+    )
+    reasoning: str = Field(
+        ..., description="Reasoning for the verification status"
+    )
+
+
+class FactCheckAnalysisResponse(BaseModel):
+    """Response containing fact-check analysis."""
+
+    analysis: FactCheckAnalysis = Field(..., description="Fact-check analysis result")
+
