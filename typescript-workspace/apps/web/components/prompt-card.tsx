@@ -5,6 +5,7 @@ import type { PromptMeta, PromptCandidate } from "@blog-agent/proto-gen";
 import { cn } from "@/lib/utils";
 import { DiffHighlighter } from "./diff-highlighter";
 import { SimulationModal } from "./simulation-modal";
+import { MyReactMarkdown } from "./my-react-markdown";
 
 interface PromptCardProps {
   promptMeta: PromptMeta;
@@ -35,29 +36,21 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
       {/* 1. 🔴 原始提問 (The User's Attempt) */}
       <div className="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-red-600 dark:text-red-400 font-semibold">
-            🔴 原始提問
-          </span>
+          <span className="text-red-600 dark:text-red-400 font-semibold">🔴 原始提問</span>
           <span className="text-xs text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded">
             Original Prompt
           </span>
         </div>
-        <p className="text-sm text-gray-700 dark:text-gray-300 font-mono leading-relaxed">
-          {promptMeta.originalPrompt}
-        </p>
+        <MyReactMarkdown content={promptMeta.originalPrompt} />
       </div>
 
       {/* 2. 🧐 AI 診斷 (The Critique) */}
       {promptMeta.analysis && (
         <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-yellow-700 dark:text-yellow-400 font-semibold">
-              🧐 AI 診斷
-            </span>
+            <span className="text-yellow-700 dark:text-yellow-400 font-semibold">🧐 AI 診斷</span>
           </div>
-          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-            {promptMeta.analysis}
-          </p>
+          <MyReactMarkdown content={promptMeta.analysis} />
         </div>
       )}
 
@@ -65,9 +58,7 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
       {candidates.length > 0 && (
         <div className="p-4 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-green-700 dark:text-green-400 font-semibold">
-              🟢 優化建議
-            </span>
+            <span className="text-green-700 dark:text-green-400 font-semibold">🟢 優化建議</span>
           </div>
 
           {/* Tab Navigation */}
@@ -160,4 +151,3 @@ function getCandidateTypeLabel(type: string): string {
   };
   return labels[type] || type;
 }
-

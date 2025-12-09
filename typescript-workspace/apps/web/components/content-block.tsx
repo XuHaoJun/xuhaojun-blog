@@ -1,10 +1,8 @@
 "use client";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { ContentBlock as ContentBlockType } from "@blog-agent/proto-gen";
 import { cn } from "@/lib/utils";
-import rehypePrismPlus from "rehype-prism-plus";
+import { MyReactMarkdown } from "./my-react-markdown";
 
 interface ContentBlockProps {
   block: ContentBlockType;
@@ -36,9 +34,7 @@ export function ContentBlock({ block, onHover, onLeave, isActive = false }: Cont
 
       {/* Content */}
       <div className="prose prose-lg dark:prose-invert max-w-none font-serif transition-colors duration-300">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePrismPlus]}>
-          {block.text}
-        </ReactMarkdown>
+        <MyReactMarkdown content={block.text} />
       </div>
     </div>
   );
