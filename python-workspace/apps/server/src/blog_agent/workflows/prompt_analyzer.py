@@ -311,35 +311,33 @@ class PromptAnalyzer:
                 context_summary=context_summary,
             )
             
-            # Try to use structured_predict if available
-            # Some LLMs (like Ollama) may not support structured_predict directly
-            if hasattr(self.llm, 'structured_predict'):
-                try:
-                    response = await self.llm.structured_predict(
-                        PromptCandidatesResponse,
-                        formatted_prompt,
-                    )
-                    
-                    # Convert to PromptCandidate objects
-                    candidates = []
-                    for item in response.candidates:
-                        try:
-                            candidate = PromptCandidate(
-                                type=item.type,
-                                prompt=item.prompt,
-                                reasoning=item.reasoning,
-                            )
-                            if len(candidate.prompt) > 20:  # Filter out too short prompts
-                                candidates.append(candidate)
-                        except Exception as e:
-                            logger.warning("Failed to create PromptCandidate", error=str(e), data=item)
-                            continue
-                    
-                    if len(candidates) >= 3:
-                        return candidates[:10]  # Limit to 10 candidates
-                except (AttributeError, TypeError) as e:
-                    # structured_predict may not work with this LLM, fall through to JSON parsing
-                    logger.debug("structured_predict not available, using JSON parsing fallback", error=str(e))
+            # Try to use structured_predict first
+            try:
+                response = await self.llm.structured_predict(
+                    PromptCandidatesResponse,
+                    formatted_prompt,
+                )
+                
+                # Convert to PromptCandidate objects
+                candidates = []
+                for item in response.candidates:
+                    try:
+                        candidate = PromptCandidate(
+                            type=item.type,
+                            prompt=item.prompt,
+                            reasoning=item.reasoning,
+                        )
+                        if len(candidate.prompt) > 20:  # Filter out too short prompts
+                            candidates.append(candidate)
+                    except Exception as e:
+                        logger.warning("Failed to create PromptCandidate", error=str(e), data=item)
+                        continue
+                
+                if len(candidates) >= 3:
+                    return candidates[:10]  # Limit to 10 candidates
+            except Exception as e:
+                # structured_predict failed, fall through to JSON parsing
+                logger.debug("structured_predict failed, using JSON parsing fallback", error=str(e))
             
             # Fallback: Use JSON mode with manual parsing
             json_prompt = f"""{formatted_prompt}
@@ -439,32 +437,31 @@ class PromptAnalyzer:
                 needed=needed,
             )
             
-            # Try to use structured_predict if available
-            if hasattr(self.llm, 'structured_predict'):
-                try:
-                    response = await self.llm.structured_predict(
-                        PromptCandidatesResponse,
-                        formatted_prompt,
-                    )
-                    
-                    # Convert to PromptCandidate objects
-                    candidates = []
-                    for item in response.candidates:
-                        try:
-                            candidate = PromptCandidate(
-                                type=item.type,
-                                prompt=item.prompt,
-                                reasoning=item.reasoning,
-                            )
-                            if len(candidate.prompt) > 20:
-                                candidates.append(candidate)
-                        except Exception as e:
-                            logger.warning("Failed to create additional PromptCandidate", error=str(e))
-                            continue
-                    return candidates
-                except (AttributeError, TypeError) as e:
-                    # structured_predict may not work with this LLM, fall through to JSON parsing
-                    logger.debug("structured_predict not available, using JSON parsing fallback", error=str(e))
+            # Try to use structured_predict first
+            try:
+                response = await self.llm.structured_predict(
+                    PromptCandidatesResponse,
+                    formatted_prompt,
+                )
+                
+                # Convert to PromptCandidate objects
+                candidates = []
+                for item in response.candidates:
+                    try:
+                        candidate = PromptCandidate(
+                            type=item.type,
+                            prompt=item.prompt,
+                            reasoning=item.reasoning,
+                        )
+                        if len(candidate.prompt) > 20:
+                            candidates.append(candidate)
+                    except Exception as e:
+                        logger.warning("Failed to create additional PromptCandidate", error=str(e))
+                        continue
+                return candidates
+            except Exception as e:
+                # structured_predict failed, fall through to JSON parsing
+                logger.debug("structured_predict failed, using JSON parsing fallback", error=str(e))
             
             # Fallback: Use JSON mode with manual parsing
             json_prompt = f"""{formatted_prompt}

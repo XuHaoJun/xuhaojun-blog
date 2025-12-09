@@ -165,22 +165,14 @@ class ContentExtender:
                 content=content_extract.filtered_content,
             )
             
-            # Try to use structured_predict if available
-            if hasattr(self.llm, 'structured_predict'):
-                try:
-                    response = await self.llm.structured_predict(
-                        KnowledgeGapResponse,
-                        formatted_prompt,
-                    )
-                    gaps = [gap.model_dump() for gap in response.gaps]
-                    logger.info("Identified knowledge gaps", count=len(gaps))
-                    return gaps
-                except (AttributeError, TypeError) as e:
-                    logger.debug("structured_predict failed, using fallback", error=str(e))
-            
-            # Fallback: return empty list if structured_predict not available
-            logger.warning("structured_predict not available for knowledge gaps detection")
-            return []
+            response = await self.llm.structured_predict(
+                KnowledgeGapResponse,
+                formatted_prompt,
+            )
+
+            gaps = [gap.model_dump() for gap in response.gaps]
+            logger.info("Identified knowledge gaps", count=len(gaps))
+            return gaps
 
         except Exception as e:
             logger.warning("Failed to identify knowledge gaps", error=str(e))
