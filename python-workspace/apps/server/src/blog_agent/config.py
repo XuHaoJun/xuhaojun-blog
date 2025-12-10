@@ -35,6 +35,9 @@ class Config:
     # Tavily API
     TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
 
+    # Fact-checking method
+    FACT_CHECK_METHOD: str = os.getenv("FACT_CHECK_METHOD", "LLM").upper()  # "LLM" or "TAVILY"
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
@@ -43,8 +46,8 @@ class Config:
         """Validate required configuration."""
         if cls.LLM_PROVIDER == "openai" and not cls.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'")
-        if not cls.TAVILY_API_KEY:
-            raise ValueError("TAVILY_API_KEY is required")
+        if cls.FACT_CHECK_METHOD == "TAVILY" and not cls.TAVILY_API_KEY:
+            raise ValueError("TAVILY_API_KEY is required when FACT_CHECK_METHOD is 'TAVILY'")
 
 
 config = Config()

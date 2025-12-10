@@ -27,6 +27,7 @@ else:
         except ImportError:
             OpenAI = None
 
+from blog_agent.config import config
 from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
 from blog_agent.storage.models import ContentExtract, PromptSuggestion, ReviewFindings
@@ -64,7 +65,15 @@ class ContentReviewer:
     def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None, tavily_service=None):
         """Initialize content reviewer."""
         self.llm = llm or get_llm()
-        self.tavily_service = tavily_service or get_tavily_service()
+        self.fact_check_method = config.FACT_CHECK_METHOD.upper()
+        
+        # Only initialize Tavily service if method is TAVILY
+        if self.fact_check_method == "TAVILY":
+            if not config.TAVILY_API_KEY:
+                raise ValueError("TAVILY_API_KEY is required when FACT_CHECK_METHOD is 'TAVILY'")
+            self.tavily_service = tavily_service or get_tavily_service()
+        else:
+            self.tavily_service = None
 
     @step
     async def review(self, ev: ExtractEvent) -> ReviewEvent:  # type: ignore
@@ -79,10 +88,13 @@ class ContentReviewer:
             unclear_explanations = await self._detect_unclear_explanations(content_extract)
             fact_checking_needs = await self._detect_fact_checking_needs(content_extract)  # FR-010
             
-            # Perform fact-checking via Tavily if needs detected (T072)
+            # Perform fact-checking based on configured method
             fact_check_results = []
             if fact_checking_needs:
-                fact_check_results = await self._fact_check_via_tavily(fact_checking_needs)
+                if self.fact_check_method == "TAVILY":
+                    fact_check_results = await self._fact_check_via_tavily(fact_checking_needs)
+                else:  # LLM method (default)
+                    fact_check_results = await self._fact_check_via_llm(fact_checking_needs)
                 # Store fact-check results in issues for reference
                 # The original fact_checking_needs list is preserved for ReviewFindings
 
@@ -406,6 +418,9 @@ class ContentReviewer:
         Returns:
             List of fact-check results (formatted strings with verification status)
         """
+        if not self.tavily_service:
+            raise ValueError("Tavily service is not initialized. FACT_CHECK_METHOD must be 'TAVILY'.")
+        
         fact_check_results = []
 
         for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid API overload
@@ -518,6 +533,104 @@ class ContentReviewer:
                 # Tavily failure should stop processing (FR-019)
                 logger.error("Tavily fact-check failed", claim=claim, error=str(e))
                 raise
+            except Exception as e:
+                logger.warning("Fact-check failed for claim", claim=claim, error=str(e))
+                fact_check_results.append(f"? 檢查失敗：{claim} (錯誤：{str(e)})")
+
+        return fact_check_results
+
+    async def _fact_check_via_llm(
+        self, fact_checking_needs: List[str]
+    ) -> List[str]:
+        """
+        Perform fact-checking using LLM only (without external APIs).
+        
+        Uses LLM's knowledge to analyze whether claims are verified, contradicted,
+        unclear, or unverifiable.
+        
+        Args:
+            fact_checking_needs: List of claims that need fact-checking
+            
+        Returns:
+            List of fact-check results (formatted strings with verification status)
+        """
+        fact_check_results = []
+
+        for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid overload
+            try:
+                template_str = """請基於你的知識分析以下聲稱是否正確、被反駁、不清楚，或無法驗證。
+
+聲稱：
+{claim}
+
+請仔細分析：
+1. 這個聲稱是否正確？（verified/contradicted/unclear/unverifiable）
+2. 信心程度如何？（high/medium/low）
+3. 關鍵證據或理由是什麼？
+4. 是否有任何已知的矛盾資訊？
+5. 分析理由
+
+請提供結構化的分析結果。"""
+
+                try:
+                    # Convert template string to PromptTemplate object
+                    prompt_tmpl = PromptTemplate(template_str)
+                    
+                    analysis_response = await self.llm.astructured_predict(
+                        FactCheckAnalysisResponse,
+                        prompt_tmpl,
+                        claim=claim,
+                    )
+                    
+                    analysis = analysis_response.analysis
+                    status = analysis.verification_status
+                    confidence = analysis.confidence
+                    evidence = analysis.evidence[:200] if analysis.evidence else "無"
+                    
+                    # Format result based on verification status
+                    if status == "verified":
+                        status_icon = "✓"
+                        status_text = "驗證通過"
+                    elif status == "contradicted":
+                        status_icon = "✗"
+                        status_text = "被反駁"
+                    elif status == "unclear":
+                        status_icon = "?"
+                        status_text = "無法確定"
+                    else:  # unverifiable
+                        status_icon = "✗"
+                        status_text = "無法驗證"
+                    
+                    result_text = (
+                        f"{status_icon} {status_text}：{claim}\n"
+                        f"  信心程度：{confidence}\n"
+                        f"  關鍵證據：{evidence}"
+                    )
+                    
+                    if analysis.contradictions:
+                        contradictions_text = "; ".join(analysis.contradictions[:2])
+                        result_text += f"\n  矛盾資訊：{contradictions_text}"
+                    
+                    fact_check_results.append(result_text)
+                    
+                    logger.info(
+                        "Fact-check completed with LLM",
+                        claim=claim,
+                        status=status,
+                        confidence=confidence,
+                    )
+                    
+                except Exception as llm_error:
+                    # Fallback if LLM analysis fails
+                    logger.warning(
+                        "LLM fact-check analysis failed",
+                        claim=claim,
+                        error=str(llm_error),
+                    )
+                    fact_check_results.append(
+                        f"? 檢查失敗：{claim} (無法進行分析：{str(llm_error)})"
+                    )
+
             except Exception as e:
                 logger.warning("Fact-check failed for claim", claim=claim, error=str(e))
                 fact_check_results.append(f"? 檢查失敗：{claim} (錯誤：{str(e)})")
