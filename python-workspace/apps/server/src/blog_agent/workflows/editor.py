@@ -244,7 +244,7 @@ class BlogEditor:
             if prompt_suggestion.better_candidates:
                 section += "#### 改進版本\n\n"
                 for i, candidate in enumerate(prompt_suggestion.better_candidates[:5], 1):  # Show top 5
-                    section += f"##### 版本 {i}\n\n{candidate}\n\n"
+                    section += f"##### 版本 {i}\n\n{candidate.prompt}\n\n"
             
             if prompt_suggestion.reasoning:
                 section += f"#### 改進理由\n\n{prompt_suggestion.reasoning}\n\n"
