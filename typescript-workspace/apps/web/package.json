@@ -13,6 +13,7 @@
   "dependencies": {
     "@blog-agent/proto-gen": "workspace:*",
     "@blog-agent/rpc-client": "workspace:*",
+    "@blog-agent/ui": "workspace:*",
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",

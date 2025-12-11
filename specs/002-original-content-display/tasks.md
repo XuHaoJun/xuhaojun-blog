@@ -106,6 +106,34 @@
 
 ---
 
+## Phase 7: User Story 4 - Toggle Between Original and Optimized Content (Priority: P2)
+
+**Goal**: Allow users to toggle between viewing original conversation content and LLM-optimized blog post content using tab-based UI
+
+**Independent Test**: Verify that users can switch between "原版" (Original) and "優化版" (Optimized) tabs to view different content versions. Users can compare original conversation with optimized article content.
+
+### Implementation for User Story 4
+
+- [x] T051 [P] [US4] Create shadcn/ui Tabs component in typescript-workspace/packages/ui/src/components/tabs.tsx (reference learn-projects/tripvota/typescript-workspace/packages/ui structure)
+- [x] T052 [US4] Set up typescript-workspace/packages/ui package structure (package.json, tsconfig.json, components.json) if not exists
+- [x] T053 [US4] Install required dependencies for Tabs component (@radix-ui/react-tabs) in typescript-workspace/packages/ui
+- [x] T054 [US4] Export Tabs component from typescript-workspace/packages/ui/src/components/tabs.tsx
+- [x] T055 [US4] Create OptimizedContentViewer component to render blog_post.content as Markdown in typescript-workspace/apps/web/components/optimized-content-viewer.tsx
+- [x] T056 [US4] Update BlogPostClient to wrap content in Tabs component (原版/優化版) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T057 [US4] Implement "原版" tab content (existing ConversationViewer with prompt suggestions sidebar) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T058 [US4] Implement "優化版" tab content (OptimizedContentViewer without prompt suggestions) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T059 [US4] Add logic to hide prompt suggestions sidebar when "優化版" tab is active in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T060 [US4] Add logic to show prompt suggestions sidebar when "原版" tab is active in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T061 [US4] Handle case where blog_post.content is empty or null (disable/hide "優化版" tab) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T062 [US4] Add scroll position management when switching between tabs in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T063 [US4] Ensure OptimizedContentViewer properly renders Markdown content with proper styling in typescript-workspace/apps/web/components/optimized-content-viewer.tsx
+- [x] T064 [US4] Add error handling for malformed Markdown in OptimizedContentViewer component in typescript-workspace/apps/web/components/optimized-content-viewer.tsx
+- [x] T065 [US4] Update page.tsx to ensure blog_post.content is available for OptimizedContentViewer in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+
+**Checkpoint**: At this point, User Story 4 should be fully functional. Users can toggle between original conversation content and optimized blog post content using tabs.
+
+---
+
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
@@ -141,6 +169,7 @@
 - **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
 - **User Story 2 (P1)**: Can start after Foundational (Phase 2) - Depends on US1 for ConversationViewer component
 - **User Story 3 (P1)**: Can start after Foundational (Phase 2) - Independent, can run in parallel with US1/US2
+- **User Story 4 (P2)**: Can start after US1 and US2 completion - Depends on ConversationViewer and prompt suggestions implementation
 
 ### Within Each User Story
 
@@ -160,6 +189,7 @@
 - Within US2: T021-T023 can run in parallel (backend updates)
 - Within US3: T031-T034 can run in parallel (workflow updates)
 - All Polish tasks marked [P] can run in parallel
+- Within US4: T051-T054 can run in parallel (UI package setup), T055 and T063-T064 can run in parallel (component creation)
 
 ---
 
@@ -191,6 +221,24 @@ Task: "Ensure blog_post.content field is still populated for backward compatibil
 
 ---
 
+## Parallel Example: User Story 4
+
+```bash
+# Launch UI package setup tasks together:
+Task: "Create shadcn/ui Tabs component in typescript-workspace/packages/ui"
+Task: "Set up typescript-workspace/packages/ui package structure"
+Task: "Install required dependencies for Tabs component"
+Task: "Export Tabs component from typescript-workspace/packages/ui"
+
+# Then proceed with component creation:
+Task: "Create OptimizedContentViewer component to render blog_post.content"
+Task: "Update BlogPostClient to wrap content in Tabs component"
+Task: "Implement '原版' tab content"
+Task: "Implement '優化版' tab content"
+```
+
+---
+
 ## Implementation Strategy
 
 ### MVP First (User Story 1 Only)
@@ -207,7 +255,8 @@ Task: "Ensure blog_post.content field is still populated for backward compatibil
 2. Add User Story 1 → Test independently → Deploy/Demo (MVP!)
 3. Add User Story 2 → Test independently → Deploy/Demo
 4. Add User Story 3 → Test independently → Deploy/Demo
-5. Each story adds value without breaking previous stories
+5. Add User Story 4 → Test independently → Deploy/Demo (Optional enhancement)
+6. Each story adds value without breaking previous stories
 
 ### Parallel Team Strategy
 
@@ -219,8 +268,11 @@ With multiple developers:
    - Developer B: User Story 3 (backend workflow updates)
 3. After US1 completes:
    - Developer A: User Story 2 (prompt suggestions integration)
+   - Developer B: User Story 3 (workflow updates)
+4. After US1 and US2 complete:
+   - Developer A: User Story 4 (content toggle feature)
    - Developer B: Polish & Cross-Cutting Concerns
-4. Stories complete and integrate independently
+5. Stories complete and integrate independently
 
 ---
 
@@ -232,21 +284,23 @@ With multiple developers:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
-- All three user stories are P1 priority, but US1 is marked as MVP since it's the core change
+- All three user stories (US1-US3) are P1 priority, but US1 is marked as MVP since it's the core change
 - US2 depends on US1 for the ConversationViewer component
 - US3 is independent and can run in parallel with US1
+- US4 is P2 priority and depends on US1 and US2 completion (needs ConversationViewer and prompt suggestions)
 
 ---
 
 ## Task Summary
 
-- **Total Tasks**: 50
+- **Total Tasks**: 65
 - **Phase 1 (Setup)**: 5 tasks
 - **Phase 2 (Foundational)**: 5 tasks
 - **Phase 3 (US1)**: 10 tasks
 - **Phase 4 (US2)**: 10 tasks
 - **Phase 5 (US3)**: 8 tasks
 - **Phase 6 (Polish)**: 12 tasks
+- **Phase 7 (US4)**: 15 tasks
 
 **Parallel Opportunities Identified**:
 - Setup phase: 5 parallel tasks
@@ -260,5 +314,6 @@ With multiple developers:
 - **US1**: Display blog post page and verify original conversation content is shown instead of optimized blocks
 - **US2**: Verify prompt suggestions are displayed alongside original content with proper association
 - **US3**: Verify new blog posts are generated without content blocks and existing posts don't display them
+- **US4**: Verify users can switch between "原版" and "優化版" tabs to view different content versions
 
 **Suggested MVP Scope**: User Story 1 only (Phase 1 + Phase 2 + Phase 3)

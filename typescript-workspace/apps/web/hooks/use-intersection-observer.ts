@@ -41,29 +41,35 @@ export function useIntersectionObserver(
 
     // Create new observer
     observerRef.current = new IntersectionObserver(
-      (entries) => {
+      (entries: IntersectionObserverEntry[]) => {
         // Find the entry with the highest intersection ratio
         let maxRatio = 0;
         let maxEntry: IntersectionObserverEntry | null = null;
 
-        entries.forEach((entry) => {
+        for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
             maxRatio = entry.intersectionRatio;
             maxEntry = entry;
           }
-        });
+        }
 
-        if (maxEntry) {
-          const targetId = maxEntry.target.id;
-          // Check if it's a message (message-{index}) or block (block-{id})
-          if (targetId.startsWith("message-")) {
-            const index = parseInt(targetId.replace("message-", ""), 10);
-            if (!isNaN(index)) {
-              setActiveId(index);
+        const selectedEntry: IntersectionObserverEntry | null = maxEntry;
+        if (selectedEntry) {
+          const entryTarget = selectedEntry.target;
+          if (entryTarget instanceof HTMLElement) {
+            const targetId = entryTarget.id || "";
+            if (targetId) {
+              // Check if it's a message (message-{index}) or block (block-{id})
+              if (targetId.startsWith("message-")) {
+                const index = parseInt(targetId.replace("message-", ""), 10);
+                if (!isNaN(index)) {
+                  setActiveId(index);
+                }
+              } else if (targetId.startsWith("block-")) {
+                const id = targetId.replace("block-", "");
+                setActiveId(id);
+              }
             }
-          } else if (targetId.startsWith("block-")) {
-            const id = targetId.replace("block-", "");
-            setActiveId(id);
           }
         }
       },
@@ -95,4 +101,3 @@ export function useIntersectionObserver(
 
   return activeId;
 }
-

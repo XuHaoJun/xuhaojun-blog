@@ -57,6 +57,25 @@ A user wants the system to stop generating and storing AI-optimized content bloc
 
 ---
 
+### User Story 4 - Toggle Between Original and Optimized Content (Priority: P2)
+
+A user wants to toggle between viewing the original conversation content and the LLM-optimized blog post content. They want to compare both versions to understand how the conversation was transformed into a structured article.
+
+**Why this priority**: This provides additional learning value by allowing users to see both the original conversation and the optimized article side-by-side. It helps users understand how LLM transforms dialogue into structured content.
+
+**Independent Test**: Can be tested independently by verifying that users can switch between "原版" (Original) and "優化版" (Optimized) tabs to view different content versions. Delivers value by enabling content comparison and learning.
+
+**Acceptance Scenarios**:
+
+1. **Given** a blog post exists with both original conversation content and optimized blog content, **When** a user views the blog post page, **Then** the system displays tabs allowing them to switch between "原版" and "優化版"
+2. **Given** tabs are displayed, **When** a user clicks the "原版" tab, **Then** the system displays the original conversation content with prompt suggestions sidebar
+3. **Given** tabs are displayed, **When** a user clicks the "優化版" tab, **Then** the system displays the LLM-optimized blog post content (Markdown format)
+4. **Given** a user switches between tabs, **When** they change tabs, **Then** the system maintains the scroll position or resets appropriately for the new content type
+5. **Given** prompt suggestions exist, **When** a user views the "原版" tab, **Then** prompt suggestions are displayed alongside original content
+6. **Given** prompt suggestions exist, **When** a user views the "優化版" tab, **Then** prompt suggestions are not displayed (optimized content already incorporates improvements)
+
+---
+
 ### Edge Cases
 
 - What happens when a conversation log has no associated prompt suggestions? → System displays only original content without prompt suggestion sections
@@ -65,6 +84,9 @@ A user wants the system to stop generating and storing AI-optimized content bloc
 - How does the system handle conversations with mixed languages or special formatting? → System preserves original formatting and displays content as-is from the conversation log
 - What happens when a conversation log has malformed or incomplete messages? → System displays the content as stored, preserving any formatting issues that exist in the original data
 - How does the system handle conversations with embedded code blocks, images, or other media? → System preserves and displays all original content including code blocks and media references
+- What happens when blog_post.content is empty or null? → System disables or hides the "優化版" tab, showing only "原版" tab
+- How does the system handle tab switching when content is very long? → System maintains scroll position within the active tab, resets scroll when switching tabs
+- What happens when optimized content (blog_post.content) contains malformed Markdown? → System attempts to render it gracefully, falling back to plain text display if needed
 
 ## Requirements *(mandatory)*
 
@@ -102,6 +124,9 @@ A user wants the system to stop generating and storing AI-optimized content bloc
 - **SC-005**: Users can copy prompt suggestions to clipboard successfully in under 2 seconds per action
 - **SC-006**: Original conversation content preserves message structure and formatting in 100% of displayed cases
 - **SC-007**: System displays original content and prompt suggestions simultaneously without requiring page navigation in at least 80% of viewport sizes (desktop, tablet, mobile)
+- **SC-008**: Users can successfully switch between "原版" and "優化版" tabs in 100% of blog posts that have both content types available
+- **SC-009**: Tab switching completes in under 500ms without page reload
+- **SC-010**: Optimized content (blog_post.content) renders correctly in Markdown format in 100% of cases when "優化版" tab is selected
 
 ## Assumptions
 
@@ -111,6 +136,8 @@ A user wants the system to stop generating and storing AI-optimized content bloc
 - Original conversation content is stored in conversation_logs.raw_content or conversation_logs.parsed_content
 - Side-by-Side Layout (Option B) is the selected UI/UX approach for displaying original content and prompt suggestions
 - Users primarily want to learn from original prompts and their optimizations, not from optimized article content
+- Users may want to compare original conversation content with optimized blog post content to understand transformation
+- blog_post.content contains LLM-optimized Markdown content that can be displayed as an alternative view
 
 ## Dependencies
 
@@ -118,6 +145,8 @@ A user wants the system to stop generating and storing AI-optimized content bloc
 - Access to prompt_suggestions table for displaying prompt analysis
 - Existing UI components for displaying prompt suggestions (can be reused)
 - Frontend framework capable of implementing the selected UI/UX approach
+- shadcn/ui Tabs component available in typescript-workspace/packages/ui
+- blog_post.content field contains optimized Markdown content for display
 
 ## Selected UI/UX Approach
 
@@ -149,6 +178,13 @@ Display original conversation content on the left (70% width on desktop) and pro
 - **FR-015**: System MUST use Intersection Observer API to track visible sections of original content and update prompt suggestions sidebar accordingly
 - **FR-016**: System MUST make the prompt suggestions sidebar sticky on desktop to remain visible while scrolling original content
 - **FR-017**: System MUST support hover interactions to highlight corresponding prompt suggestions when hovering over sections of original content
+- **FR-018**: System MUST provide tab-based UI allowing users to switch between "原版" (Original) and "優化版" (Optimized) content views
+- **FR-019**: System MUST display original conversation content when "原版" tab is selected
+- **FR-020**: System MUST display LLM-optimized blog post content (blog_post.content) when "優化版" tab is selected
+- **FR-021**: System MUST use shadcn/ui Tabs component from typescript-workspace/packages/ui for tab implementation
+- **FR-022**: System MUST maintain prompt suggestions sidebar when viewing "原版" tab
+- **FR-023**: System MUST hide prompt suggestions sidebar when viewing "優化版" tab (optimized content already incorporates improvements)
+- **FR-024**: System MUST handle cases where blog_post.content is empty or unavailable (fallback to showing only "原版" tab or disable "優化版" tab)
 
 ---
 
@@ -156,21 +192,23 @@ Display original conversation content on the left (70% width on desktop) and pro
 
 The following UI/UX approaches were considered but not selected:
 
-### Option A: Tab-Based View
+### Option A: Tab-Based View (Now Selected for Content Toggle)
 
-**Description**: Display tabs at the top of the blog post page allowing users to switch between "原版" (Original) and "提示詞修改建議" (Prompt Suggestions) views.
+**Description**: Display tabs at the top of the blog post page allowing users to switch between "原版" (Original) and "優化版" (Optimized) content views. This approach is now selected for implementing the content toggle feature (User Story 4).
 
 **Pros**:
 - Simple and intuitive interface
 - Clear separation between content types
 - Easy to implement
 - Works well on all screen sizes
+- Allows users to compare original and optimized content
+- Provides learning value by showing transformation
 
 **Cons**:
 - Users cannot view both simultaneously without switching tabs
 - May require additional clicks to compare content
 
-**Implementation**: Two tabs - one shows original conversation content, the other shows prompt suggestions organized by conversation sections.
+**Implementation**: Two tabs - "原版" shows original conversation content with prompt suggestions sidebar, "優化版" shows LLM-optimized blog post content (blog_post.content). Uses shadcn/ui Tabs component from typescript-workspace/packages/ui.
 
 ---
 
@@ -253,3 +291,6 @@ The following UI/UX approaches were considered but not selected:
 - Real-time editing of original conversation content
 - Exporting original content in formats other than display
 - Batch operations on multiple blog posts
+- Editing optimized content directly in the UI
+- Synchronized scrolling between original and optimized views
+- Side-by-side comparison view (tabs provide sequential comparison instead)
