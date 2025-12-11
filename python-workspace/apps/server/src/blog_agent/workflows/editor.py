@@ -43,7 +43,7 @@ class EditEvent(Event):
 
     blog_post: BlogPost
     conversation_log_id: str
-    prompt_suggestion: Optional[PromptSuggestion] = None  # T080: Include prompt suggestions (FR-014)
+    prompt_suggestions: List[PromptSuggestion] = []  # T080: Include prompt suggestions (FR-014, 支援多個)
     content_blocks: list[ContentBlock] = []  # T081a, T081c: Content blocks for UI/UX support
 
 
@@ -67,11 +67,13 @@ class BlogEditor:
             conversation_log_id = ev.conversation_log_id
             conversation_log_metadata = ev.conversation_log_metadata or {}
             errors = ev.errors or []
-            prompt_suggestion = ev.prompt_suggestion  # T080: Get prompt suggestion from ReviewEvent
+            prompt_suggestions = ev.prompt_suggestions  # T080: Get prompt suggestions from ReviewEvent (支援多個)
 
             # Generate blog post using LLM, incorporating review findings (T061)
+            # Use first prompt suggestion for blog content generation (backward compatibility)
+            first_prompt_suggestion = prompt_suggestions[0] if prompt_suggestions else None
             blog_content = await self._generate_blog_content(
-                content_extract, review_findings, prompt_suggestion
+                content_extract, review_findings, first_prompt_suggestion
             )
 
             # Extract metadata (title, summary, tags)
@@ -81,7 +83,7 @@ class BlogEditor:
 
             # Build structured metadata from conversation log (FR-015: preserve timestamps, participants)
             blog_metadata = self._build_blog_metadata(
-                conversation_log_metadata, content_extract, review_findings, errors, prompt_suggestion
+                conversation_log_metadata, content_extract, review_findings, errors, prompt_suggestions
             )
 
             blog_post = BlogPost(
@@ -103,7 +105,7 @@ class BlogEditor:
             return EditEvent(
                 blog_post=blog_post,
                 conversation_log_id=conversation_log_id,
-                prompt_suggestion=prompt_suggestion,
+                prompt_suggestions=prompt_suggestions,
                 content_blocks=[],  # Empty for backward compatibility
             )
 
@@ -174,8 +176,9 @@ class BlogEditor:
         blog_content = response.text.strip()
         
         # T080: Add prompt suggestions section to blog content (FR-014)
+        # Note: This is kept for backward compatibility, but blog content is no longer displayed in frontend
         if prompt_suggestion and prompt_suggestion.original_prompt:
-            prompt_section = self._format_prompt_suggestions(prompt_suggestion)
+            prompt_section = self._format_prompt_suggestions([prompt_suggestion])
             blog_content += f"\n\n{prompt_section}"
         
         return blog_content
@@ -219,26 +222,32 @@ class BlogEditor:
         response = await self.llm.acomplete(prompt)
         return response.text.strip()[:500]  # Limit length
 
-    def _format_prompt_suggestions(self, prompt_suggestion: PromptSuggestion) -> str:
+    def _format_prompt_suggestions(self, prompt_suggestions: List[PromptSuggestion]) -> str:
         """
         T081: Format prompt suggestions as side-by-side comparison (FR-014).
         
         Formats the prompt suggestions section for inclusion in the blog post.
+        Now supports multiple prompt suggestions.
         """
         section = "## 提示詞優化建議\n\n"
         
-        section += f"### 原始提示詞\n\n{prompt_suggestion.original_prompt}\n\n"
-        
-        if prompt_suggestion.analysis:
-            section += f"### 分析\n\n{prompt_suggestion.analysis}\n\n"
-        
-        if prompt_suggestion.better_candidates:
-            section += "### 改進版本\n\n"
-            for i, candidate in enumerate(prompt_suggestion.better_candidates[:5], 1):  # Show top 5
-                section += f"#### 版本 {i}\n\n{candidate}\n\n"
-        
-        if prompt_suggestion.reasoning:
-            section += f"### 改進理由\n\n{prompt_suggestion.reasoning}\n\n"
+        for idx, prompt_suggestion in enumerate(prompt_suggestions, 1):
+            if idx > 1:
+                section += "\n---\n\n"
+            
+            section += f"### 提示詞 {idx}\n\n"
+            section += f"#### 原始提示詞\n\n{prompt_suggestion.original_prompt}\n\n"
+            
+            if prompt_suggestion.analysis:
+                section += f"#### 分析\n\n{prompt_suggestion.analysis}\n\n"
+            
+            if prompt_suggestion.better_candidates:
+                section += "#### 改進版本\n\n"
+                for i, candidate in enumerate(prompt_suggestion.better_candidates[:5], 1):  # Show top 5
+                    section += f"##### 版本 {i}\n\n{candidate}\n\n"
+            
+            if prompt_suggestion.reasoning:
+                section += f"#### 改進理由\n\n{prompt_suggestion.reasoning}\n\n"
         
         return section
 
@@ -248,7 +257,7 @@ class BlogEditor:
         content_extract: ContentExtract,
         review_findings: Optional[ReviewFindings] = None,
         errors: Optional[List[str]] = None,
-        prompt_suggestion: Optional[PromptSuggestion] = None,
+        prompt_suggestions: Optional[List[PromptSuggestion]] = None,
     ) -> Dict[str, Any]:
         """
         Build structured metadata for blog post from conversation log metadata (FR-015).
@@ -302,11 +311,13 @@ class BlogEditor:
         if errors:
             metadata["review_errors"] = errors
         
-        # Add prompt suggestion metadata (T080, FR-014)
-        if prompt_suggestion:
-            metadata["prompt_suggestion"] = {
-                "has_suggestions": bool(prompt_suggestion.better_candidates),
-                "candidates_count": len(prompt_suggestion.better_candidates),
+        # Add prompt suggestions metadata (T080, FR-014)
+        if prompt_suggestions:
+            total_candidates = sum(len(ps.better_candidates) for ps in prompt_suggestions)
+            metadata["prompt_suggestions"] = {
+                "count": len(prompt_suggestions),
+                "has_suggestions": total_candidates > 0,
+                "total_candidates_count": total_candidates,
             }
         
         return metadata

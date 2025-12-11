@@ -221,15 +221,33 @@ class BlogService:
                 prompt_analyzer.analyze(extract_start),
             )
             
-            # Save prompt suggestion to database
-            prompt_suggestion = prompt_analysis_event.prompt_suggestion
-            if prompt_suggestion:
-                prompt_suggestion.conversation_log_id = conversation_log_id
-                prompt_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
+            # Save all prompt suggestions to database
+            prompt_suggestions = prompt_analysis_event.prompt_suggestions
+            saved_prompt_suggestion = None  # Keep first one for ReviewEvent compatibility
+            if prompt_suggestions:
+                saved_count = 0
+                for prompt_suggestion in prompt_suggestions:
+                    try:
+                        prompt_suggestion.conversation_log_id = conversation_log_id
+                        saved_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
+                        if saved_count == 0:
+                            saved_prompt_suggestion = saved_suggestion  # Keep first for ReviewEvent
+                        saved_count += 1
+                    except Exception as e:
+                        logger.error(
+                            "Failed to save prompt suggestion",
+                            error=str(e),
+                            original_prompt=prompt_suggestion.original_prompt[:50],
+                            conversation_log_id=str(conversation_log_id),
+                            exc_info=True,
+                        )
+                        continue
+                
                 logger.info(
-                    "Prompt suggestion saved",
+                    "Prompt suggestions saved",
                     conversation_log_id=str(conversation_log_id),
-                    suggestion_id=str(prompt_suggestion.id),
+                    total_suggestions=len(prompt_suggestions),
+                    saved_count=saved_count,
                 )
 
             # Continue with full workflow: extender → reviewer → editor
@@ -250,8 +268,8 @@ class BlogService:
                 conversation_log_metadata=extend_event.conversation_log_metadata,
             )
             review_event = await reviewer.review(review_extract_event)
-            # Add prompt suggestion to review event
-            review_event.prompt_suggestion = prompt_suggestion
+            # Add all prompt suggestions to review event
+            review_event.prompt_suggestions = prompt_suggestions
             
             # Edit
             edit_event = await editor.edit(review_event)

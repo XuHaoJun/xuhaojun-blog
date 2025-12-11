@@ -52,7 +52,7 @@ class ReviewEvent(Event):
     conversation_log_id: str
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     errors: List[str] = []  # Issues that cannot be auto-corrected (T062)
-    prompt_suggestion: Optional[PromptSuggestion] = None  # T079: Include prompt suggestion from parallel branch
+    prompt_suggestions: List[PromptSuggestion] = []  # T079: Include prompt suggestions from parallel branch (支援多個)
 
 
 # Rebuild model to resolve forward references

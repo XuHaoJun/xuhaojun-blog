@@ -40,7 +40,7 @@ logger = get_logger(__name__)
 class PromptAnalysisEvent(Event):
     """Event containing prompt analysis results."""
 
-    prompt_suggestion: PromptSuggestion
+    prompt_suggestions: List[PromptSuggestion]  # 支援多個 user prompts
     conversation_log_id: str
     conversation_log_metadata: Optional[Dict[str, Any]] = None
 
@@ -62,6 +62,8 @@ class PromptAnalyzer:
         
         This runs in parallel with the main workflow, starting from ExtractStartEvent
         to access the original messages.
+        
+        變更：現在為每個 user prompt 產生一個 PromptSuggestion，而不是只分析第一個。
         """
         try:
             messages = ev.messages
@@ -73,128 +75,106 @@ class PromptAnalyzer:
             
             if not user_prompts:
                 logger.info("No user prompts found in conversation", conversation_log_id=conversation_log_id)
-                # Return empty suggestion if no prompts found
-                # T077a: Use structured PromptCandidate objects instead of strings
-                empty_candidates = [
-                    PromptCandidate(
-                        type="structured",
-                        prompt="",
-                        reasoning="",
-                    ),
-                    PromptCandidate(
-                        type="role-play",
-                        prompt="",
-                        reasoning="",
-                    ),
-                    PromptCandidate(
-                        type="chain-of-thought",
-                        prompt="",
-                        reasoning="",
-                    ),
-                ]
-                prompt_suggestion = PromptSuggestion(
-                    conversation_log_id=conversation_log_id,
-                    original_prompt="",
-                    analysis="未找到使用者提示詞",
-                    better_candidates=empty_candidates,  # Ensure at least 3 structured candidates (FR-012)
-                    reasoning="對話紀錄中沒有使用者提示詞可供分析",
-                    expected_effect=None,  # T077b: No effect if no prompts
-                )
+                # Return empty suggestions list if no prompts found
                 return PromptAnalysisEvent(
-                    prompt_suggestion=prompt_suggestion,
+                    prompt_suggestions=[],
                     conversation_log_id=conversation_log_id,
                     conversation_log_metadata=conversation_log_metadata,
                 )
             
-            # Analyze each prompt (for now, analyze the first significant prompt)
-            # In a full implementation, we might analyze all prompts or the most important one
-            primary_prompt = user_prompts[0] if user_prompts else ""
+            # Analyze each user prompt and generate a suggestion for each
+            prompt_suggestions = []
             
-            # T075: Evaluate prompt effectiveness
-            effectiveness_analysis = await self._evaluate_prompt_effectiveness(primary_prompt, messages)
-            
-            # T076: Generate at least 3 alternative prompt candidates (FR-012)
-            # T077a: Generate structured PromptCandidate objects instead of plain strings
-            better_candidates = await self._generate_structured_alternative_prompts(primary_prompt, messages)
-            
-            # Ensure we have at least 3 candidates (FR-012)
-            if len(better_candidates) < 3:
-                logger.warning(
-                    "Generated fewer than 3 prompt candidates, generating more",
-                    count=len(better_candidates),
-                    conversation_log_id=conversation_log_id,
-                )
-                additional_candidates = await self._generate_additional_structured_candidates(
-                    primary_prompt, messages, needed=3 - len(better_candidates)
-                )
-                better_candidates.extend(additional_candidates)
-            
-            # Ensure we have at least 3 candidates (use fallback if needed)
-            if len(better_candidates) < 3:
-                fallback = await self._generate_fallback_structured_alternatives(primary_prompt)
-                better_candidates.extend(fallback)
-                better_candidates = better_candidates[:10]  # Limit to 10
-            
-            # T077: Generate reasoning for why alternatives are better (FR-013)
-            # Extract prompt strings for reasoning generation
-            candidate_prompts = [c.prompt for c in better_candidates]
-            reasoning = await self._generate_reasoning(primary_prompt, candidate_prompts, messages)
-            
-            # T077b: Generate expected_effect description
-            expected_effect = await self._generate_expected_effect(primary_prompt, better_candidates, messages)
-            
-            prompt_suggestion = PromptSuggestion(
-                conversation_log_id=conversation_log_id,
-                original_prompt=primary_prompt,
-                analysis=effectiveness_analysis,
-                better_candidates=better_candidates[:10],  # Limit to 10, but ensure at least 3
-                reasoning=reasoning,
-                expected_effect=expected_effect,  # T077b: Add expected effect
-            )
+            for idx, user_prompt in enumerate(user_prompts):
+                try:
+                    logger.info(
+                        "Analyzing user prompt",
+                        prompt_index=idx + 1,
+                        total_prompts=len(user_prompts),
+                        conversation_log_id=conversation_log_id,
+                    )
+                    
+                    # T075: Evaluate prompt effectiveness
+                    effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, messages)
+                    
+                    # T076: Generate at least 3 alternative prompt candidates (FR-012)
+                    # T077a: Generate structured PromptCandidate objects instead of plain strings
+                    better_candidates = await self._generate_structured_alternative_prompts(user_prompt, messages)
+                    
+                    # Ensure we have at least 3 candidates (FR-012)
+                    if len(better_candidates) < 3:
+                        logger.warning(
+                            "Generated fewer than 3 prompt candidates, generating more",
+                            count=len(better_candidates),
+                            prompt_index=idx + 1,
+                            conversation_log_id=conversation_log_id,
+                        )
+                        additional_candidates = await self._generate_additional_structured_candidates(
+                            user_prompt, messages, needed=3 - len(better_candidates)
+                        )
+                        better_candidates.extend(additional_candidates)
+                    
+                    # Ensure we have at least 3 candidates (use fallback if needed)
+                    if len(better_candidates) < 3:
+                        fallback = await self._generate_fallback_structured_alternatives(user_prompt)
+                        better_candidates.extend(fallback)
+                        better_candidates = better_candidates[:10]  # Limit to 10
+                    
+                    # T077: Generate reasoning for why alternatives are better (FR-013)
+                    # Extract prompt strings for reasoning generation
+                    candidate_prompts = [c.prompt for c in better_candidates]
+                    reasoning = await self._generate_reasoning(user_prompt, candidate_prompts, messages)
+                    
+                    # T077b: Generate expected_effect description
+                    expected_effect = await self._generate_expected_effect(user_prompt, better_candidates, messages)
+                    
+                    prompt_suggestion = PromptSuggestion(
+                        conversation_log_id=conversation_log_id,
+                        original_prompt=user_prompt,
+                        analysis=effectiveness_analysis,
+                        better_candidates=better_candidates[:10],  # Limit to 10, but ensure at least 3
+                        reasoning=reasoning,
+                        expected_effect=expected_effect,  # T077b: Add expected effect
+                    )
+                    
+                    prompt_suggestions.append(prompt_suggestion)
+                    
+                    logger.info(
+                        "Prompt analysis completed for one prompt",
+                        prompt_index=idx + 1,
+                        candidates_count=len(better_candidates),
+                        conversation_log_id=conversation_log_id,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to analyze prompt",
+                        prompt_index=idx + 1,
+                        prompt_preview=user_prompt[:50],
+                        error=str(e),
+                        conversation_log_id=conversation_log_id,
+                        exc_info=True,
+                    )
+                    # Continue with next prompt instead of failing completely
+                    continue
             
             logger.info(
-                "Prompt analysis completed",
+                "Prompt analysis completed for all prompts",
+                total_prompts=len(user_prompts),
+                suggestions_generated=len(prompt_suggestions),
                 conversation_log_id=conversation_log_id,
-                candidates_count=len(better_candidates),
             )
             
             return PromptAnalysisEvent(
-                prompt_suggestion=prompt_suggestion,
+                prompt_suggestions=prompt_suggestions,
                 conversation_log_id=conversation_log_id,
                 conversation_log_metadata=conversation_log_metadata,
             )
             
         except Exception as e:
             logger.error("Prompt analysis failed", error=str(e), exc_info=True)
-            # Return empty suggestion on error
-            # T077a: Use structured PromptCandidate objects
-            error_candidates = [
-                PromptCandidate(
-                    type="structured",
-                    prompt="",
-                    reasoning="分析失敗",
-                ),
-                PromptCandidate(
-                    type="role-play",
-                    prompt="",
-                    reasoning="分析失敗",
-                ),
-                PromptCandidate(
-                    type="chain-of-thought",
-                    prompt="",
-                    reasoning="分析失敗",
-                ),
-            ]
-            prompt_suggestion = PromptSuggestion(
-                conversation_log_id=ev.conversation_log_id,
-                original_prompt="",
-                analysis=f"分析失敗：{str(e)}",
-                better_candidates=error_candidates,  # Ensure at least 3 structured candidates (FR-012)
-                reasoning="無法生成提示詞建議",
-                expected_effect=None,  # T077b: No effect on error
-            )
+            # Return empty suggestions list on error
             return PromptAnalysisEvent(
-                prompt_suggestion=prompt_suggestion,
+                prompt_suggestions=[],
                 conversation_log_id=ev.conversation_log_id,
                 conversation_log_metadata=ev.conversation_log_metadata or {},
             )
