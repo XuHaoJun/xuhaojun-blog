@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
@@ -93,6 +93,46 @@ class PromptAnalyzer:
                         total_prompts=len(user_prompts),
                         conversation_log_id=conversation_log_id,
                     )
+                    
+                    # Safety & Intent Check: Check for harmful content before optimization
+                    is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, messages)
+                    
+                    if not is_safe or safety_level in ["high_risk", "medium_risk"]:
+                        logger.warning(
+                            "Harmful content detected, skipping optimization or providing safety guidance",
+                            safety_level=safety_level,
+                            prompt_index=idx + 1,
+                            conversation_log_id=conversation_log_id,
+                        )
+                        # Create a safety-focused suggestion instead of optimizing
+                        safety_analysis = f"""安全性評估：{safety_message}
+
+此提示詞涉及安全風險（風險等級：{safety_level}），不適合進行優化。
+
+建議：
+- 如果涉及敏感話題（如自殺、醫療、法律），請尋求專業協助
+- 如果涉及非法活動，請勿繼續
+- 請重新思考您的需求，使用安全且合法的方式達成目標"""
+                        
+                        # Create safety guidance candidates instead of optimization
+                        safety_candidates = [
+                            PromptCandidate(
+                                type="safety-guidance",
+                                prompt="此提示詞涉及安全風險，無法提供優化建議。請重新思考您的需求，使用安全且合法的方式達成目標。",
+                                reasoning="安全優先：檢測到有害內容，提供安全引導而非優化建議",
+                            )
+                        ]
+                        
+                        prompt_suggestion = PromptSuggestion(
+                            conversation_log_id=conversation_log_id,
+                            original_prompt=user_prompt,
+                            analysis=safety_analysis,
+                            better_candidates=safety_candidates,
+                            reasoning="由於檢測到安全風險，無法提供優化建議。請重新思考您的需求。",
+                            expected_effect="此提示詞涉及安全風險，建議重新思考需求。",
+                        )
+                        prompt_suggestions.append(prompt_suggestion)
+                        continue
                     
                     # T075: Evaluate prompt effectiveness
                     effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, messages)
@@ -224,17 +264,19 @@ class PromptAnalyzer:
         
         return []
 
-    async def _evaluate_prompt_effectiveness(self, prompt: str, messages: List[Message]) -> str:
+    async def _check_prompt_safety(self, prompt: str, messages: List[Message]) -> Tuple[bool, str, str]:
         """
-        T075: Evaluate prompt effectiveness.
+        Check if a prompt contains harmful content or attempts to bypass safety restrictions.
         
-        Analyzes the given prompt and provides feedback on its effectiveness,
-        clarity, and potential improvements.
+        Returns:
+            tuple: (is_safe, safety_level, safety_message)
+            - is_safe: True if prompt is safe to optimize, False if harmful
+            - safety_level: "safe", "low_risk", "medium_risk", "high_risk"
+            - safety_message: Description of safety concerns if any
         """
-        # Extract context from messages for better analysis
-        context_summary = self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages)
         
-        evaluation_prompt = f"""請分析以下使用者提示詞的有效性。
+        safety_check_prompt = f"""請評估以下使用者提示詞的安全性。
 
 使用者提示詞：
 {prompt}
@@ -242,11 +284,84 @@ class PromptAnalyzer:
 對話上下文摘要：
 {context_summary}
 
-請從以下角度分析提示詞的有效性：
-1. 清晰度：提示詞是否清楚表達了意圖？
-2. 具體性：提示詞是否足夠具體，能引導 AI 產生有用的回應？
-3. 結構：提示詞的結構是否良好（是否有明確的任務、上下文、要求）？
-4. 可改進之處：提示詞有哪些可以改進的地方？
+請評估：
+1. 該提示詞是否試圖繞過安全限制或 AI 的使用政策？
+2. 是否涉及有害內容，例如：
+   - 生化武器、化學武器製造
+   - CSAM（兒童性虐待材料）
+   - 破壞基礎設施或非法活動
+   - 自殺或自我傷害
+   - 未經授權的醫療或法律建議
+3. 是否涉及其他敏感或有害話題？
+
+請以 JSON 格式返回評估結果：
+{{
+  "is_safe": true/false,
+  "safety_level": "safe" | "low_risk" | "medium_risk" | "high_risk",
+  "safety_message": "安全性評估說明",
+  "concerns": ["具體的安全疑慮列表"]
+}}
+
+請只輸出 JSON，不要額外說明。"""
+
+        try:
+            response = await self.llm.acomplete(safety_check_prompt)
+            response_text = response.text.strip()
+            
+            # Try to extract JSON from response
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            else:
+                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(0)
+            
+            safety_result = json.loads(response_text)
+            is_safe = safety_result.get("is_safe", True)
+            safety_level = safety_result.get("safety_level", "safe")
+            safety_message = safety_result.get("safety_message", "")
+            
+            return (is_safe, safety_level, safety_message)
+        except Exception as e:
+            logger.warning("Failed to perform safety check, defaulting to safe", error=str(e))
+            # Default to safe if check fails
+            return (True, "safe", "")
+
+    async def _evaluate_prompt_effectiveness(self, prompt: str, messages: List[Message]) -> str:
+        """
+        T075: Evaluate prompt effectiveness with intent alignment and safety assessment.
+        
+        Analyzes the given prompt from three levels:
+        1. Immediate desires (what the user is asking for)
+        2. Underlying goals (what the user really wants to achieve)
+        3. Missing background expectations (unstated assumptions)
+        
+        Also includes safety assessment to detect harmful content.
+        """
+        # Extract context from messages for better analysis
+        context_summary = await self._summarize_conversation_context(messages)
+        
+        evaluation_prompt = f"""請以一位資深 AI 互動專家的角度，深度分析以下使用者提示詞。
+
+使用者提示詞：
+{prompt}
+
+對話上下文摘要：
+{context_summary}
+
+請分析以下三個層次：
+1. **即時慾望**：使用者表面上要求什麼？
+2. **底層目標**：使用者真正想要達成的結果是什麼？（例如：使用者問「如何修改這段 code」，底層目標可能是「修復 bug」或「優化效能」，而不僅僅是改語法）
+3. **缺失的背景期望**：有哪些使用者沒說，但預設希望 AI 遵守的標準？（例如：正確性、安全性、不破壞現有架構）
+
+4. **安全性評估**：
+   - 該提示詞是否試圖繞過安全限制？
+   - 是否涉及有害內容（如生化武器、CSAM、破壞基礎設施、非法活動等）？
+   - 如果涉及敏感話題（如自殺、醫療建議、法律建議），優化建議必須包含「引導至專業協助」或「安全免責聲明」。
+   - 請明確標註安全性風險等級（無風險/低風險/中風險/高風險）
+
+請基於這三個層次的落差，指出目前 Prompt 的主要弱點。如果檢測到安全性問題，請明確說明並建議如何安全地引導使用者。
 
 請提供詳細的分析，以正體中文撰寫。"""
 
@@ -262,27 +377,33 @@ class PromptAnalyzer:
         Generates improved versions of the original prompt with different
         approaches or structures, returning structured PromptCandidate objects.
         """
-        context_summary = self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages)
         
-        template_str = """請根據以下原始提示詞，生成至少 3 個改進版本的提示詞候選。
+        template_str = """你是一位精通 Prompt Engineering 的專家朋友。請根據使用者的原始提示詞與其「底層目標」，構思至少 3 個不同的優化策略。
 
 原始提示詞：
 {original_prompt}
 
-對話上下文：
+上下文：
 {context_summary}
 
+不要死板地套用固定模板。請根據問題的性質選擇最適合的策略，例如：
+- 如果任務複雜，可能適合「思維鏈 (chain-of-thought)」或「拆解步驟 (step-by-step)」
+- 如果需要特定風格，可能適合「角色設定 (expert-persona)」或「語氣指導 (tone-guidance)」
+- 如果容易產生幻覺，可能需要「要求引用來源 (source-citation)」或「校準不確定性 (calibrated-uncertainty)」
+- 如果是程式碼，可能需要「提供邊界案例 (edge-cases)」或「輸入輸出範例 (few-shot)」
+- 如果用戶希望保持簡潔，可以提供「極簡版 (minimalist)」，只修正關鍵邏輯，保留用戶原本語氣
+- 如果需要結構化輸出，可以使用「結構化格式 (structured)」
+- 如果需要創意或特定情境，可以使用「情境設定 (scenario-based)」
+
 要求：
-1. 生成至少 3 個不同的改進版本，每個版本使用不同的策略
-2. 必須包含以下三種類型：
-   - "structured": 結構化版本（使用清晰的步驟、格式、要求）
-   - "role-play": 角色扮演版本（設定角色、情境）
-   - "chain-of-thought": 思維鏈版本（引導逐步思考）
-3. 每個候選應該包含：
-   - type: 類型（"structured"、"role-play" 或 "chain-of-thought"）
-   - prompt: 完整的改進後提示詞
-   - reasoning: 為什麼這個版本更好（簡短說明）
-4. 改進版本應該更清晰、更具體、更有效
+1. 生成至少 3 個候選 Prompt，每個使用不同的策略
+2. 每個候選應該包含：
+   - type: 策略類型（使用描述性的名稱，如 "few-shot", "chain-of-thought", "expert-persona", "minimalist" 等）
+   - prompt: 完整的改進後提示詞（避免使用「作為一個世界級的專家...」這類過度 AI 化的語言）
+   - reasoning: 為什麼選擇這個策略，以及這個版本如何更好地達成用戶的底層目標（簡短說明，包含語氣變化說明）
+3. 確保至少有一個候選是 "minimalist" 類型，只修正關鍵邏輯，保留用戶原本語氣
+4. 改進版本應該更清晰、更具體、更有效，但不要過度說教或家長式
 5. 每個候選應該完整且可以直接使用"""
 
         try:
@@ -331,24 +452,24 @@ class PromptAnalyzer:
 {{
   "candidates": [
     {{
-      "type": "structured",
+      "type": "few-shot",
       "prompt": "改進後的提示詞",
-      "reasoning": "為什麼這個版本更好"
-    }},
-    {{
-      "type": "role-play",
-      "prompt": "改進後的提示詞",
-      "reasoning": "為什麼這個版本更好"
+      "reasoning": "為什麼選擇這個策略，以及語氣變化"
     }},
     {{
       "type": "chain-of-thought",
       "prompt": "改進後的提示詞",
-      "reasoning": "為什麼這個版本更好"
+      "reasoning": "為什麼選擇這個策略，以及語氣變化"
+    }},
+    {{
+      "type": "minimalist",
+      "prompt": "改進後的提示詞（保留用戶原本語氣）",
+      "reasoning": "為什麼選擇這個策略，以及語氣變化"
     }}
   ]
 }}
 
-請只輸出 JSON，不要額外說明。"""
+請只輸出 JSON，不要額外說明。注意：type 可以是任何描述性的策略名稱，不限定於上述範例。"""
             
             response = await self.llm.acomplete(json_prompt)
             response_text = response.text.strip()
@@ -395,9 +516,9 @@ class PromptAnalyzer:
         self, original_prompt: str, messages: List[Message], needed: int
     ) -> List[PromptCandidate]:
         """Generate additional structured prompt candidates if we don't have enough."""
-        context_summary = self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages)
         
-        template_str = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本。
+        template_str = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本，使用與之前不同的策略。
 
 原始提示詞：
 {original_prompt}
@@ -407,11 +528,11 @@ class PromptAnalyzer:
 
 要求：
 1. 生成 {needed} 個與之前不同的改進版本
-2. 每個版本使用不同的策略（structured、role-play、chain-of-thought 或其他）
+2. 每個版本使用不同的動態策略（如 few-shot、expert-persona、edge-cases、scenario-based、constraint-based 等，避免重複已使用的策略）
 3. 每個候選應該包含：
-   - type: 類型
-   - prompt: 完整的改進後提示詞
-   - reasoning: 為什麼這個版本更好
+   - type: 策略類型（描述性名稱）
+   - prompt: 完整的改進後提示詞（避免過度 AI 化的語言）
+   - reasoning: 為什麼選擇這個策略，以及語氣變化說明
 4. 每個候選應該完整且可以直接使用"""
 
         try:
@@ -510,8 +631,16 @@ class PromptAnalyzer:
         """Generate simple fallback structured alternatives if LLM generation fails."""
         alternatives = []
         
-        # Strategy 1: Structured version
+        # Strategy 1: Minimalist version (preserves user's original tone)
         alt1 = PromptCandidate(
+            type="minimalist",
+            prompt=original_prompt,  # Keep original, just ensure it's clear
+            reasoning="極簡版本，保留用戶原本語氣，只確保提示詞清晰完整。適合不喜歡過度 AI 化語言的用戶。",
+        )
+        alternatives.append(alt1)
+        
+        # Strategy 2: Structured version
+        alt2 = PromptCandidate(
             type="structured",
             prompt=f"""請根據以下要求完成任務：
 
@@ -521,12 +650,12 @@ class PromptAnalyzer:
 1. 提供詳細且完整的回答
 2. 包含具體的範例或說明
 3. 確保回答清晰易懂""",
-            reasoning="使用結構化格式，明確列出任務和要求，讓 AI 更容易理解並產生完整的回答",
+            reasoning="使用結構化格式，明確列出任務和要求，讓 AI 更容易理解並產生完整的回答。語氣：直接明確，不帶過度修飾。",
         )
-        alternatives.append(alt1)
+        alternatives.append(alt2)
         
-        # Strategy 2: Chain-of-thought version
-        alt2 = PromptCandidate(
+        # Strategy 3: Chain-of-thought version
+        alt3 = PromptCandidate(
             type="chain-of-thought",
             prompt=f"""我需要完成以下任務：{original_prompt}
 
@@ -534,19 +663,7 @@ class PromptAnalyzer:
 1. 先理解任務的核心需求
 2. 提供詳細的分析和說明
 3. 給出具體的建議或解決方案""",
-            reasoning="使用思維鏈方式，引導 AI 逐步思考，確保回答的邏輯性和完整性",
-        )
-        alternatives.append(alt2)
-        
-        # Strategy 3: Role-play version
-        alt3 = PromptCandidate(
-            type="role-play",
-            prompt=f"""作為一位專業的顧問，請幫助我完成以下任務：
-
-{original_prompt}
-
-請提供專業、詳細且實用的建議。""",
-            reasoning="使用角色扮演方式，設定專業角色，讓 AI 以專業角度提供更深入的建議",
+            reasoning="使用思維鏈方式，引導 AI 逐步思考，確保回答的邏輯性和完整性。語氣：引導式，幫助 AI 系統化思考。",
         )
         alternatives.append(alt3)
         
@@ -561,7 +678,7 @@ class PromptAnalyzer:
         Provides detailed explanation of why each alternative prompt is better
         than the original and what improvements it offers.
         """
-        context_summary = self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages)
         
         reasoning_prompt = f"""請分析為什麼以下改進版本的提示詞比原始提示詞更好。
 
@@ -592,7 +709,7 @@ class PromptAnalyzer:
         
         Explains what effect using the optimized prompts will have on the AI's response quality.
         """
-        context_summary = self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages)
         
         # Extract candidate types and prompts for analysis
         candidate_summary = "\n".join(
@@ -624,17 +741,67 @@ class PromptAnalyzer:
             logger.warning("Failed to generate expected effect", error=str(e))
             return "使用優化後的提示詞可以獲得更清晰、更具體、更符合需求的 AI 回答。"
 
-    def _summarize_conversation_context(self, messages: List[Message]) -> str:
-        """Summarize conversation context for prompt analysis."""
-        # Extract key information from messages
-        assistant_responses = [
-            msg.content[:200]  # First 200 chars
-            for msg in messages
-            if msg.role == "assistant"
-        ]
+    async def _summarize_conversation_context(self, messages: List[Message]) -> str:
+        """
+        Summarize conversation context for prompt analysis using LLM.
         
-        if assistant_responses:
-            return f"對話包含 {len(messages)} 條訊息，AI 回應摘要：{assistant_responses[0]}..."
-        else:
+        Uses LLM to summarize the current conversation state instead of simple truncation.
+        This helps preserve key variables, constraints, and context that might be lost
+        in simple string truncation.
+        """
+        # If messages are very short, return simple summary
+        if len(messages) <= 2:
             return f"對話包含 {len(messages)} 條訊息"
+        
+        # Build conversation text for summarization
+        conversation_text = "\n".join(
+            f"{msg.role}: {msg.content}" for msg in messages[-10:]  # Last 10 messages for context
+        )
+        
+        # If conversation is short enough, return directly
+        if len(conversation_text) < 500:
+            return conversation_text
+        
+        # Use LLM to summarize conversation state
+        summary_prompt = f"""請總結目前對話的狀態，重點關注以下資訊：
+
+對話內容：
+{conversation_text[:3000]}  # Limit to 3000 chars to avoid token limits
+
+請總結：
+1. 使用者正在試圖解決什麼問題？
+2. 目前卡在哪個步驟？
+3. 有哪些關鍵的變數或限制條件已經被設定了？
+4. 對話的主要脈絡和目標是什麼？
+
+請提供簡潔明瞭的總結（200-300字），以正體中文撰寫。"""
+
+        try:
+            response = await self.llm.acomplete(summary_prompt)
+            summary = response.text.strip()
+            # Fallback if summary is too short or empty
+            if len(summary) < 50:
+                # Fallback to simple truncation
+                assistant_responses = [
+                    msg.content[:200]
+                    for msg in messages
+                    if msg.role == "assistant"
+                ]
+                if assistant_responses:
+                    return f"對話包含 {len(messages)} 條訊息，AI 回應摘要：{assistant_responses[0]}..."
+                else:
+                    return f"對話包含 {len(messages)} 條訊息"
+            return summary
+        except Exception as e:
+            logger.warning("Failed to summarize conversation context with LLM, using fallback", error=str(e))
+            # Fallback to simple truncation on error
+            assistant_responses = [
+                msg.content[:200]
+                for msg in messages
+                if msg.role == "assistant"
+            ]
+            if assistant_responses:
+                return f"對話包含 {len(messages)} 條訊息，AI 回應摘要：{assistant_responses[0]}..."
+            else:
+                return f"對話包含 {len(messages)} 條訊息"
 

@@ -93,7 +93,7 @@ class ReviewFindings(BaseModel):
 class PromptCandidate(BaseModel):
     """Represents a structured prompt candidate with type and reasoning."""
 
-    type: Literal["structured", "role-play", "chain-of-thought"]
+    type: str  # Dynamic strategy type (e.g., 'few-shot', 'chain-of-thought', 'expert-persona', 'minimalist', etc.)
     prompt: str
     reasoning: str
 

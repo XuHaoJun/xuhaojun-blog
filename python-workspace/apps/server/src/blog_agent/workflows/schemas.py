@@ -78,7 +78,7 @@ class UnclearExplanationsResponse(BaseModel):
 class PromptCandidateItem(BaseModel):
     """Represents a prompt candidate item in structured output."""
 
-    type: Literal["structured", "role-play", "chain-of-thought"]
+    type: str = Field(..., description="Strategy type (e.g., 'few-shot', 'chain-of-thought', 'expert-persona', 'minimalist', etc.)")
     prompt: str = Field(..., description="The improved prompt text")
     reasoning: str = Field(..., description="Reasoning for why this version is better")
 
