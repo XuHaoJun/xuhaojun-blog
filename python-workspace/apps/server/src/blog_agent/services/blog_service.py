@@ -223,16 +223,13 @@ class BlogService:
             
             # Save all prompt suggestions to database
             prompt_suggestions = prompt_analysis_event.prompt_suggestions
-            saved_prompt_suggestion = None  # Keep first one for ReviewEvent compatibility
+            saved_prompt_suggestions = []  # Collect saved suggestions with database-assigned IDs
             if prompt_suggestions:
-                saved_count = 0
                 for prompt_suggestion in prompt_suggestions:
                     try:
                         prompt_suggestion.conversation_log_id = conversation_log_id
                         saved_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
-                        if saved_count == 0:
-                            saved_prompt_suggestion = saved_suggestion  # Keep first for ReviewEvent
-                        saved_count += 1
+                        saved_prompt_suggestions.append(saved_suggestion)  # Use saved object with ID
                     except Exception as e:
                         logger.error(
                             "Failed to save prompt suggestion",
@@ -247,7 +244,7 @@ class BlogService:
                     "Prompt suggestions saved",
                     conversation_log_id=str(conversation_log_id),
                     total_suggestions=len(prompt_suggestions),
-                    saved_count=saved_count,
+                    saved_count=len(saved_prompt_suggestions),
                 )
 
             # Continue with full workflow: extender → reviewer → editor
@@ -268,8 +265,8 @@ class BlogService:
                 conversation_log_metadata=extend_event.conversation_log_metadata,
             )
             review_event = await reviewer.review(review_extract_event)
-            # Add all prompt suggestions to review event
-            review_event.prompt_suggestions = prompt_suggestions
+            # Add all saved prompt suggestions (with database-assigned IDs) to review event
+            review_event.prompt_suggestions = saved_prompt_suggestions
             
             # Edit
             edit_event = await editor.edit(review_event)
