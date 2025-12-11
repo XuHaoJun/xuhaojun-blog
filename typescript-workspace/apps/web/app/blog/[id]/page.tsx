@@ -52,7 +52,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     notFound();
   }
 
-  const { blogPost, contentBlocks } = data;
+  const { blogPost, conversationMessages, promptSuggestions } = data;
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -63,7 +63,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </header>
 
         {/* Main Content - 70/30 Layout on Desktop */}
-        <BlogPostClient blogPost={blogPost} contentBlocks={contentBlocks || []} />
+        <BlogPostClient
+          blogPost={blogPost}
+          conversationMessages={conversationMessages || []}
+          promptSuggestions={promptSuggestions || []}
+        />
       </div>
     </div>
   );

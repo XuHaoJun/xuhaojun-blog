@@ -11,15 +11,16 @@ interface UseIntersectionObserverOptions {
 
 /**
  * Custom hook for observing element intersection with viewport
- * Returns the ID of the currently visible element
+ * Returns the ID/index of the currently visible element
+ * Supports both string IDs (for blocks) and number indices (for messages)
  */
 export function useIntersectionObserver(
-  elementIds: string[],
+  elementIds: (string | number)[],
   options: UseIntersectionObserverOptions = {}
-) {
-  const [activeId, setActiveId] = useState<string | undefined>();
+): number | string | undefined {
+  const [activeId, setActiveId] = useState<string | number | undefined>();
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const elementRefs = useRef<Map<string, Element>>(new Map());
+  const elementRefs = useRef<Map<string | number, Element>>(new Map());
 
   const {
     root = null,
@@ -53,8 +54,17 @@ export function useIntersectionObserver(
         });
 
         if (maxEntry) {
-          const id = maxEntry.target.id.replace("block-", "");
-          setActiveId(id);
+          const targetId = maxEntry.target.id;
+          // Check if it's a message (message-{index}) or block (block-{id})
+          if (targetId.startsWith("message-")) {
+            const index = parseInt(targetId.replace("message-", ""), 10);
+            if (!isNaN(index)) {
+              setActiveId(index);
+            }
+          } else if (targetId.startsWith("block-")) {
+            const id = targetId.replace("block-", "");
+            setActiveId(id);
+          }
         }
       },
       {
@@ -66,7 +76,9 @@ export function useIntersectionObserver(
 
     // Observe all elements
     elementIds.forEach((id) => {
-      const element = document.getElementById(`block-${id}`);
+      // Support both message-{index} and block-{id} formats
+      const elementId = typeof id === "number" ? `message-${id}` : `block-${id}`;
+      const element = document.getElementById(elementId);
       if (element) {
         elementRefs.current.set(id, element);
         observerRef.current?.observe(element);

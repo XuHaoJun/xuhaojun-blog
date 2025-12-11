@@ -19,24 +19,8 @@ export function MarkdownRenderer({
   onBlockHover,
   onBlockLeave,
 }: MarkdownRendererProps) {
-  // If we have content blocks, render them with their associated prompt metadata
-  // Otherwise, just render the content as markdown
-  if (contentBlocks.length > 0) {
-    return (
-      <div className="space-y-8">
-        {contentBlocks.map((block) => (
-          <ContentBlockComponent
-            key={block.id}
-            block={block}
-            isActive={block.id === activeBlockId}
-            onHover={() => onBlockHover?.(block.id)}
-            onLeave={onBlockLeave}
-          />
-        ))}
-      </div>
-    );
-  }
-
+  // Content blocks are no longer used - system displays original conversation content instead
+  // This component now only serves as a fallback for legacy content
   // Fallback to rendering the full content as markdown
   return (
     <div className="prose prose-lg dark:prose-invert max-w-none font-serif">

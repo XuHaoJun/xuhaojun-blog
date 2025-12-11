@@ -262,16 +262,12 @@ class BlogService:
             blog_post = await self.blog_repo.create(blog_post)
             blog_post_id = blog_post.id
 
-            # T081c: Save content blocks to database
-            if edit_event.content_blocks and blog_post_id:
-                for block in edit_event.content_blocks:
-                    block.blog_post_id = blog_post_id  # Set the actual blog_post_id
-                    await self.content_block_repo.create(block)
-                logger.info(
-                    "Content blocks saved",
-                    blog_post_id=str(blog_post_id),
-                    blocks_count=len(edit_event.content_blocks),
-                )
+            # Content blocks are no longer saved - system now displays original conversation content
+            # edit_event.content_blocks is always empty for backward compatibility
+            logger.info(
+                "Blog post created without content blocks",
+                blog_post_id=str(blog_post_id),
+            )
 
             # Update processing history
             processing.blog_post_id = blog_post_id

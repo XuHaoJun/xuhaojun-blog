@@ -15,6 +15,14 @@ class Message(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+class ConversationMessage(BaseModel):
+    """表示對話中的單一訊息（用於 API 回應）"""
+
+    role: Literal["user", "system", "assistant"]
+    content: str  # 訊息內容（可能包含 Markdown）
+    timestamp: Optional[datetime] = None  # 可選的時間戳記
+
+
 class ConversationLog(BaseModel):
     """Represents an input conversation log."""
 

@@ -1,28 +1,37 @@
 "use client";
 
-import type { ContentBlock, PromptMeta } from "@blog-agent/proto-gen";
+import { create } from "@bufbuild/protobuf";
+import type { ConversationMessage, PromptSuggestion, PromptMeta } from "@blog-agent/proto-gen";
+import { PromptMetaSchema } from "@blog-agent/proto-gen";
 import { PromptCard } from "./prompt-card";
 import { cn } from "@/lib/utils";
 
 interface PromptSidebarProps {
-  contentBlocks: ContentBlock[];
-  activeBlockId?: string;
+  conversationMessages: ConversationMessage[];
+  promptSuggestions: PromptSuggestion[];
+  activeMessageIndex?: number;
   className?: string;
 }
 
 export function PromptSidebar({
-  contentBlocks,
-  activeBlockId,
+  conversationMessages,
+  promptSuggestions,
+  activeMessageIndex,
   className,
 }: PromptSidebarProps) {
-  // Find the active block's prompt meta
-  const activeBlock = contentBlocks.find(
-    (block) => block.id === activeBlockId
-  );
-  const activePromptMeta = activeBlock?.promptMeta;
+  // Find the prompt suggestion for the active message
+  const activeMessage = activeMessageIndex !== undefined 
+    ? conversationMessages[activeMessageIndex] 
+    : undefined;
+  
+  const activePromptSuggestion = activeMessage && activeMessage.role === "user"
+    ? promptSuggestions.find(
+        (ps) => ps.originalPrompt === activeMessage.content || ps.originalPrompt.trim() === activeMessage.content.trim()
+      )
+    : undefined;
 
-  // If no active prompt meta, show a placeholder or nothing
-  if (!activePromptMeta) {
+  // If no active prompt suggestion, show a placeholder or nothing
+  if (!activePromptSuggestion) {
     return (
       <aside
         className={cn(
@@ -39,6 +48,14 @@ export function PromptSidebar({
     );
   }
 
+  // Convert PromptSuggestion to PromptMeta format for PromptCard
+  const promptMeta: PromptMeta = create(PromptMetaSchema, {
+    originalPrompt: activePromptSuggestion.originalPrompt,
+    analysis: activePromptSuggestion.analysis,
+    betterCandidates: activePromptSuggestion.betterCandidates || [],
+    expectedEffect: activePromptSuggestion.expectedEffect || "",
+  });
+
   return (
     <aside
       className={cn(
@@ -52,7 +69,7 @@ export function PromptSidebar({
           💡 Prompt 診斷室
         </h2>
         <div className="transition-all duration-300">
-          <PromptCard promptMeta={activePromptMeta} />
+          <PromptCard promptMeta={promptMeta} />
         </div>
       </div>
     </aside>

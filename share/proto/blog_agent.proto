@@ -17,6 +17,7 @@ service BlogAgentService {
   rpc GetBlogPost(GetBlogPostRequest) returns (GetBlogPostResponse);
   
   // 取得部落格文章（包含結構化的 content blocks 和 prompt meta，用於 UI/UX）
+  // 變更：新增 conversation_messages 欄位，content_blocks 保留但設為空（向後兼容）
   rpc GetBlogPostWithPrompts(GetBlogPostRequest) returns (GetBlogPostWithPromptsResponse);
   
   // 列出所有部落格文章
@@ -77,9 +78,14 @@ message GetBlogPostResponse {
 }
 
 // 取得部落格文章（包含 prompts）回應
+// 變更說明：
+// - content_blocks: 保留欄位但設為空（向後兼容，不再用於新文章）
+// - conversation_messages: 新增欄位，包含原始對話訊息
 message GetBlogPostWithPromptsResponse {
   BlogPost blog_post = 1;
-  repeated ContentBlock content_blocks = 2;  // 結構化的內容區塊
+  repeated ContentBlock content_blocks = 2;  // 保留但設為空（向後兼容）
+  repeated ConversationMessage conversation_messages = 3;  // 新增：原始對話訊息
+  repeated PromptSuggestion prompt_suggestions = 4;  // 新增：提示詞建議（可選）
 }
 
 // 列出部落格文章請求
@@ -195,5 +201,21 @@ message ProcessingHistory {
   string started_at = 7;                   // ISO 8601 timestamp
   string completed_at = 8;                 // ISO 8601 timestamp（可選）
   string created_at = 9;
+}
+
+// 對話訊息（新增，用於前端顯示原始對話內容）
+message ConversationMessage {
+  string role = 1;                    // "user", "system", "assistant"
+  string content = 2;                // 訊息內容（Markdown 格式）
+  string timestamp = 3;               // 可選：ISO 8601 timestamp
+}
+
+// Prompt 建議（新增，用於前端顯示提示詞分析）
+message PromptSuggestion {
+  string id = 1;                       // UUID
+  string original_prompt = 2;         // 原始提問
+  string analysis = 3;                // AI 診斷
+  repeated PromptCandidate better_candidates = 4;  // 優化建議候選
+  string expected_effect = 5;          // 預期效果說明
 }
 

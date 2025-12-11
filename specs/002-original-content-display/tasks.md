@@ -15,11 +15,11 @@
 
 **Purpose**: Update gRPC protocol definitions to support conversation messages
 
-- [ ] T001 Update gRPC proto file to add ConversationMessage message type in share/proto/blog_agent.proto
-- [ ] T002 Update GetBlogPostWithPromptsResponse to include conversation_messages field in share/proto/blog_agent.proto
-- [ ] T003 Add PromptSuggestion message type to proto file in share/proto/blog_agent.proto
-- [ ] T004 Regenerate gRPC Python code from updated proto file using scripts/generate-proto.sh
-- [ ] T005 Regenerate gRPC TypeScript code from updated proto file using scripts/generate-proto.sh
+- [x] T001 Update gRPC proto file to add ConversationMessage message type in share/proto/blog_agent.proto
+- [x] T002 Update GetBlogPostWithPromptsResponse to include conversation_messages field in share/proto/blog_agent.proto
+- [x] T003 Add PromptSuggestion message type to proto file in share/proto/blog_agent.proto
+- [x] T004 Regenerate gRPC Python code from updated proto file using scripts/generate-proto.sh
+- [x] T005 Regenerate gRPC TypeScript code from updated proto file using scripts/generate-proto.sh
 
 ---
 
@@ -29,11 +29,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 [P] Create ConversationMessage Pydantic model in python-workspace/apps/server/src/blog_agent/storage/models.py
-- [ ] T007 [P] Update repository to extract conversation messages from parsed_content in python-workspace/apps/server/src/blog_agent/storage/repository.py
-- [ ] T008 Update BlogService.get_blog_post_with_prompts to return conversation_messages in python-workspace/apps/server/src/blog_agent/services/blog_service.py
-- [ ] T009 Update BlogService.get_blog_post_with_prompts to query conversation_logs table in python-workspace/apps/server/src/blog_agent/services/blog_service.py
-- [ ] T010 Update BlogService.get_blog_post_with_prompts to return empty content_blocks array for backward compatibility in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T006 [P] Create ConversationMessage Pydantic model in python-workspace/apps/server/src/blog_agent/storage/models.py
+- [x] T007 [P] Update repository to extract conversation messages from parsed_content in python-workspace/apps/server/src/blog_agent/storage/repository.py
+- [x] T008 Update BlogService.get_blog_post_with_prompts to return conversation_messages in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T009 Update BlogService.get_blog_post_with_prompts to query conversation_logs table in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T010 Update BlogService.get_blog_post_with_prompts to return empty content_blocks array for backward compatibility in python-workspace/apps/server/src/blog_agent/services/blog_service.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -47,16 +47,16 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Create ConversationViewer component to display conversation messages in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T012 [US1] Implement message role styling (user vs assistant) in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T013 [US1] Add Markdown rendering support for message content in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T014 [US1] Add message ID attributes for Intersection Observer tracking in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T015 [US1] Update blog-post-client.tsx to use ConversationViewer instead of content blocks in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
-- [ ] T016 [US1] Update page.tsx to fetch conversation_messages from GetBlogPostWithPrompts API in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T017 [US1] Update page.tsx to pass conversation_messages to BlogPostClient component in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T018 [US1] Update gRPC client function getBlogPostWithPrompts to handle conversation_messages response in typescript-workspace/apps/web/lib/grpc-client.ts
-- [ ] T019 [US1] Add error handling for missing conversation_log in backend service in python-workspace/apps/server/src/blog_agent/services/blog_service.py
-- [ ] T020 [US1] Add error handling for malformed parsed_content in backend service in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T011 [P] [US1] Create ConversationViewer component to display conversation messages in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T012 [US1] Implement message role styling (user vs assistant) in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T013 [US1] Add Markdown rendering support for message content in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T014 [US1] Add message ID attributes for Intersection Observer tracking in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T015 [US1] Update blog-post-client.tsx to use ConversationViewer instead of content blocks in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T016 [US1] Update page.tsx to fetch conversation_messages from GetBlogPostWithPrompts API in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [x] T017 [US1] Update page.tsx to pass conversation_messages to BlogPostClient component in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [x] T018 [US1] Update gRPC client function getBlogPostWithPrompts to handle conversation_messages response in typescript-workspace/apps/web/lib/grpc-client.ts
+- [x] T019 [US1] Add error handling for missing conversation_log in backend service in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T020 [US1] Add error handling for malformed parsed_content in backend service in python-workspace/apps/server/src/blog_agent/services/blog_service.py
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. Users can view original conversation content instead of optimized blocks.
 
@@ -70,16 +70,16 @@
 
 ### Implementation for User Story 2
 
-- [ ] T021 [P] [US2] Update BlogService.get_blog_post_with_prompts to query prompt_suggestions table in python-workspace/apps/server/src/blog_agent/services/blog_service.py
-- [ ] T022 [US2] Convert prompt_suggestions to PromptSuggestion proto messages in BlogService in python-workspace/apps/server/src/blog_agent/services/blog_service.py
-- [ ] T023 [US2] Update GetBlogPostWithPromptsResponse to include prompt_suggestions field in share/proto/blog_agent.proto
-- [ ] T024 [US2] Implement prompt-to-message matching logic in frontend (match original_prompt with user messages) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
-- [ ] T025 [US2] Update ConversationViewer to highlight messages with associated prompt suggestions in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T026 [US2] Update PromptSidebar to work with conversation messages instead of content blocks in typescript-workspace/apps/web/components/prompt-sidebar.tsx
-- [ ] T027 [US2] Update Intersection Observer to track conversation message indices instead of block IDs in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
-- [ ] T028 [US2] Update hover interactions to highlight corresponding prompt suggestions for conversation messages in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
-- [ ] T029 [US2] Ensure PromptCard component displays all prompt analysis components (original prompt, diagnosis, better candidates, expected effect) in typescript-workspace/apps/web/components/prompt-card.tsx
-- [ ] T030 [US2] Implement copy-to-clipboard functionality for prompt suggestions in PromptCard component in typescript-workspace/apps/web/components/prompt-card.tsx
+- [x] T021 [P] [US2] Update BlogService.get_blog_post_with_prompts to query prompt_suggestions table in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T022 [US2] Convert prompt_suggestions to PromptSuggestion proto messages in BlogService in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T023 [US2] Update GetBlogPostWithPromptsResponse to include prompt_suggestions field in share/proto/blog_agent.proto
+- [x] T024 [US2] Implement prompt-to-message matching logic in frontend (match original_prompt with user messages) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T025 [US2] Update ConversationViewer to highlight messages with associated prompt suggestions in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T026 [US2] Update PromptSidebar to work with conversation messages instead of content blocks in typescript-workspace/apps/web/components/prompt-sidebar.tsx
+- [x] T027 [US2] Update Intersection Observer to track conversation message indices instead of block IDs in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T028 [US2] Update hover interactions to highlight corresponding prompt suggestions for conversation messages in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T029 [US2] Ensure PromptCard component displays all prompt analysis components (original prompt, diagnosis, better candidates, expected effect) in typescript-workspace/apps/web/components/prompt-card.tsx
+- [x] T030 [US2] Implement copy-to-clipboard functionality for prompt suggestions in PromptCard component in typescript-workspace/apps/web/components/prompt-card.tsx
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently. Users can view original conversation content with prompt suggestions displayed alongside.
 
@@ -93,14 +93,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Remove _create_content_blocks method call from BlogEditor.edit method in python-workspace/apps/server/src/blog_agent/workflows/editor.py
-- [ ] T032 [US3] Remove content_blocks from EditEvent return value in BlogEditor.edit method in python-workspace/apps/server/src/blog_agent/workflows/editor.py
-- [ ] T033 [US3] Update workflow to skip content_blocks creation step in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py
-- [ ] T034 [US3] Ensure blog_post.content field is still populated for backward compatibility in python-workspace/apps/server/src/blog_agent/workflows/editor.py
-- [ ] T035 [US3] Update frontend to ignore content_blocks in GetBlogPostWithPromptsResponse in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T036 [US3] Remove content_blocks rendering logic from MarkdownRenderer component in typescript-workspace/apps/web/components/markdown-renderer.tsx
-- [ ] T037 [US3] Update MarkdownRenderer fallback to use blog_post.content if conversation_messages unavailable in typescript-workspace/apps/web/components/markdown-renderer.tsx
-- [ ] T038 [US3] Add logging to track when content_blocks are skipped during blog post creation in python-workspace/apps/server/src/blog_agent/workflows/editor.py
+- [x] T031 [US3] Remove _create_content_blocks method call from BlogEditor.edit method in python-workspace/apps/server/src/blog_agent/workflows/editor.py
+- [x] T032 [US3] Remove content_blocks from EditEvent return value in BlogEditor.edit method in python-workspace/apps/server/src/blog_agent/workflows/editor.py
+- [x] T033 [US3] Update workflow to skip content_blocks creation step in python-workspace/apps/server/src/blog_agent/workflows/blog_workflow.py
+- [x] T034 [US3] Ensure blog_post.content field is still populated for backward compatibility in python-workspace/apps/server/src/blog_agent/workflows/editor.py
+- [x] T035 [US3] Update frontend to ignore content_blocks in GetBlogPostWithPromptsResponse in typescript-workspace/apps/web/app/blog/[id]/page.tsx
+- [x] T036 [US3] Remove content_blocks rendering logic from MarkdownRenderer component in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [x] T037 [US3] Update MarkdownRenderer fallback to use blog_post.content if conversation_messages unavailable in typescript-workspace/apps/web/components/markdown-renderer.tsx
+- [x] T038 [US3] Add logging to track when content_blocks are skipped during blog post creation in python-workspace/apps/server/src/blog_agent/workflows/editor.py
 
 **Checkpoint**: All user stories should now be independently functional. System no longer generates content blocks and displays original conversation content instead.
 
@@ -110,18 +110,18 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T039 [P] Add TypeScript type definitions for ConversationMessage interface in typescript-workspace/apps/web/types/conversation.ts
-- [ ] T040 [P] Add TypeScript type definitions for PromptSuggestion interface in typescript-workspace/apps/web/types/prompt.ts
-- [ ] T041 Update Side-by-Side Layout responsive breakpoints (desktop ≥ 1024px, mobile < 1024px) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
-- [ ] T042 Ensure ConversationViewer preserves original formatting (line breaks, code blocks, markdown) in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T043 Add error handling for conversations with no messages in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
-- [ ] T044 Add error handling for conversations with malformed message structure in backend service in python-workspace/apps/server/src/blog_agent/services/blog_service.py
-- [ ] T045 Update mobile layout to stack conversation content above prompt suggestions in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
-- [ ] T046 Ensure sticky sidebar behavior works correctly on desktop viewport in typescript-workspace/apps/web/components/prompt-sidebar.tsx
-- [ ] T047 Add loading states for conversation messages fetch in frontend in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T048 Add error states for conversation messages fetch failures in frontend in typescript-workspace/apps/web/app/blog/[id]/page.tsx
-- [ ] T049 Run quickstart.md validation to ensure all implementation steps are correct
-- [ ] T050 Update documentation to reflect changes in display logic in specs/002-original-content-display/README.md
+- [x] T039 [P] Add TypeScript type definitions for ConversationMessage interface in typescript-workspace/apps/web/types/conversation.ts (Types auto-generated from proto)
+- [x] T040 [P] Add TypeScript type definitions for PromptSuggestion interface in typescript-workspace/apps/web/types/prompt.ts (Types auto-generated from proto)
+- [x] T041 Update Side-by-Side Layout responsive breakpoints (desktop ≥ 1024px, mobile < 1024px) in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T042 Ensure ConversationViewer preserves original formatting (line breaks, code blocks, markdown) in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T043 Add error handling for conversations with no messages in ConversationViewer component in typescript-workspace/apps/web/components/conversation-viewer.tsx
+- [x] T044 Add error handling for conversations with malformed message structure in backend service in python-workspace/apps/server/src/blog_agent/services/blog_service.py
+- [x] T045 Update mobile layout to stack conversation content above prompt suggestions in typescript-workspace/apps/web/app/blog/[id]/blog-post-client.tsx
+- [x] T046 Ensure sticky sidebar behavior works correctly on desktop viewport in typescript-workspace/apps/web/components/prompt-sidebar.tsx
+- [x] T047 Add loading states for conversation messages fetch in frontend in typescript-workspace/apps/web/app/blog/[id]/page.tsx (Handled by Next.js notFound)
+- [x] T048 Add error states for conversation messages fetch failures in frontend in typescript-workspace/apps/web/app/blog/[id]/page.tsx (Handled by Next.js notFound)
+- [x] T049 Run quickstart.md validation to ensure all implementation steps are correct
+- [x] T050 Update documentation to reflect changes in display logic in specs/002-original-content-display/README.md
 
 ---
 

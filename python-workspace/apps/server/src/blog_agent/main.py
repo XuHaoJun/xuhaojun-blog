@@ -19,6 +19,7 @@ except ImportError:
 from blog_agent.config import config
 from blog_agent.services.blog_service import BlogService
 from blog_agent.services.llm import get_llm
+from blog_agent.storage.models import ConversationMessage
 from blog_agent.storage.repository import (
     BlogPostRepository,
     ContentBlockRepository,
@@ -279,9 +280,10 @@ class BlogAgentServiceImpl:
     # T085a: GetBlogPostWithPrompts handler (UI/UX P0)
     async def GetBlogPostWithPrompts(self, request, context):
         """
-        Get blog post with structured content blocks and prompt meta for UI/UX support.
+        Get blog post with conversation messages and prompt suggestions for UI/UX support.
         
-        Returns BlogPost + ContentBlocks with PromptMeta for Side-by-Side display.
+        Returns BlogPost + ConversationMessages + PromptSuggestions for Side-by-Side display.
+        ContentBlocks are set to empty array for backward compatibility.
         """
         try:
             blog_post_id = UUID(request.blog_post_id)
@@ -292,49 +294,65 @@ class BlogAgentServiceImpl:
                 context.set_details(f"Blog post not found: {request.blog_post_id}")
                 return None
 
-            # Get content blocks for this blog post
-            content_blocks = await self.content_block_repo.get_by_blog_post_id(blog_post_id)
+            # Get conversation log
+            conversation_log = await self.conversation_repo.get_by_id(blog_post.conversation_log_id)
+            if not conversation_log:
+                logger.warning(
+                    "Conversation log not found",
+                    conversation_log_id=str(blog_post.conversation_log_id),
+                )
+                # Return empty conversation messages if log not found
+                conversation_messages = []
+            else:
+                # Extract conversation messages from parsed_content
+                conversation_messages = self._extract_conversation_messages(conversation_log)
             
-            # Build ContentBlock proto messages with PromptMeta
-            content_block_protos = []
-            for block in content_blocks:
-                prompt_meta = None
+            # Get all prompt suggestions for this conversation log
+            prompt_suggestions = await self.prompt_suggestion_repo.get_all_by_conversation_log_id(
+                blog_post.conversation_log_id
+            )
+            
+            # Convert ConversationMessage to proto
+            conversation_message_protos = []
+            for msg in conversation_messages:
+                timestamp_str = None
+                if msg.timestamp:
+                    timestamp_str = msg.timestamp.isoformat()
                 
-                # If block has associated prompt_suggestion, build PromptMeta
-                if block.prompt_suggestion_id:
-                    prompt_suggestion = await self.prompt_suggestion_repo.get_by_id(block.prompt_suggestion_id)
-                    if prompt_suggestion:
-                        prompt_meta = build_prompt_meta(prompt_suggestion)
-                
-                # Build PromptMeta proto if available
-                prompt_meta_proto = None
-                if prompt_meta:
-                    prompt_meta_proto = blog_agent_pb2.PromptMeta(
-                        original_prompt=prompt_meta.get("original_prompt", ""),
-                        analysis=prompt_meta.get("analysis", ""),
+                conversation_message_protos.append(
+                    blog_agent_pb2.ConversationMessage(
+                        role=msg.role,
+                        content=msg.content,
+                        timestamp=timestamp_str or "",
+                    )
+                )
+            
+            # Convert PromptSuggestion to proto
+            prompt_suggestion_protos = []
+            for ps in prompt_suggestions:
+                prompt_suggestion_protos.append(
+                    blog_agent_pb2.PromptSuggestion(
+                        id=str(ps.id) if ps.id else "",
+                        original_prompt=ps.original_prompt,
+                        analysis=ps.analysis,
                         better_candidates=[
                             blog_agent_pb2.PromptCandidate(
-                                type=candidate.get("type", ""),
-                                prompt=candidate.get("prompt", ""),
-                                reasoning=candidate.get("reasoning", ""),
+                                type=candidate.type,
+                                prompt=candidate.prompt,
+                                reasoning=candidate.reasoning,
                             )
-                            for candidate in prompt_meta.get("better_candidates", [])
+                            for candidate in ps.better_candidates
                         ],
-                        expected_effect=prompt_meta.get("expected_effect", ""),
+                        expected_effect=ps.expected_effect or "",
                     )
-                
-                content_block_proto = blog_agent_pb2.ContentBlock(
-                    id=str(block.id) if block.id else "",
-                    blog_post_id=str(block.blog_post_id),
-                    block_order=block.block_order,
-                    text=block.text,
-                    prompt_meta=prompt_meta_proto,
                 )
-                content_block_protos.append(content_block_proto)
 
+            # Build response with empty content_blocks for backward compatibility
             response = blog_agent_pb2.GetBlogPostWithPromptsResponse(
                 blog_post=self._blog_post_to_proto(blog_post),
-                content_blocks=content_block_protos,
+                content_blocks=[],  # Empty for backward compatibility
+                conversation_messages=conversation_message_protos,
+                prompt_suggestions=prompt_suggestion_protos,
             )
             return response
 
@@ -417,6 +435,74 @@ class BlogAgentServiceImpl:
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Internal error: {str(e)}")
             return None
+
+    def _extract_conversation_messages(self, conversation_log):
+        """
+        從 conversation_log 的 parsed_content 中提取對話訊息。
+        
+        Args:
+            conversation_log: ConversationLog 物件
+            
+        Returns:
+            ConversationMessage 列表
+        """
+        from datetime import datetime
+        
+        messages = []
+        parsed_content = conversation_log.parsed_content
+        
+        try:
+            # parsed_content 應該包含 messages 陣列
+            if isinstance(parsed_content, dict) and "messages" in parsed_content:
+                messages_list = parsed_content["messages"]
+                if not isinstance(messages_list, list):
+                    logger.warning(
+                        "parsed_content.messages is not a list",
+                        conversation_log_id=str(conversation_log.id),
+                    )
+                    return messages
+                
+                for msg_data in messages_list:
+                    try:
+                        # 處理時間戳記
+                        timestamp = None
+                        if "timestamp" in msg_data and msg_data["timestamp"]:
+                            if isinstance(msg_data["timestamp"], str):
+                                try:
+                                    timestamp = datetime.fromisoformat(msg_data["timestamp"].replace("Z", "+00:00"))
+                                except (ValueError, AttributeError):
+                                    timestamp = None
+                            elif isinstance(msg_data["timestamp"], datetime):
+                                timestamp = msg_data["timestamp"]
+                        
+                        message = ConversationMessage(
+                            role=msg_data.get("role", "user"),
+                            content=msg_data.get("content", ""),
+                            timestamp=timestamp,
+                        )
+                        messages.append(message)
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to parse message",
+                            error=str(e),
+                            conversation_log_id=str(conversation_log.id),
+                        )
+                        # Continue processing other messages
+                        continue
+            else:
+                logger.warning(
+                    "parsed_content does not contain messages array",
+                    conversation_log_id=str(conversation_log.id),
+                )
+        except Exception as e:
+            logger.error(
+                "Failed to extract conversation messages",
+                error=str(e),
+                conversation_log_id=str(conversation_log.id),
+                exc_info=True,
+            )
+        
+        return messages
 
     # Helper methods for conversion (temporary dict-based until proto generation)
     def _conversation_log_to_dict(self, conversation_log):
