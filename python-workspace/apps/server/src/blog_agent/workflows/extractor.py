@@ -7,31 +7,12 @@ Aligned with Anthropic's Soul Overview principles:
 - Considers contextual value and user wellbeing
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
-
-# Try to import LLM classes - they may be in separate packages
-if TYPE_CHECKING:
-    from llama_index.llms.ollama import Ollama
-    from llama_index.llms.openai import OpenAI
-else:
-    try:
-        from llama_index.llms.ollama import Ollama
-    except ImportError:
-        try:
-            from llama_index_llms_ollama import Ollama
-        except ImportError:
-            Ollama = None
-
-    try:
-        from llama_index.llms.openai import OpenAI
-    except ImportError:
-        try:
-            from llama_index_llms_openai import OpenAI
-        except ImportError:
-            OpenAI = None
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import ContentExtract, Message
