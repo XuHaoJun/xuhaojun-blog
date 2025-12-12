@@ -182,8 +182,18 @@ class MarkdownParser:
 
         return metadata
 
+    def _remove_code_blocks(self, text: str) -> str:
+        """Remove code blocks and inline code from text for language detection."""
+        # Remove fenced code blocks (```...```)
+        text = re.sub(r'```[\s\S]*?```', '', text)
+        
+        # Remove inline code (`...`)
+        text = re.sub(r'`[^`]+`', '', text)
+        
+        return text
+
     def _detect_language(self, messages: List[Message]) -> Optional[str]:
-        """Detect language from messages."""
+        """Detect language from messages, excluding code blocks."""
         if not messages:
             return None
 
@@ -192,7 +202,10 @@ class MarkdownParser:
         total_chars = 0
 
         for msg in messages[:5]:  # Check first 5 messages
-            for char in msg.content:
+            # Remove code blocks before language detection
+            text_without_code = self._remove_code_blocks(msg.content)
+            
+            for char in text_without_code:
                 total_chars += 1
                 if "\u4e00" <= char <= "\u9fff":
                     chinese_chars += 1
