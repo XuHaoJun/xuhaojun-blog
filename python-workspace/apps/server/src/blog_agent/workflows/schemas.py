@@ -117,3 +117,33 @@ class FactCheckAnalysisResponse(BaseModel):
 
     analysis: FactCheckAnalysis = Field(..., description="Fact-check analysis result")
 
+
+# Extractor schemas (Soul Overview aligned)
+class ConversationAnalysis(BaseModel):
+    """Represents structured analysis of conversation content.
+    
+    Aligned with Anthropic's Soul Overview principles:
+    - Focuses on underlying goals, not just surface content
+    - Provides contextual value assessment
+    - Ensures structured, precise output
+    """
+
+    key_insights: List[str] = Field(
+        default_factory=list,
+        description="3-5 個對話中的核心洞察，專注於解決問題的本質和使用者的潛在目標 (Underlying Goals)"
+    )
+    core_concepts: List[str] = Field(
+        default_factory=list,
+        description="對話中涉及的技術術語或關鍵主題，不超過 10 個"
+    )
+    user_intent: str = Field(
+        default="",
+        description="使用者的潛在目標 (Underlying Goal) - 使用者表面問了什麼，但他真正想解決的深層問題是什麼？"
+    )
+    substantive_score: int = Field(
+        default=5,
+        description="對話的實質價值評分 (1-10)，基於是否包含具體的問題解決、知識交換或創意發想",
+        ge=1,
+        le=10
+    )
+
