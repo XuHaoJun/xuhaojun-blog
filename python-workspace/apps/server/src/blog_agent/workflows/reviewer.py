@@ -149,8 +149,9 @@ class ContentReviewer:
             raise
 
     async def _detect_logical_gaps(self, content_extract: ContentExtract) -> List[Dict[str, Any]]:
-        """Detect logical gaps in the content (T055)."""
-        template_str = """請分析以下內容，找出邏輯上的斷層或缺失。
+        """Detect logical gaps with a constructive, editorial mindset (T055)."""
+        # Soul Alignment: 像一位聰明的朋友一樣，指出論證哪裡跳躍太快，幫助使用者完善思考。
+        template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容的邏輯推演過程，目標是讓論證更加無懈可擊。
 
 核心觀點：
 {key_insights}
@@ -161,11 +162,12 @@ class ContentReviewer:
 內容：
 {content}
 
-請找出以下類型的邏輯問題：
-1. 概念之間的跳躍（缺少中間步驟）
-2. 論證鏈中的斷層
-3. 前提假設未明確說明
-4. 結論與前提不一致"""
+請分析論證結構，找出可能會讓讀者感到困惑或論證不足的地方（Gaps）：
+1. **推論跳躍**：是否有結論缺乏充分的前提鋪墊？
+2. **因果斷裂**：A 到 B 的推導是否缺乏必要連結？
+3. **隱藏假設**：是否依賴了未經證明的假設？
+
+請不要為了挑剔而挑剔，只列出真正影響內容說服力的邏輯問題。"""
 
         try:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
@@ -193,8 +195,9 @@ class ContentReviewer:
     async def _detect_factual_inconsistencies(
         self, content_extract: ContentExtract
     ) -> List[Dict[str, Any]]:
-        """Detect factual inconsistencies in the content (T056)."""
-        template_str = """請分析以下內容，找出事實上的不一致或矛盾。
+        """Detect factual inconsistencies with a constructive, editorial mindset (T056)."""
+        # Soul Alignment: 像一位嚴謹的編輯夥伴，協助找出可能誤導讀者的事實問題。
+        template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容，找出可能影響內容可信度的事實不一致或矛盾。
 
 核心觀點：
 {key_insights}
@@ -206,10 +209,12 @@ class ContentReviewer:
 {content}
 
 請找出以下類型的事實問題：
-1. 前後矛盾的陳述
-2. 與已知事實不符的聲稱
-3. 數據或統計資料的不一致
-4. 時間線或因果關係的矛盾"""
+1. **前後矛盾的陳述**：內容中是否有相互衝突的聲稱？
+2. **與已知事實不符的聲稱**：是否有明顯與公認事實不符的內容？
+3. **數據或統計資料的不一致**：數字或統計是否前後不一致？
+4. **時間線或因果關係的矛盾**：時間順序或因果關係是否有邏輯矛盾？
+
+請不要為了挑剔而挑剔，只列出真正影響內容可信度的事實問題。"""
 
         try:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
@@ -237,8 +242,9 @@ class ContentReviewer:
     async def _detect_unclear_explanations(
         self, content_extract: ContentExtract
     ) -> List[Dict[str, Any]]:
-        """Detect unclear explanations in the content (T057)."""
-        template_str = """請分析以下內容，找出不清楚或需要澄清的解釋。
+        """Detect unclear explanations with a constructive, editorial mindset (T057)."""
+        # Soul Alignment: 像一位體貼的編輯夥伴，協助找出可能讓讀者困惑的地方。
+        template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容，找出可能讓讀者感到困惑或需要進一步澄清的解釋。
 
 核心觀點：
 {key_insights}
@@ -250,11 +256,13 @@ class ContentReviewer:
 {content}
 
 請找出以下類型的不清楚之處：
-1. 術語未定義或解釋不清
-2. 步驟說明不夠詳細
-3. 概念解釋過於抽象
-4. 缺少必要的背景知識
-5. 範例或類比不夠清楚"""
+1. **術語未定義或解釋不清**：是否有專業術語或概念未充分解釋？
+2. **步驟說明不夠詳細**：流程或步驟是否缺少關鍵細節？
+3. **概念解釋過於抽象**：是否有概念需要更具體的說明或範例？
+4. **缺少必要的背景知識**：是否假設了讀者可能不具備的背景知識？
+5. **範例或類比不夠清楚**：範例或類比是否足夠具體和易懂？
+
+請不要為了挑剔而挑剔，只列出真正影響讀者理解的不清楚之處。"""
 
         try:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
@@ -282,8 +290,9 @@ class ContentReviewer:
     async def _detect_fact_checking_needs(
         self, content_extract: ContentExtract
     ) -> List[str]:
-        """Detect claims that need fact-checking (FR-010, T060)."""
-        prompt = f"""請分析以下內容，找出需要事實查核的聲稱。
+        """Detect claims specifically requiring verification based on importance and risk (FR-010, T060)."""
+        # Soul Alignment: 專注於真正重要（Material）的聲稱，而非瑣碎細節。
+        prompt = f"""請分析以下內容，找出需要進行外部驗證的關鍵事實聲稱。
 
 核心觀點：
 {chr(10).join('- ' + insight for insight in content_extract.key_insights)}
@@ -291,14 +300,13 @@ class ContentReviewer:
 內容：
 {content_extract.filtered_content}
 
-請找出以下類型的聲稱，這些需要外部驗證：
-1. 具體的數據或統計資料
-2. 歷史事件或日期
-3. 科學事實或研究結果
-4. 技術規格或標準
-5. 其他可驗證的事實聲稱
+請找出以下類型的聲稱（優先考慮若錯誤會誤導讀者或造成損害的項目）：
+1. **具體且關鍵的數據/統計**（非通用常識）
+2. **特定的歷史事件歸因**
+3. **科學、醫療或技術上的明確斷言**
+4. **關於特定人物或組織的行為描述**
 
-請以列表形式輸出，每個需要查核的聲稱一行。只輸出聲稱內容，不要額外說明。"""
+請忽略一般常識或明顯的主觀意見。以列表形式輸出，每一行一個聲稱。"""
 
         try:
             response = await self.llm.acomplete(prompt)
@@ -322,23 +330,25 @@ class ContentReviewer:
     async def _generate_improvement_suggestions(
         self, content_extract: ContentExtract, issues: Dict[str, Any]
     ) -> List[str]:
-        """Generate improvement suggestions based on identified issues."""
-        prompt = f"""根據以下發現的問題，生成具體的改進建議。
+        """Generate high-value, actionable suggestions to elevate the content."""
+        # Soul Alignment: 不要只修補錯誤，要提升品質。
+        # 避免 "preachy" 或 "condescending" (居高臨下) 的語氣。
+        prompt = f"""作為一位致力於讓內容更卓越的專業編輯，請根據發現的問題提供改進建議。
 
 核心觀點：
 {chr(10).join('- ' + insight for insight in content_extract.key_insights)}
 
-發現的問題：
-邏輯斷層：{len(issues.get('logical_gaps', []))} 個
-事實不一致：{len(issues.get('factual_inconsistencies', []))} 個
-不清楚的解釋：{len(issues.get('unclear_explanations', []))} 個
+已識別的問題概況：
+- 邏輯需要加強處：{len(issues.get('logical_gaps', []))}
+- 需釐清的事實：{len(issues.get('factual_inconsistencies', []))}
+- 解釋不夠清晰處：{len(issues.get('unclear_explanations', []))}
 
-請生成 3-5 個具體的改進建議，每個建議一行。建議應該：
-1. 針對具體問題
-2. 提供可行的解決方案
-3. 優先處理嚴重問題
+請提供 3-5 個**高價值且具體的行動建議**。建議方向：
+1. **提升清晰度**：如何讓複雜概念對讀者更友善？（而不僅僅是說「解釋清楚」）
+2. **強化論證**：如何填補邏輯缺口以增強說服力？
+3. **增加深度**：如果有事實模糊，建議如何補充背景資訊或數據。
 
-只輸出建議列表，不要額外說明。"""
+語氣要求：真誠、直接、建設性，像與聰明的同事討論一樣。只輸出建議列表。"""
 
         try:
             response = await self.llm.acomplete(prompt)
@@ -450,7 +460,9 @@ class ContentReviewer:
                     ]
                 )
                 
-                template_str = """請分析以下聲稱是否被提供的來源所驗證、反駁，或無法確定。
+                # Soul Alignment: Calibrated Uncertainty.
+                # 不只問「是否支持」，要問「證據的強度與細節」。
+                template_str = """請像一位嚴謹的研究員分析以下聲稱。根據提供的來源，評估該聲稱的可信度。
 
 聲稱：
 {claim}
@@ -458,14 +470,12 @@ class ContentReviewer:
 來源資訊：
 {sources_text}
 
-請仔細分析：
-1. 這些來源是否支持這個聲稱？（verified/contradicted/unclear/unverifiable）
-2. 信心程度如何？（high/medium/low）
-3. 關鍵證據是什麼？
-4. 是否有任何矛盾或反駁的資訊？
-5. 分析理由
+請進行細緻的證據權衡（Epistemic Calibration）：
+1. **證據支持度**：來源是強烈支持、部分支持、反駁，還是僅僅相關但未直接證實？
+2. **細微差別 (Nuance)**：聲稱是否過於簡化？來源是否有特定的上下文限制？
+3. **信心校準**：如果來源資訊不足或有衝突，請誠實表達不確定性 (Uncertainty)。
 
-請提供結構化的分析結果。"""
+請基於證據進行分析，避免過度推斷。請提供結構化的分析結果。"""
 
                 try:
                     # Convert template string to PromptTemplate object
@@ -558,19 +568,21 @@ class ContentReviewer:
 
         for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid overload
             try:
-                template_str = """請基於你的知識分析以下聲稱是否正確、被反駁、不清楚，或無法驗證。
+                # Soul Alignment: Calibrated Uncertainty.
+                # 不只問「是否正確」，要問「證據的強度與細微差別」。
+                template_str = """請像一位嚴謹的研究員，基於你的知識分析以下聲稱。評估該聲稱的可信度與證據強度。
 
 聲稱：
 {claim}
 
-請仔細分析：
-1. 這個聲稱是否正確？（verified/contradicted/unclear/unverifiable）
-2. 信心程度如何？（high/medium/low）
-3. 關鍵證據或理由是什麼？
-4. 是否有任何已知的矛盾資訊？
-5. 分析理由
+請進行細緻的證據權衡（Epistemic Calibration）：
+1. **證據支持度**：這個聲稱是強烈支持、部分支持、被反駁，還是無法確定？（verified/contradicted/unclear/unverifiable）
+2. **細微差別 (Nuance)**：聲稱是否過於簡化？是否有特定的上下文限制或條件？
+3. **信心校準**：如果資訊不足或有衝突，請誠實表達不確定性 (Uncertainty)。信心程度如何？（high/medium/low）
+4. **關鍵證據或理由**：支持或反駁這個聲稱的關鍵證據是什麼？
+5. **已知的矛盾資訊**：是否有任何已知的矛盾資訊？
 
-請提供結構化的分析結果。"""
+請基於證據進行分析，避免過度推斷。請提供結構化的分析結果。"""
 
                 try:
                     # Convert template string to PromptTemplate object
