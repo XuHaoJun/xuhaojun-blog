@@ -130,6 +130,11 @@ class ContentExtender:
         """
         Identify areas in content that lack sufficient context or detail (T065).
         
+        Aligned with Claude's Soul Overview principles:
+        - Focus on substantive value, not just filling gaps
+        - Understand underlying reader goals
+        - Prioritize genuine helpfulness over completeness
+        
         Returns:
             List of knowledge gaps, each with:
             - type: Type of gap (e.g., "missing_context", "unclear_concept", "missing_background")
@@ -137,7 +142,7 @@ class ContentExtender:
             - location: Where in the content the gap appears
             - query: Search query to find information about this gap
         """
-        template_str = """請分析以下內容，找出缺少足夠上下文或細節的區域。
+        template_str = """你是一位專業、富有洞察力的編輯，目標是協助完善這篇文章，使其對讀者產生最大的實質幫助。
 
 核心觀點：
 {key_insights}
@@ -148,12 +153,14 @@ class ContentExtender:
 內容：
 {content}
 
-請找出以下類型的知識缺口：
-1. 缺少必要的背景知識
-2. 概念或術語未充分解釋
-3. 缺少相關的技術細節
-4. 缺少實際範例或應用場景
-5. 缺少相關的歷史或發展脈絡"""
+請分析內容，並找出阻礙讀者完全理解或應用這些觀點的「關鍵知識缺口」。不要為了填補而填補，請專注於以下層面：
+
+1. **實用性缺口**：讀者在理解了概念後，是否缺乏執行的具體細節或步驟？(Actionable advice)
+2. **脈絡缺口**：是否使用了專業術語或提及了事件，但未提供必要的背景，導致非專家讀者無法跟上？
+3. **論證缺口**：某些主張是否缺乏證據、數據或反面觀點的平衡？(Intellectual honesty)
+4. **盲點檢查**：是否有明顯遺漏的關鍵視角，導致觀點不夠全面？
+
+請列出缺口，並為每個缺口提供一個「針對性極強」的搜尋查詢 (Query)，以便我們進行精準研究。"""
 
         try:
             key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
@@ -242,6 +249,73 @@ class ContentExtender:
 
         return research_results
 
+    async def _filter_bad_results(
+        self, research_results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Filter out low-quality or irrelevant research results.
+        
+        Aligned with Claude's Soul Overview principles:
+        - Agentic Safety: Don't integrate harmful or low-quality content
+        - Quality over quantity: Better to skip than to mislead
+        
+        Args:
+            research_results: List of research results to filter
+            
+        Returns:
+            Filtered list of high-quality, relevant research results
+        """
+        if not research_results:
+            return []
+
+        filtered = []
+        for result in research_results:
+            gap = result.get("gap", {})
+            results = result.get("results", [])
+            
+            if not results:
+                continue
+
+            # Filter results based on quality indicators
+            quality_results = []
+            for r in results:
+                # Check for low-quality indicators
+                content = r.get("content", "") or r.get("text", "")
+                title = r.get("title", "")
+                url = r.get("url", "")
+                
+                # Skip if content is too short or empty
+                if len(content) < 50:
+                    continue
+                
+                # Skip if title/content suggests spam or low quality
+                spam_indicators = ["click here", "buy now", "advertisement", "sponsored"]
+                if any(indicator.lower() in (title + content).lower() for indicator in spam_indicators):
+                    continue
+                
+                # For Tavily results, check URL quality
+                if url:
+                    low_quality_domains = ["spam", "ad", "clickbait"]
+                    if any(domain in url.lower() for domain in low_quality_domains):
+                        continue
+                
+                quality_results.append(r)
+            
+            # Only include gap if it has at least one quality result
+            if quality_results:
+                filtered.append({
+                    "gap": gap,
+                    "source": result.get("source"),
+                    "results": quality_results,
+                })
+        
+        logger.info(
+            "Filtered research results",
+            original_count=len(research_results),
+            filtered_count=len(filtered),
+        )
+        return filtered
+
     async def _query_knowledge_base(self, query: str) -> List[Dict[str, Any]]:
         """
         Query personal knowledge base if available (T068, FR-018).
@@ -280,6 +354,11 @@ class ContentExtender:
         """
         Integrate research results naturally into content (T067).
         
+        Aligned with Claude's Soul Overview principles:
+        - Honesty & Calibration: Only assert when research supports it
+        - Non-deceptive: Distinguish facts from opinions
+        - Genuine Helpfulness: Focus on reader value, not length
+        
         Args:
             content_extract: Original content extract
             knowledge_gaps: Identified knowledge gaps
@@ -292,9 +371,15 @@ class ContentExtender:
             # No research to integrate, return original content
             return content_extract.filtered_content
 
+        # Filter low-quality results before integration
+        filtered_results = await self._filter_bad_results(research_results)
+        if not filtered_results:
+            logger.info("All research results filtered out as low-quality, returning original content")
+            return content_extract.filtered_content
+
         # Build research context for LLM
         research_context = "\n\n研究補充資訊：\n"
-        for result in research_results:
+        for result in filtered_results:
             gap = result["gap"]
             source = result["source"]
             results = result["results"]
@@ -310,21 +395,33 @@ class ContentExtender:
                 for r in results[:2]:
                     research_context += f"- {r.get('content', '')[:200]}...\n"
 
-        prompt = f"""請將以下研究補充資訊自然地整合到原始內容中。
+        prompt = f"""請以一位博學、客觀且誠實的共同作者身分，將研究資料整合進原始內容中。
 
 原始內容：
 {content_extract.filtered_content}
+
 {research_context}
 
-要求：
-1. 保持原始內容的結構和風格
-2. 自然地將補充資訊融入相關段落
-3. 不要重複已有的資訊
-4. 使用 Markdown 格式
-5. 在適當的地方添加引用或說明來源
-6. 確保整合後的內容流暢連貫
+**整合原則 (基於 Claude 的核心價值)：**
 
-請直接輸出整合後的完整內容，不要額外說明。"""
+1. **誠實與校準 (Honesty & Calibration)**：
+   - 僅在研究資料充分支持時才進行斷言。
+   - 如果研究結果與原始觀點有衝突，請以「平衡觀點」的方式呈現，不要直接覆蓋或隱瞞，展現對複雜議題的細膩處理。
+   - 如果搜尋結果對填補缺口沒有幫助，請**忽略該結果**，不要強行插入無關資訊。
+
+2. **避免誤導 (Non-deceptive)**：
+   - 清楚區分「事實」與「觀點」。
+   - 引用來源時請精確，不要捏造不存在的關聯。
+
+3. **實質幫助 (Helpfulness)**：
+   - 整合的目標是提升讀者的理解深度，而非增加篇幅。
+   - 保持語氣專業、直接且溫暖，避免過度說教或不必要的客套話。
+
+4. **格式要求**：
+   - 保持 Markdown 格式。
+   - 流暢地重寫相關段落，使文章讀起來像是一氣呵成，而非拼貼之作。
+
+請輸出整合後的完整內容："""
 
         try:
             response = await self.llm.acomplete(prompt)
