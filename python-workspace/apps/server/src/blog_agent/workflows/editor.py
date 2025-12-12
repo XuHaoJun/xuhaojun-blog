@@ -147,30 +147,36 @@ class BlogEditor:
             for suggestion in review_findings.improvement_suggestions[:5]:  # Top 5
                 review_context += f"- {suggestion}\n"
 
-        prompt = f"""請將以下對話內容改寫成一篇結構完整的技術部落格文章。
+        prompt = f"""你是一位擁有深厚技術背景的資深工程師，也是讀者身邊那位聰明、誠實且樂於分享的朋友。
+請基於以下對話內容，撰寫一篇技術部落格文章。
 
-核心觀點：
+核心觀點 (Key Insights)：
 {chr(10).join('- ' + insight for insight in content_extract.key_insights)}
 
-核心概念：
+核心概念 (Core Concepts)：
 {', '.join(content_extract.core_concepts)}
 
-對話內容：
+原始素材 (Context)：
 {content_extract.filtered_content}
 {review_context}
 
-要求：
-1. 使用 Markdown 格式
-2. 包含標題、前言、正文、總結
-3. 保持技術深度與可讀性
-4. 將對話中的問答轉換成流暢的敘述
-5. 突出核心觀點與概念
-6. 根據審閱發現的問題和改進建議，在文章中處理或說明這些問題
-7. 如果發現邏輯斷層，請補充必要的連接說明
-8. 如果發現不清楚的解釋，請提供更詳細的說明或範例
-9. 如果發現事實不一致，請在文章中澄清或標註需要驗證
+寫作原則與要求 (Soul Guidelines)：
+1. **語氣與風格**：
+   - 就像在跟一位聰明的同事解釋技術難題，語氣自信、直接、熱情，但不要傲慢。
+   - **嚴禁 AI 式廢話**：不要使用 "總而言之"、"讓我們深入探討"、"就像織錦一樣" 等填充詞。直接切入重點。
+   - 展現智識好奇心 (Intellectual Curiosity)，探索概念背後的 "為什麼"，而不僅是 "是什麼"。
 
-請直接輸出完整的 Markdown 文章，不要額外說明。"""
+2. **結構與內容**：
+   - 使用 Markdown 格式。
+   - 將對話中的問答碎片，重組成連貫的敘事流 (Narrative Flow)。
+   - **實質性幫助 (Substantive Helpfulness)**：讀者是成年人，不要過度簡化，也不要過度警告 (除非涉及安全紅線)。提供具體、可操作的建議。
+
+3. **處理審閱問題 (Handling Issues)**：
+   - 參考上述的「審閱問題」與「改進建議」。
+   - **誠實 (Honesty)**：如果原始素材有邏輯斷層或不清楚之處，請運用你的知識庫進行合理的推論並補充，但若無法確定，請保持「校準過的懷疑」(Calibrated Uncertainty)，不要捏造事實。
+   - 對於事實不一致處，請在文中以專業角度澄清，幫助讀者建立正確的心理模型。
+
+請直接輸出文章內容，不需包含開場白或額外說明。"""
 
         response = await self.llm.acomplete(prompt)
         blog_content = response.text.strip()
@@ -185,20 +191,18 @@ class BlogEditor:
 
     async def _generate_title(self, content_extract: ContentExtract) -> str:
         """Generate blog post title."""
-        prompt = f"""根據以下核心觀點，生成一個吸引人的部落格文章標題。
+        prompt = f"""請為這篇技術文章構思一個標題。
 
 核心觀點：
 {chr(10).join('- ' + insight for insight in content_extract.key_insights)}
 
-核心概念：
-{', '.join(content_extract.core_concepts)}
-
 要求：
-1. 標題要簡潔有力
-2. 能反映文章核心內容
-3. 適合技術部落格風格
+1. **拒絕陳腔濫調**：不要使用 "揭密"、"解鎖...的力量"、"終極指南" 這類行銷話術。
+2. **實質與精準**：標題應直接反映文章解決的具體技術問題或提供的核心洞見。
+3. **風格**：簡潔、專業，像是一個開發者會在 Hacker News 或技術論壇上點擊的標題。
+4. 長度控制在 60 個字元以內。
 
-請只輸出標題，不要額外說明。"""
+請只輸出標題本身，不要加引號。"""
 
         response = await self.llm.acomplete(prompt)
         # Clean up title (remove quotes, extra spaces)
@@ -207,17 +211,17 @@ class BlogEditor:
 
     async def _generate_summary(self, content_extract: ContentExtract) -> str:
         """Generate blog post summary."""
-        prompt = f"""根據以下核心觀點，生成一篇簡短的摘要（100-150字）。
+        prompt = f"""請為這篇文章撰寫一段摘要（TL;DR）。
 
 核心觀點：
 {chr(10).join('- ' + insight for insight in content_extract.key_insights)}
 
 要求：
-1. 摘要要簡潔明瞭
-2. 涵蓋文章主要內容
-3. 適合放在文章開頭或 metadata
+1. **尊重讀者時間**：不要寫 "這篇文章將會討論..."，直接說出文章的結論和價值。
+2. **高密度資訊**：用 2-3 句話濃縮最關鍵的技術決策或洞見。
+3. **語氣**：客觀、冷靜、有洞察力。
 
-請只輸出摘要，不要額外說明。"""
+請只輸出摘要內容。"""
 
         response = await self.llm.acomplete(prompt)
         return response.text.strip()[:500]  # Limit length
