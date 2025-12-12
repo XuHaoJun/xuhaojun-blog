@@ -685,6 +685,8 @@ async def serve():
         except Exception as e:
             logger.error("Error stopping server", error=str(e), exc_info=True)
 
+def main():
+    asyncio.run(serve())
 
 if __name__ == "__main__":
-    asyncio.run(serve())
+    main()
