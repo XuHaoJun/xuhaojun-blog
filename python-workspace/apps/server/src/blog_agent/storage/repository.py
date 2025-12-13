@@ -248,37 +248,49 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
     def extract_conversation_messages(self, conversation_log: ConversationLog) -> List[ConversationMessage]:
         """
         從 conversation_log 的 parsed_content 中提取對話訊息。
-        
+
         Args:
             conversation_log: ConversationLog 物件
-            
+
         Returns:
             ConversationMessage 列表
         """
         messages = []
         parsed_content = conversation_log.parsed_content
-        
+
         # parsed_content 應該包含 messages 陣列
         if isinstance(parsed_content, dict) and "messages" in parsed_content:
-            for msg_data in parsed_content["messages"]:
-                # 處理時間戳記
-                timestamp = None
-                if "timestamp" in msg_data and msg_data["timestamp"]:
-                    if isinstance(msg_data["timestamp"], str):
-                        try:
-                            timestamp = datetime.fromisoformat(msg_data["timestamp"].replace("Z", "+00:00"))
-                        except (ValueError, AttributeError):
-                            timestamp = None
-                    elif isinstance(msg_data["timestamp"], datetime):
-                        timestamp = msg_data["timestamp"]
-                
-                message = ConversationMessage(
-                    role=msg_data.get("role", "user"),
-                    content=msg_data.get("content", ""),
-                    timestamp=timestamp,
-                )
-                messages.append(message)
-        
+            messages_list = parsed_content["messages"]
+            if not isinstance(messages_list, list):
+                return messages
+
+            for msg_data in messages_list:
+                try:
+                    # Validate that msg_data is a dictionary
+                    if not isinstance(msg_data, dict):
+                        continue
+
+                    # 處理時間戳記
+                    timestamp = None
+                    if "timestamp" in msg_data and msg_data["timestamp"]:
+                        if isinstance(msg_data["timestamp"], str):
+                            try:
+                                timestamp = datetime.fromisoformat(msg_data["timestamp"].replace("Z", "+00:00"))
+                            except (ValueError, AttributeError):
+                                timestamp = None
+                        elif isinstance(msg_data["timestamp"], datetime):
+                            timestamp = msg_data["timestamp"]
+
+                    message = ConversationMessage(
+                        role=msg_data.get("role", "user"),
+                        content=msg_data.get("content", ""),
+                        timestamp=timestamp,
+                    )
+                    messages.append(message)
+                except Exception:
+                    # Skip malformed messages but continue processing others
+                    continue
+
         return messages
 
 
