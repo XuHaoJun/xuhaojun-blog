@@ -102,7 +102,9 @@ class ContentExtractor:
                 )
 
             # Use structured extraction to get insights, concepts, and user intent in one call
-            analysis = await self._extract_structured_analysis(filtered_messages)
+            # Create memory manager for filtered messages to get summarized context
+            filtered_memory = ConversationMemoryManager.from_messages(filtered_messages)
+            analysis = await self._extract_structured_analysis(filtered_messages, filtered_memory)
 
             # Combine filtered content
             filtered_content = self._combine_content(filtered_messages)
@@ -206,33 +208,72 @@ class ContentExtractor:
             # Fallback to simple heuristic
             return total_length >= 200 and len(messages) >= 2
 
-    async def _extract_structured_analysis(self, messages: List[Message]) -> ConversationAnalysis:
+    async def _extract_structured_analysis(
+        self, 
+        messages: List[Message],
+        memory: ConversationMemoryManager
+    ) -> ConversationAnalysis:
         """Extract structured analysis using LLM with Pydantic output.
         
         Aligned with Soul Overview principles:
         - Focuses on underlying goals, not just surface content
         - Provides contextual value assessment
         - Ensures structured, precise output
+        
+        Uses ChatSummaryMemoryBuffer to get summarized context for better token efficiency.
         """
-        conversation_text = "\n\n".join(
-            f"{msg.role}: {msg.content}" for msg in messages
-        )
+        # Use memory manager to get summarized context instead of raw message concatenation
+        conversation_text = memory.get_summarized_context()
 
-        template_str = """請以一位具備深度洞察力的專家身份分析此對話。不要只總結表面文字，請挖掘以下層面：
+        template_str = """請以一位具備深度洞察力的專家身份分析此對話。請仔細閱讀對話內容，並填寫以下所有欄位：
 
-1. **使用者潛在目標 (Underlying Goals)**：使用者表面問了什麼，但他真正想解決的深層問題是什麼？
-2. **核心洞察 (Key Insights)**：對話中產生了哪些具體的、可行動的、或新穎的觀點？這些洞察應該專注於解決問題的本質。
-3. **核心概念 (Core Concepts)**：對話中涉及的技術術語或關鍵主題。
-4. **脈絡價值 (Contextual Value)**：這段對話對使用者的長期福祉或知識體系有何幫助？請給出 1-10 的評分。
-
-重要原則：
-- 確保洞察具體且不空泛，避免泛泛而談。
-- 專注於對話中產生的獨特價值，而不僅僅是重複已知信息。
-
-對話內容：
+## 對話內容：
 {conversation_text}
 
-請依據上述對話，填寫分析報告。"""
+## 分析要求：
+
+### 1. key_insights（核心洞察）
+請提取 3-5 個對話中的核心洞察，這些洞察應該：
+- 專注於解決問題的本質和使用者的潛在目標
+- 具體且可行動，避免空泛的陳述
+- 反映對話中產生的獨特價值或新穎觀點
+- 每個洞察應該是一個完整的句子，說明具體的發現或建議
+
+**重要**：必須至少提取 3 個洞察，如果對話內容不足，請基於現有內容進行合理推斷。
+
+### 2. core_concepts（核心概念）
+請提取對話中涉及的技術術語或關鍵主題，最多 10 個：
+- 可以是技術名詞、工具名稱、方法論、概念等
+- 每個概念應該是一個簡潔的詞彙或短語
+- 按照在對話中的重要性和出現頻率排序
+
+**重要**：必須至少提取 3 個核心概念，如果對話內容不足，請基於現有內容進行合理推斷。
+
+### 3. user_intent（使用者潛在目標）
+請分析使用者表面問了什麼，但他真正想解決的深層問題是什麼：
+- 不要只重複表面的問題
+- 要挖掘使用者背後的真實需求或目標
+- 應該是一個完整的句子，說明使用者的深層意圖
+
+**重要**：必須提供一個具體的使用者意圖描述，不能為空。
+
+### 4. substantive_score（實質價值評分）
+請評估這段對話的實質價值，給出 1-10 的評分：
+- 評分標準：是否包含具體的問題解決、知識交換或創意發想
+- 1-3 分：幾乎沒有實質內容，主要是寒暄或無意義的對話
+- 4-6 分：有一些實質內容，但較為淺層或零散
+- 7-8 分：有明確的實質內容，包含具體的問題解決或知識交換
+- 9-10 分：非常有價值的對話，包含深度洞察、創新想法或完整的問題解決方案
+
+**重要**：必須給出一個 1-10 之間的整數評分，不能使用預設值。
+
+## 重要提醒：
+- 所有欄位都必須填寫，不能為空或使用預設值
+- 如果對話內容較少，請基於現有內容進行合理的分析和推斷
+- 專注於對話中產生的獨特價值，而不僅僅是重複已知信息
+- 確保輸出具體且有意義，避免泛泛而談
+
+請開始分析並填寫所有欄位。"""
 
         prompt_tmpl = PromptTemplate(template_str)
         analysis = await self.llm.astructured_predict(

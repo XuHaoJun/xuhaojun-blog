@@ -39,6 +39,25 @@ class PromptAnalyzer:
         """Initialize prompt analyzer."""
         self.llm = llm or get_llm()
 
+    async def _extract_user_prompts(self, messages: List[Message]) -> List[Tuple[str, int]]:
+        """
+        T074: Extract user prompts from conversation logs.
+        
+        This method extracts prompts that were sent by the user (role="user")
+        from the conversation messages, along with their index positions.
+        
+        Returns:
+            List of tuples: (prompt_content, message_index)
+        """
+        # Extract user messages with their indices
+        user_prompts_with_indices = [
+            (msg.content.strip(), idx)
+            for idx, msg in enumerate(messages)
+            if msg.role == "user" and msg.content.strip() and len(msg.content.strip()) > 10
+        ]
+        
+        return user_prompts_with_indices
+
     @step
     async def analyze(self, ev: ExtractStartEvent) -> PromptAnalysisEvent:  # type: ignore
         """
@@ -51,21 +70,17 @@ class PromptAnalyzer:
         to access the original messages.
         
         變更：現在為每個 user prompt 產生一個 PromptSuggestion，而不是只分析第一個。
+        每個 user prompt 使用該 prompt 之前的對話記錄作為 context。
         """
         try:
             messages = ev.messages
             conversation_log_id = ev.conversation_log_id
             conversation_log_metadata = ev.conversation_log_metadata or {}
             
-            # Get or create memory manager
-            memory = ev.memory
-            if memory is None:
-                memory = ConversationMemoryManager.from_messages(messages)
+            # T074: Extract user prompts with their indices
+            user_prompts_with_indices = await self._extract_user_prompts(messages)
             
-            # T074: Extract user prompts from conversation logs
-            user_prompts = await self._extract_user_prompts(messages)
-            
-            if not user_prompts:
+            if not user_prompts_with_indices:
                 logger.info("No user prompts found in conversation", conversation_log_id=conversation_log_id)
                 # Return empty suggestions list if no prompts found
                 return PromptAnalysisEvent(
@@ -77,17 +92,23 @@ class PromptAnalyzer:
             # Analyze each user prompt and generate a suggestion for each
             prompt_suggestions = []
             
-            for idx, user_prompt in enumerate(user_prompts):
+            for idx, (user_prompt, prompt_message_index) in enumerate(user_prompts_with_indices):
                 try:
                     logger.info(
                         "Analyzing user prompt",
                         prompt_index=idx + 1,
-                        total_prompts=len(user_prompts),
+                        total_prompts=len(user_prompts_with_indices),
+                        message_index=prompt_message_index,
                         conversation_log_id=conversation_log_id,
                     )
                     
+                    # Create memory manager with only messages BEFORE this user prompt
+                    # This ensures each prompt analysis uses only its historical context
+                    context_messages = messages[:prompt_message_index]
+                    memory = ConversationMemoryManager.from_messages(context_messages)
+                    
                     # Safety & Intent Check: Check for harmful content before optimization
-                    is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, messages, memory)
+                    is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, context_messages, memory)
                     
                     if not is_safe or safety_level in ["high_risk", "medium_risk"]:
                         logger.warning(
@@ -127,11 +148,11 @@ class PromptAnalyzer:
                         continue
                     
                     # T075: Evaluate prompt effectiveness
-                    effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, messages, memory)
+                    effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, context_messages, memory)
                     
                     # T076: Generate at least 3 alternative prompt candidates (FR-012)
                     # T077a: Generate structured PromptCandidate objects instead of plain strings
-                    better_candidates = await self._generate_structured_alternative_prompts(user_prompt, messages, memory)
+                    better_candidates = await self._generate_structured_alternative_prompts(user_prompt, context_messages, memory)
                     
                     # Ensure we have at least 3 candidates (FR-012)
                     if len(better_candidates) < 3:
@@ -142,7 +163,7 @@ class PromptAnalyzer:
                             conversation_log_id=conversation_log_id,
                         )
                         additional_candidates = await self._generate_additional_structured_candidates(
-                            user_prompt, messages, memory, needed=3 - len(better_candidates)
+                            user_prompt, context_messages, memory, needed=3 - len(better_candidates)
                         )
                         better_candidates.extend(additional_candidates)
                     
@@ -155,10 +176,10 @@ class PromptAnalyzer:
                     # T077: Generate reasoning for why alternatives are better (FR-013)
                     # Extract prompt strings for reasoning generation
                     candidate_prompts = [c.prompt for c in better_candidates]
-                    reasoning = await self._generate_reasoning(user_prompt, candidate_prompts, messages, memory)
+                    reasoning = await self._generate_reasoning(user_prompt, candidate_prompts, context_messages, memory)
                     
                     # T077b: Generate expected_effect description
-                    expected_effect = await self._generate_expected_effect(user_prompt, better_candidates, messages, memory)
+                    expected_effect = await self._generate_expected_effect(user_prompt, better_candidates, context_messages, memory)
                     
                     prompt_suggestion = PromptSuggestion(
                         conversation_log_id=conversation_log_id,
@@ -191,16 +212,20 @@ class PromptAnalyzer:
             
             logger.info(
                 "Prompt analysis completed for all prompts",
-                total_prompts=len(user_prompts),
+                total_prompts=len(user_prompts_with_indices),
                 suggestions_generated=len(prompt_suggestions),
                 conversation_log_id=conversation_log_id,
             )
+            
+            # Use the memory from the last prompt's context (or create new one if needed)
+            # Note: This memory may not be used downstream, but we include it for consistency
+            final_memory = ConversationMemoryManager.from_messages(messages)
             
             return PromptAnalysisEvent(
                 prompt_suggestions=prompt_suggestions,
                 conversation_log_id=conversation_log_id,
                 conversation_log_metadata=conversation_log_metadata,
-                memory=memory,
+                memory=final_memory,
             )
             
         except Exception as e:
@@ -215,25 +240,6 @@ class PromptAnalyzer:
                 conversation_log_metadata=ev.conversation_log_metadata or {},
                 memory=memory,
             )
-
-    async def _extract_user_prompts(self, messages: List[Message]) -> List[str]:
-        """
-        T074: Extract user prompts from conversation logs.
-        
-        This method extracts prompts that were sent by the user (role="user")
-        from the conversation messages.
-        """
-        # Extract all user messages
-        user_messages = [
-            msg.content.strip()
-            for msg in messages
-            if msg.role == "user" and msg.content.strip()
-        ]
-        
-        # Filter out very short messages (likely not substantial prompts)
-        prompts = [msg for msg in user_messages if len(msg) > 10]
-        
-        return prompts
 
     async def _extract_prompts_via_llm(self, content: str) -> List[str]:
         """Extract user prompts from content using LLM."""
