@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
@@ -14,6 +14,10 @@ from blog_agent.storage.models import Message, PromptCandidate, PromptSuggestion
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.extractor import ExtractEvent, ExtractStartEvent
 from blog_agent.workflows.schemas import PromptCandidatesResponse
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
+
+if TYPE_CHECKING:
+    from blog_agent.workflows.memory_manager import ConversationMemoryManager
 
 logger = get_logger(__name__)
 
@@ -24,6 +28,7 @@ class PromptAnalysisEvent(Event):
     prompt_suggestions: List[PromptSuggestion]  # 支援多個 user prompts
     conversation_log_id: str
     conversation_log_metadata: Optional[Dict[str, Any]] = None
+    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
 
 
 class PromptAnalyzer:
@@ -51,6 +56,11 @@ class PromptAnalyzer:
             conversation_log_id = ev.conversation_log_id
             conversation_log_metadata = ev.conversation_log_metadata or {}
             
+            # Get or create memory manager
+            memory = ev.memory
+            if memory is None:
+                memory = ConversationMemoryManager.from_messages(messages)
+            
             # T074: Extract user prompts from conversation logs
             user_prompts = await self._extract_user_prompts(messages)
             
@@ -76,7 +86,7 @@ class PromptAnalyzer:
                     )
                     
                     # Safety & Intent Check: Check for harmful content before optimization
-                    is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, messages)
+                    is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, messages, memory)
                     
                     if not is_safe or safety_level in ["high_risk", "medium_risk"]:
                         logger.warning(
@@ -116,11 +126,11 @@ class PromptAnalyzer:
                         continue
                     
                     # T075: Evaluate prompt effectiveness
-                    effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, messages)
+                    effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, messages, memory)
                     
                     # T076: Generate at least 3 alternative prompt candidates (FR-012)
                     # T077a: Generate structured PromptCandidate objects instead of plain strings
-                    better_candidates = await self._generate_structured_alternative_prompts(user_prompt, messages)
+                    better_candidates = await self._generate_structured_alternative_prompts(user_prompt, messages, memory)
                     
                     # Ensure we have at least 3 candidates (FR-012)
                     if len(better_candidates) < 3:
@@ -131,7 +141,7 @@ class PromptAnalyzer:
                             conversation_log_id=conversation_log_id,
                         )
                         additional_candidates = await self._generate_additional_structured_candidates(
-                            user_prompt, messages, needed=3 - len(better_candidates)
+                            user_prompt, messages, memory, needed=3 - len(better_candidates)
                         )
                         better_candidates.extend(additional_candidates)
                     
@@ -144,10 +154,10 @@ class PromptAnalyzer:
                     # T077: Generate reasoning for why alternatives are better (FR-013)
                     # Extract prompt strings for reasoning generation
                     candidate_prompts = [c.prompt for c in better_candidates]
-                    reasoning = await self._generate_reasoning(user_prompt, candidate_prompts, messages)
+                    reasoning = await self._generate_reasoning(user_prompt, candidate_prompts, messages, memory)
                     
                     # T077b: Generate expected_effect description
-                    expected_effect = await self._generate_expected_effect(user_prompt, better_candidates, messages)
+                    expected_effect = await self._generate_expected_effect(user_prompt, better_candidates, messages, memory)
                     
                     prompt_suggestion = PromptSuggestion(
                         conversation_log_id=conversation_log_id,
@@ -189,15 +199,20 @@ class PromptAnalyzer:
                 prompt_suggestions=prompt_suggestions,
                 conversation_log_id=conversation_log_id,
                 conversation_log_metadata=conversation_log_metadata,
+                memory=memory,
             )
             
         except Exception as e:
             logger.error("Prompt analysis failed", error=str(e), exc_info=True)
             # Return empty suggestions list on error
+            memory = ev.memory
+            if memory is None:
+                memory = ConversationMemoryManager.from_messages(ev.messages)
             return PromptAnalysisEvent(
                 prompt_suggestions=[],
                 conversation_log_id=ev.conversation_log_id,
                 conversation_log_metadata=ev.conversation_log_metadata or {},
+                memory=memory,
             )
 
     async def _extract_user_prompts(self, messages: List[Message]) -> List[str]:
@@ -245,7 +260,9 @@ class PromptAnalyzer:
         
         return []
 
-    async def _check_prompt_safety(self, prompt: str, messages: List[Message]) -> Tuple[bool, str, str]:
+    async def _check_prompt_safety(
+        self, prompt: str, messages: List[Message], memory: Optional[ConversationMemoryManager] = None
+    ) -> Tuple[bool, str, str]:
         """
         Check if a prompt contains harmful content or attempts to bypass safety restrictions.
         
@@ -255,7 +272,7 @@ class PromptAnalyzer:
             - safety_level: "safe", "low_risk", "medium_risk", "high_risk"
             - safety_message: Description of safety concerns if any
         """
-        context_summary = await self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages, memory)
         
         safety_check_prompt = f"""請評估以下使用者提示詞的安全性。
 
@@ -309,7 +326,9 @@ class PromptAnalyzer:
             # Default to safe if check fails
             return (True, "safe", "")
 
-    async def _evaluate_prompt_effectiveness(self, prompt: str, messages: List[Message]) -> str:
+    async def _evaluate_prompt_effectiveness(
+        self, prompt: str, messages: List[Message], memory: Optional[ConversationMemoryManager] = None
+    ) -> str:
         """
         T075: Evaluate prompt effectiveness with intent alignment and safety assessment.
         
@@ -321,7 +340,7 @@ class PromptAnalyzer:
         Also includes safety assessment to detect harmful content.
         """
         # Extract context from messages for better analysis
-        context_summary = await self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages, memory)
         
         evaluation_prompt = f"""請以一位資深 AI 互動專家的角度，深度分析以下使用者提示詞。
 
@@ -344,7 +363,7 @@ class PromptAnalyzer:
         return response.text.strip()
 
     async def _generate_structured_alternative_prompts(
-        self, original_prompt: str, messages: List[Message]
+        self, original_prompt: str, messages: List[Message], memory: Optional[ConversationMemoryManager] = None
     ) -> List[PromptCandidate]:
         """
         T076, T077a: Generate at least 3 structured alternative prompt candidates (FR-012).
@@ -352,7 +371,7 @@ class PromptAnalyzer:
         Generates improved versions of the original prompt with different
         approaches or structures, returning structured PromptCandidate objects.
         """
-        context_summary = await self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages, memory)
         
         template_str = """你是一位精通 Prompt Engineering 的專家朋友。請根據使用者的原始提示詞與其「底層目標」，構思至少 3 個不同的優化策略。
 
@@ -488,10 +507,10 @@ class PromptAnalyzer:
         return await self._generate_fallback_structured_alternatives(original_prompt)
 
     async def _generate_additional_structured_candidates(
-        self, original_prompt: str, messages: List[Message], needed: int
+        self, original_prompt: str, messages: List[Message], memory: Optional[ConversationMemoryManager], needed: int
     ) -> List[PromptCandidate]:
         """Generate additional structured prompt candidates if we don't have enough."""
-        context_summary = await self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages, memory)
         
         template_str = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本，使用與之前不同的策略。
 
@@ -645,7 +664,7 @@ class PromptAnalyzer:
         return alternatives
 
     async def _generate_reasoning(
-        self, original_prompt: str, better_candidates: List[str], messages: List[Message]
+        self, original_prompt: str, better_candidates: List[str], messages: List[Message], memory: Optional[ConversationMemoryManager] = None
     ) -> str:
         """
         T077: Generate reasoning for why alternatives are better (FR-013).
@@ -653,7 +672,7 @@ class PromptAnalyzer:
         Provides detailed explanation of why each alternative prompt is better
         than the original and what improvements it offers.
         """
-        context_summary = await self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages, memory)
         
         reasoning_prompt = f"""請分析為什麼以下改進版本的提示詞比原始提示詞更好。
 
@@ -677,14 +696,14 @@ class PromptAnalyzer:
         return response.text.strip()
 
     async def _generate_expected_effect(
-        self, original_prompt: str, better_candidates: List[PromptCandidate], messages: List[Message]
+        self, original_prompt: str, better_candidates: List[PromptCandidate], messages: List[Message], memory: Optional[ConversationMemoryManager] = None
     ) -> str:
         """
         T077b: Generate expected effect description (UI/UX support).
         
         Explains what effect using the optimized prompts will have on the AI's response quality.
         """
-        context_summary = await self._summarize_conversation_context(messages)
+        context_summary = await self._summarize_conversation_context(messages, memory)
         
         # Extract candidate types and prompts for analysis
         candidate_summary = "\n".join(
@@ -716,59 +735,38 @@ class PromptAnalyzer:
             logger.warning("Failed to generate expected effect", error=str(e))
             return "使用優化後的提示詞可以獲得更清晰、更具體、更符合需求的 AI 回答。"
 
-    async def _summarize_conversation_context(self, messages: List[Message]) -> str:
+    async def _summarize_conversation_context(
+        self, messages: List[Message], memory: Optional[ConversationMemoryManager] = None
+    ) -> str:
         """
-        Summarize conversation context for prompt analysis using LLM.
+        Summarize conversation context for prompt analysis using ChatSummaryMemoryBuffer.
         
-        Uses LLM to summarize the current conversation state instead of simple truncation.
-        This helps preserve key variables, constraints, and context that might be lost
-        in simple string truncation.
+        Uses ChatSummaryMemoryBuffer to automatically summarize conversation history
+        when it exceeds token limits, preserving important context like user names,
+        key settings, and conversation goals.
+        
+        Args:
+            messages: List of Message objects
+            memory: Optional ConversationMemoryManager instance. If None, creates a new one from messages.
+        
+        Returns:
+            String representation of conversation context (with summaries if needed)
         """
         # If messages are very short, return simple summary
         if len(messages) <= 2:
             return f"對話包含 {len(messages)} 條訊息"
         
-        # Build conversation text for summarization
-        conversation_text = "\n".join(
-            f"{msg.role}: {msg.content}" for msg in messages[-10:]  # Last 10 messages for context
-        )
+        # Use memory manager if provided, otherwise create from messages
+        if memory is None:
+            memory = ConversationMemoryManager.from_messages(messages)
         
-        # If conversation is short enough, return directly
-        if len(conversation_text) < 500:
-            return conversation_text
-        
-        # Use LLM to summarize conversation state
-        summary_prompt = f"""請總結目前對話的狀態，重點關注以下資訊：
-
-對話內容：
-{conversation_text[:3000]}  # Limit to 3000 chars to avoid token limits
-
-請總結：
-1. 使用者正在試圖解決什麼問題？
-2. 目前卡在哪個步驟？
-3. 有哪些關鍵的變數或限制條件已經被設定了？
-4. 對話的主要脈絡和目標是什麼？
-
-請提供簡潔明瞭的總結（200-300字），以正體中文撰寫。"""
-
+        # Get summarized context from memory
         try:
-            response = await self.llm.acomplete(summary_prompt)
-            summary = response.text.strip()
-            # Fallback if summary is too short or empty
-            if len(summary) < 50:
-                # Fallback to simple truncation
-                assistant_responses = [
-                    msg.content[:200]
-                    for msg in messages
-                    if msg.role == "assistant"
-                ]
-                if assistant_responses:
-                    return f"對話包含 {len(messages)} 條訊息，AI 回應摘要：{assistant_responses[0]}..."
-                else:
-                    return f"對話包含 {len(messages)} 條訊息"
-            return summary
+            context = memory.get_summarized_context()
+            logger.debug("Retrieved summarized context from memory", context_length=len(context))
+            return context
         except Exception as e:
-            logger.warning("Failed to summarize conversation context with LLM, using fallback", error=str(e))
+            logger.warning("Failed to get summarized context from memory, using fallback", error=str(e))
             # Fallback to simple truncation on error
             assistant_responses = [
                 msg.content[:200]

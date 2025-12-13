@@ -7,7 +7,7 @@ Aligned with Anthropic's Soul Overview principles:
 - Considers contextual value and user wellbeing
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
@@ -18,6 +18,10 @@ from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import ContentExtract, Message
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.schemas import ConversationAnalysis
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
+
+if TYPE_CHECKING:
+    from blog_agent.workflows.memory_manager import ConversationMemoryManager
 
 logger = get_logger(__name__)
 
@@ -29,6 +33,7 @@ class ExtractEvent(Event):
     conversation_log_id: str  # UUID as string for workflow
     conversation_log_metadata: Optional[Dict[str, Any]] = None  # Metadata from conversation log (timestamps, participants, etc.) (FR-015)
     quality_warning: str = ""  # Optional warning for low-quality content
+    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
 
 
 class ExtractStartEvent(Event):
@@ -37,6 +42,7 @@ class ExtractStartEvent(Event):
     messages: List[Message]
     conversation_log_id: str  # UUID as string
     conversation_log_metadata: Optional[Dict[str, Any]] = None  # Metadata from conversation log (timestamps, participants, etc.) (FR-015)
+    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
 
 
 class ContentExtractor:
@@ -57,6 +63,11 @@ class ContentExtractor:
         try:
             messages = ev.messages
             conversation_log_id = ev.conversation_log_id
+            
+            # Get or create memory manager
+            memory = ev.memory
+            if memory is None:
+                memory = ConversationMemoryManager.from_messages(messages)
 
             # Filter out noise (greetings, small talk) - keep simple heuristic for efficiency
             filtered_messages = self._filter_noise(messages)
@@ -67,6 +78,11 @@ class ContentExtractor:
             if not has_substantive:
                 logger.warning("Conversation has minimal substantive content")
                 # Still generate but mark as low-quality
+                # Get or create memory manager for error case too
+                memory = ev.memory
+                if memory is None:
+                    memory = ConversationMemoryManager.from_messages(messages)
+                
                 return ExtractEvent(
                     content_extract=ContentExtract(
                         conversation_log_id=conversation_log_id,
@@ -77,6 +93,7 @@ class ContentExtractor:
                     conversation_log_id=conversation_log_id,
                     conversation_log_metadata=ev.conversation_log_metadata or {},
                     quality_warning="Low quality: minimal substantive content",
+                    memory=memory,
                 )
 
             # Use structured extraction to get insights, concepts, and user intent in one call
@@ -102,6 +119,7 @@ class ContentExtractor:
                 conversation_log_id=conversation_log_id,
                 conversation_log_metadata=ev.conversation_log_metadata or {},
                 quality_warning=quality_warning,
+                memory=memory,
             )
 
         except Exception as e:

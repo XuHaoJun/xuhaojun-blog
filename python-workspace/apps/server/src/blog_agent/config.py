@@ -38,6 +38,11 @@ class Config:
     # Fact-checking method
     FACT_CHECK_METHOD: str = os.getenv("FACT_CHECK_METHOD", "LLM").upper()  # "LLM" or "TAVILY"
 
+    # Memory Management
+    MEMORY_TOKEN_LIMIT: int = int(os.getenv("MEMORY_TOKEN_LIMIT", "3000"))
+    MEMORY_SUMMARIZER_MODEL: str = os.getenv("MEMORY_SUMMARIZER_MODEL", "qwen3:8b")
+    MEMORY_SUMMARIZER_PROVIDER: str = os.getenv("MEMORY_SUMMARIZER_PROVIDER", "")  # Empty means use LLM_PROVIDER
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 

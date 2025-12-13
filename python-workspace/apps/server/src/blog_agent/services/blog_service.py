@@ -204,11 +204,16 @@ class BlogService:
             # Extract metadata from conversation log (FR-015: preserve timestamps, participants)
             conversation_log_metadata = self._extract_conversation_metadata(conversation_log)
             
+            # Create memory manager from messages (shared across workflow steps)
+            from blog_agent.workflows.memory_manager import ConversationMemoryManager
+            memory = ConversationMemoryManager.from_messages(messages)
+            
             # T079: Run prompt analysis in parallel with extraction
             extract_start = ExtractStartEvent(
                 messages=messages,
                 conversation_log_id=str(conversation_log_id),
                 conversation_log_metadata=conversation_log_metadata,
+                memory=memory,
             )
             
             # Run extraction and prompt analysis in parallel
@@ -263,6 +268,7 @@ class BlogService:
                 content_extract=extend_event.content_extract,
                 conversation_log_id=extend_event.conversation_log_id,
                 conversation_log_metadata=extend_event.conversation_log_metadata,
+                memory=extend_event.memory,  # Pass memory through
             )
             review_event = await reviewer.review(review_extract_event)
             # Add all saved prompt suggestions (with database-assigned IDs) to review event

@@ -18,6 +18,9 @@ from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.schemas import KnowledgeGapResponse
 
+if TYPE_CHECKING:
+    from blog_agent.workflows.memory_manager import ConversationMemoryManager
+
 logger = get_logger(__name__)
 
 
@@ -29,6 +32,7 @@ class ExtendEvent(Event):
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     research_results: List[Dict[str, Any]] = []  # Research results from Tavily/KB
     knowledge_gaps: List[Dict[str, Any]] = []  # Identified knowledge gaps
+    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
 
 
 class ContentExtender:
@@ -59,6 +63,7 @@ class ContentExtender:
         try:
             content_extract = ev.content_extract
             conversation_log_id = ev.conversation_log_id
+            memory = ev.memory  # Get memory from event
 
             # Step 1: Identify knowledge gaps (T065)
             knowledge_gaps = await self._identify_knowledge_gaps(content_extract)
@@ -72,6 +77,7 @@ class ContentExtender:
                     conversation_log_metadata=ev.conversation_log_metadata or {},
                     research_results=[],
                     knowledge_gaps=[],
+                    memory=memory,
                 )
 
             # Step 2 & 3: Research gaps (KB first, then Tavily) (T069)
@@ -97,6 +103,7 @@ class ContentExtender:
                 conversation_log_metadata=ev.conversation_log_metadata or {},
                 research_results=research_results,
                 knowledge_gaps=knowledge_gaps,
+                memory=memory,
             )
 
         except ExternalServiceError:

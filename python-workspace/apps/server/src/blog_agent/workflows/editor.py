@@ -1,6 +1,6 @@
 """Blog editor workflow step (simple version without review/extension)."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from uuid import uuid4
 
 from llama_index.core.workflow import Event, step
@@ -16,6 +16,9 @@ from blog_agent.utils.logging import get_logger
 # Import ReviewEvent for type hints (needed at runtime for @step decorator)
 from blog_agent.workflows.reviewer import ReviewEvent
 
+if TYPE_CHECKING:
+    from blog_agent.workflows.memory_manager import ConversationMemoryManager
+
 logger = get_logger(__name__)
 
 
@@ -26,6 +29,7 @@ class EditEvent(Event):
     conversation_log_id: str
     prompt_suggestions: List[PromptSuggestion] = []  # T080: Include prompt suggestions (FR-014, 支援多個)
     content_blocks: list[ContentBlock] = []  # T081a, T081c: Content blocks for UI/UX support
+    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
 
 
 class BlogEditor:
@@ -49,6 +53,7 @@ class BlogEditor:
             conversation_log_metadata = ev.conversation_log_metadata or {}
             errors = ev.errors or []
             prompt_suggestions = ev.prompt_suggestions  # T080: Get prompt suggestions from ReviewEvent (支援多個)
+            memory = ev.memory  # Get memory from event
 
             # Generate blog post using LLM, incorporating review findings (T061)
             # Use first prompt suggestion for blog content generation (backward compatibility)
@@ -88,6 +93,7 @@ class BlogEditor:
                 conversation_log_id=conversation_log_id,
                 prompt_suggestions=prompt_suggestions,
                 content_blocks=[],  # Empty for backward compatibility
+                memory=memory,
             )
 
         except Exception as e:

@@ -1,6 +1,6 @@
 """Content review workflow step for quality enhancement."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from llama_index.core import PromptTemplate
@@ -22,6 +22,9 @@ from blog_agent.workflows.schemas import (
     UnclearExplanationsResponse,
 )
 
+if TYPE_CHECKING:
+    from blog_agent.workflows.memory_manager import ConversationMemoryManager
+
 logger = get_logger(__name__)
 
 
@@ -34,6 +37,7 @@ class ReviewEvent(Event):
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     errors: List[str] = []  # Issues that cannot be auto-corrected (T062)
     prompt_suggestions: List[PromptSuggestion] = []  # T079: Include prompt suggestions from parallel branch (支援多個)
+    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
 
 
 # Rebuild model to resolve forward references
@@ -62,6 +66,7 @@ class ContentReviewer:
         try:
             content_extract = ev.content_extract
             conversation_log_id = ev.conversation_log_id
+            memory = ev.memory  # Get memory from event
 
             # Perform comprehensive review
             logical_gaps = await self._detect_logical_gaps(content_extract)
@@ -123,6 +128,7 @@ class ContentReviewer:
                 conversation_log_id=conversation_log_id,
                 conversation_log_metadata=ev.conversation_log_metadata or {},
                 errors=errors,
+                memory=memory,
             )
 
         except Exception as e:
