@@ -16,9 +16,6 @@ from blog_agent.workflows.extractor import ExtractEvent, ExtractStartEvent
 from blog_agent.workflows.schemas import PromptCandidatesResponse
 from blog_agent.workflows.memory_manager import ConversationMemoryManager
 
-if TYPE_CHECKING:
-    from blog_agent.workflows.memory_manager import ConversationMemoryManager
-
 logger = get_logger(__name__)
 
 
@@ -28,7 +25,11 @@ class PromptAnalysisEvent(Event):
     prompt_suggestions: List[PromptSuggestion]  # 支援多個 user prompts
     conversation_log_id: str
     conversation_log_metadata: Optional[Dict[str, Any]] = None
-    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
+    memory: Optional[ConversationMemoryManager] = None  # Optional memory manager for conversation history
+
+
+# Rebuild model to resolve forward references
+PromptAnalysisEvent.model_rebuild()
 
 
 class PromptAnalyzer:

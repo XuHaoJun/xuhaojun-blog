@@ -16,8 +16,8 @@ from blog_agent.utils.logging import get_logger
 # Import ReviewEvent for type hints (needed at runtime for @step decorator)
 from blog_agent.workflows.reviewer import ReviewEvent
 
-if TYPE_CHECKING:
-    from blog_agent.workflows.memory_manager import ConversationMemoryManager
+# Import at runtime for Pydantic model_rebuild()
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
 
 logger = get_logger(__name__)
 
@@ -29,7 +29,11 @@ class EditEvent(Event):
     conversation_log_id: str
     prompt_suggestions: List[PromptSuggestion] = []  # T080: Include prompt suggestions (FR-014, 支援多個)
     content_blocks: list[ContentBlock] = []  # T081a, T081c: Content blocks for UI/UX support
-    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
+    memory: Optional[ConversationMemoryManager] = None  # Optional memory manager for conversation history
+
+
+# Rebuild model to resolve forward references
+EditEvent.model_rebuild()
 
 
 class BlogEditor:

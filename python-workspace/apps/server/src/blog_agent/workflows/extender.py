@@ -18,8 +18,8 @@ from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
 from blog_agent.workflows.schemas import KnowledgeGapResponse
 
-if TYPE_CHECKING:
-    from blog_agent.workflows.memory_manager import ConversationMemoryManager
+# Import at runtime for Pydantic model_rebuild()
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
 
 logger = get_logger(__name__)
 
@@ -32,7 +32,11 @@ class ExtendEvent(Event):
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     research_results: List[Dict[str, Any]] = []  # Research results from Tavily/KB
     knowledge_gaps: List[Dict[str, Any]] = []  # Identified knowledge gaps
-    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
+    memory: Optional[ConversationMemoryManager] = None  # Optional memory manager for conversation history
+
+
+# Rebuild model to resolve forward references
+ExtendEvent.model_rebuild()
 
 
 class ContentExtender:

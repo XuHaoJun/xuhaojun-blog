@@ -33,7 +33,7 @@ class ExtractEvent(Event):
     conversation_log_id: str  # UUID as string for workflow
     conversation_log_metadata: Optional[Dict[str, Any]] = None  # Metadata from conversation log (timestamps, participants, etc.) (FR-015)
     quality_warning: str = ""  # Optional warning for low-quality content
-    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
+    memory: Optional[ConversationMemoryManager] = None  # Optional memory manager for conversation history
 
 
 class ExtractStartEvent(Event):
@@ -42,7 +42,12 @@ class ExtractStartEvent(Event):
     messages: List[Message]
     conversation_log_id: str  # UUID as string
     conversation_log_metadata: Optional[Dict[str, Any]] = None  # Metadata from conversation log (timestamps, participants, etc.) (FR-015)
-    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
+    memory: Optional[ConversationMemoryManager] = None  # Optional memory manager for conversation history
+
+
+# Rebuild models to resolve forward references
+ExtractEvent.model_rebuild()
+ExtractStartEvent.model_rebuild()
 
 
 class ContentExtractor:
