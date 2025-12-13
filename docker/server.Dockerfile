@@ -29,6 +29,9 @@ RUN uv sync --frozen --extra dev
 WORKDIR /app
 RUN chmod +x scripts/generate-proto.sh && ./scripts/generate-proto.sh
 
+# Set working directory back to the server directory for the CMD
+WORKDIR /app/python-workspace/apps/server
+
 # Expose gRPC port
 EXPOSE 50051
 
