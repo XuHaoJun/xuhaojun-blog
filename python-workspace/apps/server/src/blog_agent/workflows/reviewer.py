@@ -22,8 +22,8 @@ from blog_agent.workflows.schemas import (
     UnclearExplanationsResponse,
 )
 
-if TYPE_CHECKING:
-    from blog_agent.workflows.memory_manager import ConversationMemoryManager
+# Import at runtime for Pydantic model_rebuild()
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ class ReviewEvent(Event):
     conversation_log_metadata: Optional[Dict[str, Any]] = None
     errors: List[str] = []  # Issues that cannot be auto-corrected (T062)
     prompt_suggestions: List[PromptSuggestion] = []  # T079: Include prompt suggestions from parallel branch (支援多個)
-    memory: Optional["ConversationMemoryManager"] = None  # Optional memory manager for conversation history
+    memory: Optional[ConversationMemoryManager] = None  # Optional memory manager for conversation history
 
 
 # Rebuild model to resolve forward references
