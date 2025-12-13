@@ -226,7 +226,6 @@ class ContentExtractor:
 4. **脈絡價值 (Contextual Value)**：這段對話對使用者的長期福祉或知識體系有何幫助？請給出 1-10 的評分。
 
 重要原則：
-- 如果對話涉及敏感、危險或不道德的主題，請不要提取具體的執行步驟，而是提取關於安全原則或道德考量的洞察。
 - 確保洞察具體且不空泛，避免泛泛而談。
 - 專注於對話中產生的獨特價值，而不僅僅是重複已知信息。
 
@@ -235,103 +234,17 @@ class ContentExtractor:
 
 請依據上述對話，填寫分析報告。"""
 
-        try:
-            prompt_tmpl = PromptTemplate(template_str)
-            
-            # Try structured output first
-            if hasattr(self.llm, 'astructured_predict'):
-                try:
-                    analysis = await self.llm.astructured_predict(
-                        ConversationAnalysis,
-                        prompt_tmpl,
-                        conversation_text=conversation_text,
-                    )
-                    logger.info("Extracted structured analysis", 
-                               insights_count=len(analysis.key_insights),
-                               concepts_count=len(analysis.core_concepts),
-                               substantive_score=analysis.substantive_score)
-                    return analysis
-                except Exception as structured_error:
-                    logger.warning("astructured_predict failed, using fallback", error=str(structured_error))
-                    return await self._extract_analysis_fallback(messages, conversation_text)
-            else:
-                # Fallback to text completion with parsing
-                logger.warning("LLM does not support structured_predict, using fallback")
-                return await self._extract_analysis_fallback(messages, conversation_text)
-        except Exception as e:
-            logger.warning("Structured extraction failed, using fallback", error=str(e))
-            return await self._extract_analysis_fallback(messages, conversation_text)
-
-    async def _extract_analysis_fallback(self, messages: List[Message], conversation_text: str) -> ConversationAnalysis:
-        """Fallback method when structured output is not available."""
-        # Use separate extraction methods as fallback
-        key_insights = await self._extract_insights(messages)
-        core_concepts = await self._extract_concepts(messages)
-        
-        # Simple heuristic for substantive score
-        total_length = sum(len(msg.content) for msg in messages)
-        substantive_score = min(10, max(1, total_length // 200))
-        
-        return ConversationAnalysis(
-            key_insights=key_insights,
-            core_concepts=core_concepts,
-            user_intent="",  # Cannot extract without structured output
-            substantive_score=substantive_score,
+        prompt_tmpl = PromptTemplate(template_str)
+        analysis = await self.llm.astructured_predict(
+            ConversationAnalysis,
+            prompt_tmpl,
+            conversation_text=conversation_text,
         )
-
-    async def _extract_insights(self, messages: List[Message]) -> List[str]:
-        """Extract key insights using LLM (fallback method)."""
-        conversation_text = "\n\n".join(
-            f"{msg.role}: {msg.content}" for msg in messages
-        )
-
-        prompt = f"""請以一位具備深度洞察力的專家身份分析此對話。不要只總結表面文字，請挖掘以下層面：
-
-1. **使用者潛在目標 (Underlying Goals)**：使用者表面問了什麼，但他真正想解決的深層問題是什麼？
-2. **核心洞察 (Key Insights)**：對話中產生了哪些具體的、可行動的、或新穎的觀點？
-3. **脈絡價值 (Contextual Value)**：這段對話對使用者的長期福祉或知識體系有何幫助？
-
-對話內容：
-{conversation_text}
-
-請輸出 3-5 條深刻的洞察（Insight），確保內容具體且不空泛。請用繁體中文條列式輸出，每個洞察一行，不需標題。
-
-如果對話涉及敏感、危險或不道德的主題，請不要提取具體的執行步驟，而是提取關於安全原則或道德考量的洞察。"""
-
-        response = await self.llm.acomplete(prompt)
-
-        # Parse response into list
-        insights = [
-            line.strip()
-            for line in response.text.split("\n")
-            if line.strip() and not line.strip().startswith("#")
-        ]
-
-        return insights[:5]  # Limit to 5
-
-    async def _extract_concepts(self, messages: List[Message]) -> List[str]:
-        """Extract core concepts using LLM (fallback method)."""
-        conversation_text = "\n\n".join(
-            f"{msg.role}: {msg.content}" for msg in messages
-        )
-
-        prompt = f"""請從以下對話中提取核心概念（Core Concepts），這些是對話中討論的主要技術或主題。
-
-對話內容：
-{conversation_text}
-
-請以簡潔的列表形式輸出核心概念，每個概念一行。只輸出概念名稱，不要額外說明。"""
-
-        response = await self.llm.acomplete(prompt)
-
-        # Parse response into list
-        concepts = [
-            line.strip()
-            for line in response.text.split("\n")
-            if line.strip() and not line.strip().startswith("#")
-        ]
-
-        return concepts[:10]  # Limit to 10
+        logger.info("Extracted structured analysis", 
+                   insights_count=len(analysis.key_insights),
+                   concepts_count=len(analysis.core_concepts),
+                   substantive_score=analysis.substantive_score)
+        return analysis
 
     def _combine_content(self, messages: List[Message]) -> str:
         """Combine filtered messages into content string."""
