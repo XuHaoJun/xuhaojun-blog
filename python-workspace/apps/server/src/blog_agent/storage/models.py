@@ -105,7 +105,7 @@ class PromptSuggestion(BaseModel):
     conversation_log_id: UUID
     original_prompt: str
     analysis: str
-    better_candidates: List[PromptCandidate] = Field(..., min_length=3)  # At least 3 structured candidates (FR-012)
+    better_candidates: List[PromptCandidate] = Field(...)  # Structured candidates (at least 3 for normal optimization, 1 for safety guidance)
     reasoning: str  # Overall reasoning (kept for backward compatibility)
     expected_effect: Optional[str] = None  # Expected effect description (UI/UX support)
     created_at: Optional[datetime] = None
