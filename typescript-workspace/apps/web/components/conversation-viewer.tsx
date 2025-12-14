@@ -59,6 +59,9 @@ export function ConversationViewer({
                   <span className="text-gray-700 dark:text-gray-300">AI</span>
                 </>
               )}
+              <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 font-normal">
+                #{index + 1}
+              </span>
             </div>
 
             {/* Message content */}

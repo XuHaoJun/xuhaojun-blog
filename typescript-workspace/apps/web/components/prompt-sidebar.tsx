@@ -56,20 +56,41 @@ export function PromptSidebar({
     expectedEffect: activePromptSuggestion.expectedEffect || "",
   });
 
+  // Calculate message number (1-based index)
+  const messageNumber = activeMessageIndex !== undefined 
+    ? activeMessageIndex + 1 
+    : undefined;
+
+  // Scroll to message function
+  const handleScrollToMessage = () => {
+    if (activeMessageIndex !== undefined) {
+      const element = document.getElementById(`message-${activeMessageIndex}`);
+      element?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+    }
+  };
+
   return (
     <aside
       className={cn(
         "hidden lg:block w-full lg:w-[30%] lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto",
         "transition-opacity duration-300",
+        "scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent",
         className
       )}
     >
-      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300 pr-2">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 px-1">
           💡 Prompt 診斷室
         </h2>
         <div className="transition-all duration-300">
-          <PromptCard promptMeta={promptMeta} />
+          <PromptCard 
+            promptMeta={promptMeta} 
+            messageNumber={messageNumber}
+            onScrollToMessage={handleScrollToMessage}
+          />
         </div>
       </div>
     </aside>
