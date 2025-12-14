@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import '@blog-agent/ui/globals.css';
 import './globals.css';
 import { DarkModeToggle } from '@/components/dark-mode-toggle';
 

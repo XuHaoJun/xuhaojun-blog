@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import type { BlogPost, ConversationMessage, PromptSuggestion } from "@blog-agent/proto-gen";
 import { ConversationViewer } from "@/components/conversation-viewer";
 import { PromptSidebar } from "@/components/prompt-sidebar";
@@ -21,7 +21,6 @@ export function BlogPostClient({
   promptSuggestions,
 }: BlogPostClientProps) {
   const [activeTab, setActiveTab] = useState<"original" | "optimized">("original");
-  const contentRef = useRef<HTMLDivElement>(null);
 
   // Check if optimized content is available
   const hasOptimizedContent = blogPost.content && blogPost.content.trim().length > 0;
@@ -52,9 +51,7 @@ export function BlogPostClient({
 
   // Reset scroll position when switching tabs
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = 0;
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeTab]);
 
   // Original content view (with prompt suggestions)
@@ -93,7 +90,7 @@ export function BlogPostClient({
 
   // Optimized content view (without prompt suggestions)
   const optimizedContentView = (
-    <div ref={contentRef} className="w-full">
+    <div className="w-full">
       <OptimizedContentViewer content={blogPost.content || ""} />
     </div>
   );
