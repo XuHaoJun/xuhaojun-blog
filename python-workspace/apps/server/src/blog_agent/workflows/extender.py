@@ -8,6 +8,7 @@ from llama_index.core.workflow import Event, step
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 
+from blog_agent.config import config
 from blog_agent.services.embedding import generate_embedding
 from blog_agent.services.llm import get_llm
 from blog_agent.services.tavily_service import get_tavily_service
@@ -49,7 +50,8 @@ class ContentExtender:
         vector_store: Optional[VectorStore] = None,
     ):
         """Initialize content extender."""
-        self.llm = llm or get_llm()
+        # Use gap identification temperature (0.2) as default for gap identification tasks
+        self.llm = llm or get_llm(temperature=config.LLM_TEMPERATURE_GAP_IDENTIFICATION)
         self.tavily_service = tavily_service or get_tavily_service()
         self.vector_store = vector_store or VectorStore()
 
@@ -417,7 +419,9 @@ class ContentExtender:
 請輸出整合後的完整內容："""
 
         try:
-            response = await self.llm.acomplete(prompt)
+            # Use research integration temperature (0.4) for natural language flow
+            research_llm = get_llm(temperature=config.LLM_TEMPERATURE_RESEARCH_INTEGRATION)
+            response = await research_llm.acomplete(prompt)
             extended_content = response.text
             logger.info("Research integrated into content", original_length=len(content_extract.filtered_content), extended_length=len(extended_content))
             return extended_content.strip()

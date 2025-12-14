@@ -9,6 +9,7 @@ from llama_index.llms.openai import OpenAI
 
 from blog_agent.storage.models import PromptSuggestion
 
+from blog_agent.config import config
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import BlogPost, ContentBlock, ContentExtract, PromptSuggestion, ReviewFindings
 from blog_agent.utils.logging import get_logger
@@ -169,7 +170,9 @@ class BlogEditor:
 
 請直接輸出文章內容，不需包含開場白或額外說明。"""
 
-        response = await self.llm.acomplete(prompt)
+        # Use writing temperature (0.5) for blog content generation
+        writing_llm = get_llm(temperature=config.LLM_TEMPERATURE_WRITING)
+        response = await writing_llm.acomplete(prompt)
         blog_content = response.text.strip()
         
         # T080: Add prompt suggestions section to blog content (FR-014)
@@ -195,7 +198,9 @@ class BlogEditor:
 
 請只輸出標題本身，不要加引號。"""
 
-        response = await self.llm.acomplete(prompt)
+        # Use creative temperature (0.6) for title generation
+        creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
+        response = await creative_llm.acomplete(prompt)
         # Clean up title (remove quotes, extra spaces)
         title = response.text.strip().strip('"').strip("'").strip()
         return title[:200]  # Limit length
@@ -214,7 +219,9 @@ class BlogEditor:
 
 請只輸出摘要內容。"""
 
-        response = await self.llm.acomplete(prompt)
+        # Use creative temperature (0.6) for summary generation
+        creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
+        response = await creative_llm.acomplete(prompt)
         return response.text.strip()[:500]  # Limit length
 
     def _format_prompt_suggestions(self, prompt_suggestions: List[PromptSuggestion]) -> str:

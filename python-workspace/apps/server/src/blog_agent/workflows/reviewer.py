@@ -49,7 +49,7 @@ class ContentReviewer:
 
     def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None, tavily_service=None):
         """Initialize content reviewer."""
-        self.llm = llm or get_llm()
+        self.llm = llm or get_llm(temperature=config.LLM_TEMPERATURE_REVIEW)
         self.fact_check_method = config.FACT_CHECK_METHOD.upper()
         
         # Only initialize Tavily service if method is TAVILY

@@ -14,6 +14,7 @@ from llama_index.core.workflow import Event, step
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 
+from blog_agent.config import config
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import ContentExtract, Message
 from blog_agent.utils.logging import get_logger
@@ -55,7 +56,7 @@ class ContentExtractor:
 
     def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None):
         """Initialize content extractor."""
-        self.llm = llm or get_llm()
+        self.llm = llm or get_llm(temperature=config.LLM_TEMPERATURE_ANALYSIS)
 
     async def extract(self, ev: ExtractStartEvent) -> ExtractEvent:
         """Extract key insights and core concepts from conversation.

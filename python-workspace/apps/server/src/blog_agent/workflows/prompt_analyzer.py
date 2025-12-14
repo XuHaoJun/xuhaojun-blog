@@ -9,6 +9,7 @@ from llama_index.core.workflow import Event, step
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 
+from blog_agent.config import config
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import Message, PromptCandidate, PromptSuggestion
 from blog_agent.utils.logging import get_logger
@@ -37,7 +38,8 @@ class PromptAnalyzer:
 
     def __init__(self, llm: Optional[Union[Ollama, OpenAI]] = None):
         """Initialize prompt analyzer."""
-        self.llm = llm or get_llm()
+        # Use analysis temperature (0.1) as default for evaluation and reasoning tasks
+        self.llm = llm or get_llm(temperature=config.LLM_TEMPERATURE_ANALYSIS)
 
     async def _extract_user_prompts(self, messages: List[Message]) -> List[Tuple[str, int]]:
         """
@@ -310,7 +312,9 @@ class PromptAnalyzer:
 請只輸出 JSON，不要額外說明。"""
 
         try:
-            response = await self.llm.acomplete(safety_check_prompt)
+            # Use safety temperature (0.0) for deterministic safety checks
+            safety_llm = get_llm(temperature=config.LLM_TEMPERATURE_SAFETY)
+            response = await safety_llm.acomplete(safety_check_prompt)
             response_text = response.text.strip()
             
             # Try to extract JSON from response
@@ -411,9 +415,11 @@ class PromptAnalyzer:
             # Convert template string to PromptTemplate object
             prompt_tmpl = PromptTemplate(template_str)
             
+            # Use creative temperature (0.6) for generating diverse prompt candidates
+            creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
             # Try to use astructured_predict first
             try:
-                response = await self.llm.astructured_predict(
+                response = await creative_llm.astructured_predict(
                     PromptCandidatesResponse,
                     prompt_tmpl,
                     original_prompt=original_prompt,
@@ -472,7 +478,9 @@ class PromptAnalyzer:
 
 請只輸出 JSON，不要額外說明。注意：type 可以是任何描述性的策略名稱，不限定於上述範例。"""
             
-            response = await self.llm.acomplete(json_prompt)
+            # Use creative temperature (0.6) for generating diverse prompt candidates
+            creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
+            response = await creative_llm.acomplete(json_prompt)
             response_text = response.text.strip()
             
             # Try to extract JSON from response (may be wrapped in markdown code blocks)
@@ -540,9 +548,11 @@ class PromptAnalyzer:
             # Convert template string to PromptTemplate object
             prompt_tmpl = PromptTemplate(template_str)
             
+            # Use creative temperature (0.6) for generating diverse prompt candidates
+            creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
             # Try to use astructured_predict first
             try:
-                response = await self.llm.astructured_predict(
+                response = await creative_llm.astructured_predict(
                     PromptCandidatesResponse,
                     prompt_tmpl,
                     original_prompt=original_prompt,
@@ -591,7 +601,9 @@ class PromptAnalyzer:
 
 請只輸出 JSON，不要額外說明。"""
             
-            response = await self.llm.acomplete(json_prompt)
+            # Use creative temperature (0.6) for generating diverse prompt candidates
+            creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
+            response = await creative_llm.acomplete(json_prompt)
             response_text = response.text.strip()
             
             # Try to extract JSON from response (may be wrapped in markdown code blocks)
