@@ -45,9 +45,51 @@ export function BlogPostClient({
   }) as number | undefined;
 
   const [hoveredMessageIndex, setHoveredMessageIndex] = useState<number | undefined>();
+  // Track the last valid user message index to maintain sidebar content when hovering over AI messages
+  const [lastValidUserMessageIndex, setLastValidUserMessageIndex] = useState<number | undefined>();
 
-  // Determine which message to show in sidebar (hover takes priority)
-  const sidebarMessageIndex = hoveredMessageIndex !== undefined ? hoveredMessageIndex : activeMessageIndex;
+  // Determine which message to show in sidebar
+  // Priority: hovered user message > active message > last valid user message
+  const sidebarMessageIndex = (() => {
+    // If hovering over a user message, use it
+    if (hoveredMessageIndex !== undefined) {
+      const hoveredMessage = conversationMessages[hoveredMessageIndex];
+      if (hoveredMessage?.role === "user") {
+        return hoveredMessageIndex;
+      }
+    }
+    // Otherwise, use active message from intersection observer
+    if (activeMessageIndex !== undefined) {
+      return activeMessageIndex;
+    }
+    // Fallback to last valid user message to maintain content
+    return lastValidUserMessageIndex;
+  })();
+
+  // Update last valid user message index when active message changes
+  useEffect(() => {
+    if (activeMessageIndex !== undefined) {
+      const activeMessage = conversationMessages[activeMessageIndex];
+      if (activeMessage?.role === "user") {
+        setLastValidUserMessageIndex(activeMessageIndex);
+      }
+    }
+  }, [activeMessageIndex, conversationMessages]);
+
+  // Handle message hover - update hover state and last valid index for user messages
+  const handleMessageHover = (index: number) => {
+    const message = conversationMessages[index];
+    setHoveredMessageIndex(index);
+    // Update last valid user message index when hovering over user messages
+    if (message?.role === "user") {
+      setLastValidUserMessageIndex(index);
+    }
+  };
+
+  const handleMessageLeave = () => {
+    setHoveredMessageIndex(undefined);
+    // Keep lastValidUserMessageIndex unchanged to maintain sidebar content
+  };
 
   // Reset scroll position when switching tabs
   useEffect(() => {
@@ -61,8 +103,8 @@ export function BlogPostClient({
       <article className="flex-1 lg:w-[70%]">
         <ConversationViewer
           messages={conversationMessages}
-          onMessageHover={(index) => setHoveredMessageIndex(index)}
-          onMessageLeave={() => setHoveredMessageIndex(undefined)}
+          onMessageHover={handleMessageHover}
+          onMessageLeave={handleMessageLeave}
           activeMessageIndex={sidebarMessageIndex}
         />
 

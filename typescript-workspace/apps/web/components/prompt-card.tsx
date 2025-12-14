@@ -100,7 +100,7 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
               {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => copyToClipboard(candidates[activeTab].prompt)}
+                  onClick={() => copyToClipboard(candidates?.[activeTab]?.prompt ?? "")}
                   className="flex-1 px-3 py-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded transition-colors"
                 >
                   📋 複製此 Prompt
