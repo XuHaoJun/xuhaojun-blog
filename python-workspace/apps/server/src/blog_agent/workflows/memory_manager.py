@@ -28,10 +28,6 @@ def _get_summarizer_llm() -> Union[Ollama, OpenAI]:
     provider = config.MEMORY_SUMMARIZER_PROVIDER or config.LLM_PROVIDER
     
     if provider.lower() == "ollama":
-        if Ollama is None:
-            raise ImportError(
-                "Ollama LLM not available. Install with: pip install llama-index-llms-ollama"
-            )
         # Use the same model as main LLM for Ollama (no separate summarizer model)
         llm = Ollama(
             model=config.LLM_MODEL,
@@ -41,10 +37,6 @@ def _get_summarizer_llm() -> Union[Ollama, OpenAI]:
         )
         logger.debug("Initialized Ollama summarizer LLM", model=config.LLM_MODEL)
     elif provider.lower() == "openai":
-        if OpenAI is None:
-            raise ImportError(
-                "OpenAI LLM not available. Install with: pip install llama-index-llms-openai"
-            )
         if not config.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is required for OpenAI summarizer")
         # Use cheaper model for summarization
