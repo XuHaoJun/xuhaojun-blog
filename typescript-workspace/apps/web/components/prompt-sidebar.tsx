@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { create } from "@bufbuild/protobuf";
 import type { ConversationMessage, PromptSuggestion, PromptMeta } from "@blog-agent/proto-gen";
 import { PromptMetaSchema } from "@blog-agent/proto-gen";
@@ -19,6 +20,12 @@ export function PromptSidebar({
   activeMessageIndex,
   className,
 }: PromptSidebarProps) {
+  const sidebarRef = useRef<HTMLElement>(null);
+  const previousOriginalPromptRef = useRef<string | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [displayPromptMeta, setDisplayPromptMeta] = useState<PromptMeta | null>(null);
+  const [displayMessageNumber, setDisplayMessageNumber] = useState<number | undefined>();
+
   // Find the prompt suggestion for the active message
   const activeMessage = activeMessageIndex !== undefined 
     ? conversationMessages[activeMessageIndex] 
@@ -29,6 +36,60 @@ export function PromptSidebar({
         (ps) => ps.originalPrompt === activeMessage.content || ps.originalPrompt.trim() === activeMessage.content.trim()
       )
     : undefined;
+
+  // Calculate message number (1-based index)
+  const messageNumber = activeMessageIndex !== undefined 
+    ? activeMessageIndex + 1 
+    : undefined;
+
+  // Handle animation when activeMessageIndex changes
+  useEffect(() => {
+    if (activePromptSuggestion) {
+      const newPromptMeta: PromptMeta = create(PromptMetaSchema, {
+        originalPrompt: activePromptSuggestion.originalPrompt,
+        analysis: activePromptSuggestion.analysis,
+        betterCandidates: activePromptSuggestion.betterCandidates || [],
+        expectedEffect: activePromptSuggestion.expectedEffect || "",
+      });
+
+      // If content is changing, animate transition
+      const isContentChanging = previousOriginalPromptRef.current 
+        && previousOriginalPromptRef.current !== newPromptMeta.originalPrompt;
+
+      if (isContentChanging) {
+        // Start fade out animation
+        setIsAnimating(true);
+        
+        // After fade out, update content and fade in
+        const timer = setTimeout(() => {
+          setDisplayPromptMeta(newPromptMeta);
+          setDisplayMessageNumber(messageNumber);
+          setIsAnimating(false);
+          previousOriginalPromptRef.current = newPromptMeta.originalPrompt;
+        }, 250); // Half of animation duration
+
+        return () => clearTimeout(timer);
+      } else {
+        // First load or same content, no animation needed
+        setDisplayPromptMeta(newPromptMeta);
+        setDisplayMessageNumber(messageNumber);
+        setIsAnimating(false);
+        previousOriginalPromptRef.current = newPromptMeta.originalPrompt;
+      }
+    } else {
+      setDisplayPromptMeta(null);
+      setDisplayMessageNumber(undefined);
+      setIsAnimating(false);
+      previousOriginalPromptRef.current = null;
+    }
+  }, [activeMessageIndex, activePromptSuggestion, messageNumber]);
+
+  // Scroll sidebar to top when activeMessageIndex changes
+  useEffect(() => {
+    if (activeMessageIndex !== undefined && sidebarRef.current) {
+      sidebarRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [activeMessageIndex]);
 
   // If no active prompt suggestion, show a placeholder or nothing
   if (!activePromptSuggestion) {
@@ -48,19 +109,6 @@ export function PromptSidebar({
     );
   }
 
-  // Convert PromptSuggestion to PromptMeta format for PromptCard
-  const promptMeta: PromptMeta = create(PromptMetaSchema, {
-    originalPrompt: activePromptSuggestion.originalPrompt,
-    analysis: activePromptSuggestion.analysis,
-    betterCandidates: activePromptSuggestion.betterCandidates || [],
-    expectedEffect: activePromptSuggestion.expectedEffect || "",
-  });
-
-  // Calculate message number (1-based index)
-  const messageNumber = activeMessageIndex !== undefined 
-    ? activeMessageIndex + 1 
-    : undefined;
-
   // Scroll to message function
   const handleScrollToMessage = () => {
     if (activeMessageIndex !== undefined) {
@@ -74,24 +122,33 @@ export function PromptSidebar({
 
   return (
     <aside
+      ref={sidebarRef}
       className={cn(
         "hidden lg:block w-full lg:w-[30%] lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto",
-        "transition-opacity duration-300",
         "scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent",
         className
       )}
     >
-      <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300 pr-2">
+      <div className="space-y-5 pr-2">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 px-1">
           💡 Prompt 診斷室
         </h2>
-        <div className="transition-all duration-300">
-          <PromptCard 
-            promptMeta={promptMeta} 
-            messageNumber={messageNumber}
-            onScrollToMessage={handleScrollToMessage}
-          />
-        </div>
+        {displayPromptMeta && (
+          <div 
+            className={cn(
+              "transition-all duration-500 ease-in-out",
+              isAnimating 
+                ? "opacity-0 translate-x-4 scale-95" 
+                : "opacity-100 translate-x-0 scale-100"
+            )}
+          >
+            <PromptCard 
+              promptMeta={displayPromptMeta} 
+              messageNumber={displayMessageNumber}
+              onScrollToMessage={handleScrollToMessage}
+            />
+          </div>
+        )}
       </div>
     </aside>
   );
