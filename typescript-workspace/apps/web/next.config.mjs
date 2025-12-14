@@ -4,7 +4,7 @@ const nextConfig = {
   images: {
     unoptimized: true, // Required for static export
   },
-  transpilePackages: ["@blog-agent/proto-gen", "@blog-agent/rpc-client"],
+  transpilePackages: ["@blog-agent/proto-gen", "@blog-agent/rpc-client", "@blog-agent/ui"],
 };
 
 export default nextConfig;

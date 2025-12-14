@@ -1,25 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import type { ContentBlock, PromptMeta } from "@blog-agent/proto-gen";
+import { create } from "@bufbuild/protobuf";
+import type { ConversationMessage, PromptSuggestion, PromptMeta } from "@blog-agent/proto-gen";
+import { PromptMetaSchema } from "@blog-agent/proto-gen";
 import { PromptCard } from "./prompt-card";
 import { cn } from "@/lib/utils";
 
 interface PromptAccordionProps {
-  contentBlocks: ContentBlock[];
+  conversationMessages: ConversationMessage[];
+  promptSuggestions: PromptSuggestion[];
   className?: string;
 }
 
 interface AccordionItemProps {
-  block: ContentBlock;
+  messageIndex: number;
+  message: ConversationMessage;
+  promptSuggestion: PromptSuggestion;
   isOpen: boolean;
   onToggle: () => void;
 }
 
-function AccordionItem({ block, isOpen, onToggle }: AccordionItemProps) {
-  if (!block.promptMeta) {
-    return null;
-  }
+function AccordionItem({ messageIndex, message, promptSuggestion, isOpen, onToggle }: AccordionItemProps) {
+  const promptMeta: PromptMeta = create(PromptMetaSchema, {
+    originalPrompt: promptSuggestion.originalPrompt,
+    analysis: promptSuggestion.analysis,
+    betterCandidates: promptSuggestion.betterCandidates || [],
+    expectedEffect: promptSuggestion.expectedEffect || "",
+  });
 
   return (
     <div className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
@@ -27,14 +35,14 @@ function AccordionItem({ block, isOpen, onToggle }: AccordionItemProps) {
         onClick={onToggle}
         className="w-full px-4 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors touch-manipulation"
         aria-expanded={isOpen}
-        aria-controls={`accordion-content-${block.id}`}
+        aria-controls={`accordion-content-${messageIndex}`}
       >
         <div className="flex items-center gap-3 flex-1">
           <span className="text-2xl" role="img" aria-label="提示詞優化建議">
             💡
           </span>
           <span className="font-medium text-gray-900 dark:text-white">
-            查看此段落的 Prompt 技巧
+            查看此訊息的 Prompt 技巧
           </span>
         </div>
         <svg
@@ -56,7 +64,7 @@ function AccordionItem({ block, isOpen, onToggle }: AccordionItemProps) {
       </button>
 
       <div
-        id={`accordion-content-${block.id}`}
+        id={`accordion-content-${messageIndex}`}
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
           isOpen
@@ -70,7 +78,7 @@ function AccordionItem({ block, isOpen, onToggle }: AccordionItemProps) {
             isOpen ? "translate-y-0" : "-translate-y-2"
           )}
         >
-          <PromptCard promptMeta={block.promptMeta} />
+          <PromptCard promptMeta={promptMeta} />
         </div>
       </div>
     </div>
@@ -78,28 +86,38 @@ function AccordionItem({ block, isOpen, onToggle }: AccordionItemProps) {
 }
 
 export function PromptAccordion({
-  contentBlocks,
+  conversationMessages,
+  promptSuggestions,
   className,
 }: PromptAccordionProps) {
-  const [openBlocks, setOpenBlocks] = useState<Set<string>>(new Set());
+  const [openIndices, setOpenIndices] = useState<Set<number>>(new Set());
 
-  const toggleBlock = (blockId: string) => {
-    setOpenBlocks((prev) => {
+  const toggleIndex = (index: number) => {
+    setOpenIndices((prev) => {
       const next = new Set(prev);
-      if (next.has(blockId)) {
-        next.delete(blockId);
+      if (next.has(index)) {
+        next.delete(index);
       } else {
-        next.add(blockId);
+        next.add(index);
       }
       return next;
     });
   };
 
-  const blocksWithPrompts = contentBlocks.filter(
-    (block) => block.promptMeta
-  );
+  // Find user messages with associated prompt suggestions
+  const messagesWithPrompts = conversationMessages
+    .map((msg, index) => {
+      if (msg.role === "user") {
+        const matchingPrompt = promptSuggestions.find(
+          (ps) => ps.originalPrompt === msg.content || ps.originalPrompt.trim() === msg.content.trim()
+        );
+        return matchingPrompt ? { index, message: msg, promptSuggestion: matchingPrompt } : null;
+      }
+      return null;
+    })
+    .filter((item): item is { index: number; message: ConversationMessage; promptSuggestion: PromptSuggestion } => item !== null);
 
-  if (blocksWithPrompts.length === 0) {
+  if (messagesWithPrompts.length === 0) {
     return null;
   }
 
@@ -111,16 +129,18 @@ export function PromptAccordion({
             💡 Prompt 診斷室
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            點擊展開查看各段落的 Prompt 優化建議
+            點擊展開查看各訊息的 Prompt 優化建議
           </p>
         </div>
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {blocksWithPrompts.map((block) => (
+          {messagesWithPrompts.map(({ index, message, promptSuggestion }) => (
             <AccordionItem
-              key={block.id}
-              block={block}
-              isOpen={openBlocks.has(block.id)}
-              onToggle={() => toggleBlock(block.id)}
+              key={index}
+              messageIndex={index}
+              message={message}
+              promptSuggestion={promptSuggestion}
+              isOpen={openIndices.has(index)}
+              onToggle={() => toggleIndex(index)}
             />
           ))}
         </div>

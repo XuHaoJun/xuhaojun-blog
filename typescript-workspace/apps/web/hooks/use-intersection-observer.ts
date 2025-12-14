@@ -11,15 +11,16 @@ interface UseIntersectionObserverOptions {
 
 /**
  * Custom hook for observing element intersection with viewport
- * Returns the ID of the currently visible element
+ * Returns the ID/index of the currently visible element
+ * Supports both string IDs (for blocks) and number indices (for messages)
  */
 export function useIntersectionObserver(
-  elementIds: string[],
+  elementIds: (string | number)[],
   options: UseIntersectionObserverOptions = {}
-) {
-  const [activeId, setActiveId] = useState<string | undefined>();
+): number | string | undefined {
+  const [activeId, setActiveId] = useState<string | number | undefined>();
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const elementRefs = useRef<Map<string, Element>>(new Map());
+  const elementRefs = useRef<Map<string | number, Element>>(new Map());
 
   const {
     root = null,
@@ -40,21 +41,36 @@ export function useIntersectionObserver(
 
     // Create new observer
     observerRef.current = new IntersectionObserver(
-      (entries) => {
+      (entries: IntersectionObserverEntry[]) => {
         // Find the entry with the highest intersection ratio
         let maxRatio = 0;
         let maxEntry: IntersectionObserverEntry | null = null;
 
-        entries.forEach((entry) => {
+        for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
             maxRatio = entry.intersectionRatio;
             maxEntry = entry;
           }
-        });
+        }
 
-        if (maxEntry) {
-          const id = maxEntry.target.id.replace("block-", "");
-          setActiveId(id);
+        const selectedEntry: IntersectionObserverEntry | null = maxEntry;
+        if (selectedEntry) {
+          const entryTarget = selectedEntry.target;
+          if (entryTarget instanceof HTMLElement) {
+            const targetId = entryTarget.id || "";
+            if (targetId) {
+              // Check if it's a message (message-{index}) or block (block-{id})
+              if (targetId.startsWith("message-")) {
+                const index = parseInt(targetId.replace("message-", ""), 10);
+                if (!isNaN(index)) {
+                  setActiveId(index);
+                }
+              } else if (targetId.startsWith("block-")) {
+                const id = targetId.replace("block-", "");
+                setActiveId(id);
+              }
+            }
+          }
         }
       },
       {
@@ -66,7 +82,9 @@ export function useIntersectionObserver(
 
     // Observe all elements
     elementIds.forEach((id) => {
-      const element = document.getElementById(`block-${id}`);
+      // Support both message-{index} and block-{id} formats
+      const elementId = typeof id === "number" ? `message-${id}` : `block-${id}`;
+      const element = document.getElementById(elementId);
       if (element) {
         elementRefs.current.set(id, element);
         observerRef.current?.observe(element);
@@ -83,4 +101,3 @@ export function useIntersectionObserver(
 
   return activeId;
 }
-

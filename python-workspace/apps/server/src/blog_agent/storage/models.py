@@ -15,6 +15,14 @@ class Message(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+class ConversationMessage(BaseModel):
+    """表示對話中的單一訊息（用於 API 回應）"""
+
+    role: Literal["user", "system", "assistant"]
+    content: str  # 訊息內容（可能包含 Markdown）
+    timestamp: Optional[datetime] = None  # 可選的時間戳記
+
+
 class ConversationLog(BaseModel):
     """Represents an input conversation log."""
 
@@ -85,7 +93,7 @@ class ReviewFindings(BaseModel):
 class PromptCandidate(BaseModel):
     """Represents a structured prompt candidate with type and reasoning."""
 
-    type: Literal["structured", "role-play", "chain-of-thought"]
+    type: str  # Dynamic strategy type (e.g., 'few-shot', 'chain-of-thought', 'expert-persona', 'minimalist', etc.)
     prompt: str
     reasoning: str
 
@@ -97,7 +105,7 @@ class PromptSuggestion(BaseModel):
     conversation_log_id: UUID
     original_prompt: str
     analysis: str
-    better_candidates: List[PromptCandidate] = Field(..., min_length=3)  # At least 3 structured candidates (FR-012)
+    better_candidates: List[PromptCandidate] = Field(...)  # Structured candidates (at least 3 for normal optimization, 1 for safety guidance)
     reasoning: str  # Overall reasoning (kept for backward compatibility)
     expected_effect: Optional[str] = None  # Expected effect description (UI/UX support)
     created_at: Optional[datetime] = None

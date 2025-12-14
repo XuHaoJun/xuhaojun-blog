@@ -204,11 +204,16 @@ class BlogService:
             # Extract metadata from conversation log (FR-015: preserve timestamps, participants)
             conversation_log_metadata = self._extract_conversation_metadata(conversation_log)
             
+            # Create memory manager from messages (shared across workflow steps)
+            from blog_agent.workflows.memory_manager import ConversationMemoryManager
+            memory = ConversationMemoryManager.from_messages(messages)
+            
             # T079: Run prompt analysis in parallel with extraction
             extract_start = ExtractStartEvent(
                 messages=messages,
                 conversation_log_id=str(conversation_log_id),
                 conversation_log_metadata=conversation_log_metadata,
+                memory=memory,
             )
             
             # Run extraction and prompt analysis in parallel
@@ -221,15 +226,30 @@ class BlogService:
                 prompt_analyzer.analyze(extract_start),
             )
             
-            # Save prompt suggestion to database
-            prompt_suggestion = prompt_analysis_event.prompt_suggestion
-            if prompt_suggestion:
-                prompt_suggestion.conversation_log_id = conversation_log_id
-                prompt_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
+            # Save all prompt suggestions to database
+            prompt_suggestions = prompt_analysis_event.prompt_suggestions
+            saved_prompt_suggestions = []  # Collect saved suggestions with database-assigned IDs
+            if prompt_suggestions:
+                for prompt_suggestion in prompt_suggestions:
+                    try:
+                        prompt_suggestion.conversation_log_id = conversation_log_id
+                        saved_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
+                        saved_prompt_suggestions.append(saved_suggestion)  # Use saved object with ID
+                    except Exception as e:
+                        logger.error(
+                            "Failed to save prompt suggestion",
+                            error=str(e),
+                            original_prompt=prompt_suggestion.original_prompt[:50],
+                            conversation_log_id=str(conversation_log_id),
+                            exc_info=True,
+                        )
+                        continue
+                
                 logger.info(
-                    "Prompt suggestion saved",
+                    "Prompt suggestions saved",
                     conversation_log_id=str(conversation_log_id),
-                    suggestion_id=str(prompt_suggestion.id),
+                    total_suggestions=len(prompt_suggestions),
+                    saved_count=len(saved_prompt_suggestions),
                 )
 
             # Continue with full workflow: extender → reviewer → editor
@@ -248,10 +268,11 @@ class BlogService:
                 content_extract=extend_event.content_extract,
                 conversation_log_id=extend_event.conversation_log_id,
                 conversation_log_metadata=extend_event.conversation_log_metadata,
+                memory=extend_event.memory,  # Pass memory through
             )
             review_event = await reviewer.review(review_extract_event)
-            # Add prompt suggestion to review event
-            review_event.prompt_suggestion = prompt_suggestion
+            # Add all saved prompt suggestions (with database-assigned IDs) to review event
+            review_event.prompt_suggestions = saved_prompt_suggestions
             
             # Edit
             edit_event = await editor.edit(review_event)
@@ -262,16 +283,12 @@ class BlogService:
             blog_post = await self.blog_repo.create(blog_post)
             blog_post_id = blog_post.id
 
-            # T081c: Save content blocks to database
-            if edit_event.content_blocks and blog_post_id:
-                for block in edit_event.content_blocks:
-                    block.blog_post_id = blog_post_id  # Set the actual blog_post_id
-                    await self.content_block_repo.create(block)
-                logger.info(
-                    "Content blocks saved",
-                    blog_post_id=str(blog_post_id),
-                    blocks_count=len(edit_event.content_blocks),
-                )
+            # Content blocks are no longer saved - system now displays original conversation content
+            # edit_event.content_blocks is always empty for backward compatibility
+            logger.info(
+                "Blog post created without content blocks",
+                blog_post_id=str(blog_post_id),
+            )
 
             # Update processing history
             processing.blog_post_id = blog_post_id

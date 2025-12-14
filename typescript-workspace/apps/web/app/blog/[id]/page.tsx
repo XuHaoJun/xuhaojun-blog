@@ -52,18 +52,22 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     notFound();
   }
 
-  const { blogPost, contentBlocks } = data;
+  const { blogPost, conversationMessages, promptSuggestions } = data;
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
         {/* Header - Full Width */}
         <header className="mb-8 max-w-4xl mx-auto">
           <BlogMetadata blogPost={blogPost} />
         </header>
 
         {/* Main Content - 70/30 Layout on Desktop */}
-        <BlogPostClient blogPost={blogPost} contentBlocks={contentBlocks || []} />
+        <BlogPostClient
+          blogPost={blogPost}
+          conversationMessages={conversationMessages || []}
+          promptSuggestions={promptSuggestions || []}
+        />
       </div>
     </div>
   );

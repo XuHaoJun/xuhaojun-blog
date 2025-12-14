@@ -8,7 +8,7 @@ async function getBlogPosts() {
 
   try {
     const response = await client.listBlogPosts({
-      pageSize: 100,
+      pageSize: 10000,
       pageToken: "",
       statusFilter: 0, // UNSPECIFIED
     });

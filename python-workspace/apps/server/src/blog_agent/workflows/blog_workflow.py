@@ -11,6 +11,7 @@ from blog_agent.workflows.extractor import ContentExtractor, ExtractEvent, Extra
 from blog_agent.workflows.extender import ContentExtender, ExtendEvent
 from blog_agent.workflows.prompt_analyzer import PromptAnalyzer, PromptAnalysisEvent
 from blog_agent.workflows.reviewer import ContentReviewer, ReviewEvent
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
 from blog_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -47,10 +48,13 @@ class BlogWorkflow(Workflow):
     async def extract_step(self, ev: BlogWorkflowStartEvent) -> ExtractEvent:
         """Content extraction step."""
         logger.info("Starting content extraction", conversation_log_id=ev.conversation_log_id)
+        # Create memory manager from messages
+        memory = ConversationMemoryManager.from_messages(ev.messages)
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,
             conversation_log_metadata=ev.conversation_log_metadata,
+            memory=memory,
         )
         return await self.extractor.extract(extract_start)
 
@@ -63,10 +67,13 @@ class BlogWorkflow(Workflow):
         It runs in parallel with the main content processing pipeline.
         """
         logger.info("Starting prompt analysis", conversation_log_id=ev.conversation_log_id)
+        # Create memory manager from messages (shared with extract_step)
+        memory = ConversationMemoryManager.from_messages(ev.messages)
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,
             conversation_log_metadata=ev.conversation_log_metadata,
+            memory=memory,
         )
         return await self.prompt_analyzer.analyze(extract_start)
 
@@ -88,6 +95,7 @@ class BlogWorkflow(Workflow):
             content_extract=ev.content_extract,
             conversation_log_id=ev.conversation_log_id,
             conversation_log_metadata=ev.conversation_log_metadata,
+            memory=ev.memory,  # Pass memory through
         )
         return await self.reviewer.review(extract_ev)
 

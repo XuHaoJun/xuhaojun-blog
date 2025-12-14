@@ -1,0 +1,13 @@
+{
+  "extends": "@blog-agent/typescript-config/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@blog-agent/ui/*": ["./src/*"]
+    },
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["."],
+  "exclude": ["node_modules", "dist"]
+}

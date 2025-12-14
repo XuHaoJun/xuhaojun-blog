@@ -14,6 +14,7 @@ from blog_agent.storage.models import (
     ContentBlock,
     ContentExtract,
     ConversationLog,
+    ConversationMessage,
     ProcessingHistory,
     PromptCandidate,
     PromptSuggestion,
@@ -243,6 +244,54 @@ class ConversationLogRepository(BaseRepository[ConversationLog]):
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
             )
+
+    def extract_conversation_messages(self, conversation_log: ConversationLog) -> List[ConversationMessage]:
+        """
+        從 conversation_log 的 parsed_content 中提取對話訊息。
+
+        Args:
+            conversation_log: ConversationLog 物件
+
+        Returns:
+            ConversationMessage 列表
+        """
+        messages = []
+        parsed_content = conversation_log.parsed_content
+
+        # parsed_content 應該包含 messages 陣列
+        if isinstance(parsed_content, dict) and "messages" in parsed_content:
+            messages_list = parsed_content["messages"]
+            if not isinstance(messages_list, list):
+                return messages
+
+            for msg_data in messages_list:
+                try:
+                    # Validate that msg_data is a dictionary
+                    if not isinstance(msg_data, dict):
+                        continue
+
+                    # 處理時間戳記
+                    timestamp = None
+                    if "timestamp" in msg_data and msg_data["timestamp"]:
+                        if isinstance(msg_data["timestamp"], str):
+                            try:
+                                timestamp = datetime.fromisoformat(msg_data["timestamp"].replace("Z", "+00:00"))
+                            except (ValueError, AttributeError):
+                                timestamp = None
+                        elif isinstance(msg_data["timestamp"], datetime):
+                            timestamp = msg_data["timestamp"]
+
+                    message = ConversationMessage(
+                        role=msg_data.get("role", "user"),
+                        content=msg_data.get("content", ""),
+                        timestamp=timestamp,
+                    )
+                    messages.append(message)
+                except Exception:
+                    # Skip malformed messages but continue processing others
+                    continue
+
+        return messages
 
 
 class BlogPostRepository(BaseRepository[BlogPost]):
@@ -754,6 +803,48 @@ class PromptSuggestionRepository(BaseRepository[PromptSuggestion]):
                 expected_effect=row.get("expected_effect"),
                 created_at=row["created_at"],
             )
+
+    async def get_all_by_conversation_log_id(
+        self, conversation_log_id: UUID
+    ) -> List[PromptSuggestion]:
+        """Get all prompt suggestions by conversation log ID."""
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, conversation_log_id, original_prompt, analysis,
+                       better_candidates, reasoning, expected_effect, created_at
+                FROM prompt_suggestions
+                WHERE conversation_log_id = $1
+                ORDER BY created_at DESC
+                """,
+                conversation_log_id,
+            )
+
+            result = []
+            for row in rows:
+                # Convert JSONB to PromptCandidate list
+                candidates_data = (
+                    json.loads(row["better_candidates"])
+                    if isinstance(row["better_candidates"], str)
+                    else row["better_candidates"]
+                )
+                candidates = [
+                    PromptCandidate(**candidate) for candidate in candidates_data
+                ]
+
+                result.append(
+                    PromptSuggestion(
+                        id=row["id"],
+                        conversation_log_id=row["conversation_log_id"],
+                        original_prompt=row["original_prompt"],
+                        analysis=row["analysis"],
+                        better_candidates=candidates,
+                        reasoning=row["reasoning"],
+                        expected_effect=row.get("expected_effect"),
+                        created_at=row["created_at"],
+                    )
+                )
+            return result
 
 
 class ContentBlockRepository(BaseRepository[ContentBlock]):

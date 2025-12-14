@@ -10,9 +10,16 @@ import { MyReactMarkdown } from "./my-react-markdown";
 interface PromptCardProps {
   promptMeta: PromptMeta;
   className?: string;
+  messageNumber?: number;
+  onScrollToMessage?: () => void;
 }
 
-export function PromptCard({ promptMeta, className }: PromptCardProps) {
+export function PromptCard({ 
+  promptMeta, 
+  className, 
+  messageNumber,
+  onScrollToMessage 
+}: PromptCardProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [isSimulationOpen, setIsSimulationOpen] = useState(false);
   const candidates = promptMeta.betterCandidates || [];
@@ -34,14 +41,23 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
       )}
     >
       {/* 1. 🔴 原始提問 (The User's Attempt) */}
-      <div className="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-red-600 dark:text-red-400 font-semibold">🔴 原始提問</span>
-          <span className="text-xs text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded">
-            Original Prompt
-          </span>
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+        <div className="text-sm font-semibold mb-2 flex items-center gap-2">
+          <span>👤</span>
+          <span className="text-blue-700 dark:text-blue-300">使用者</span>
+          {messageNumber !== undefined && (
+            <button
+              onClick={onScrollToMessage}
+              className="ml-auto text-xs text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors cursor-pointer font-normal"
+              title="跳至對應訊息"
+            >
+              #{messageNumber}
+            </button>
+          )}
         </div>
-        <MyReactMarkdown content={promptMeta.originalPrompt} />
+        <div className="prose prose-sm dark:prose-invert max-w-none font-serif">
+          <MyReactMarkdown content={promptMeta.originalPrompt} />
+        </div>
       </div>
 
       {/* 2. 🧐 AI 診斷 (The Critique) */}
@@ -50,7 +66,9 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
           <div className="flex items-center gap-2 mb-2">
             <span className="text-yellow-700 dark:text-yellow-400 font-semibold">🧐 AI 診斷</span>
           </div>
-          <MyReactMarkdown content={promptMeta.analysis} />
+          <div className="prose prose-sm dark:prose-invert max-w-none font-serif">
+            <MyReactMarkdown content={promptMeta.analysis} />
+          </div>
         </div>
       )}
 
@@ -85,10 +103,7 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
           {candidates[activeTab] && (
             <div className="space-y-3">
               <div className="bg-white dark:bg-gray-900 rounded p-3 border border-green-200 dark:border-green-800">
-                <DiffHighlighter
-                  original={promptMeta.originalPrompt}
-                  optimized={candidates[activeTab].prompt}
-                />
+                {candidates[activeTab].prompt}
               </div>
 
               {candidates[activeTab].reasoning && (
@@ -100,7 +115,7 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
               {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => copyToClipboard(candidates[activeTab].prompt)}
+                  onClick={() => copyToClipboard(candidates?.[activeTab]?.prompt ?? "")}
                   className="flex-1 px-3 py-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded transition-colors"
                 >
                   📋 複製此 Prompt
@@ -134,9 +149,9 @@ export function PromptCard({ promptMeta, className }: PromptCardProps) {
               🚀 預期效果
             </span>
           </div>
-          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-            {promptMeta.expectedEffect}
-          </p>
+          <div className="prose prose-sm dark:prose-invert max-w-none font-serif">
+            <MyReactMarkdown content={promptMeta.expectedEffect} />
+          </div>
         </div>
       )}
     </div>
@@ -148,6 +163,9 @@ function getCandidateTypeLabel(type: string): string {
     structured: "結構化版",
     "role-play": "角色扮演版",
     "chain-of-thought": "思維鏈版",
+    "step-by-step": "結構化",
+    "expert-persona": "角色化",
+    minimalist: "簡潔化",
   };
   return labels[type] || type;
 }

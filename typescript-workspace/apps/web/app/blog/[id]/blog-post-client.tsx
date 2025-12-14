@@ -1,66 +1,163 @@
 "use client";
 
-import { useState } from "react";
-import type { BlogPost, ContentBlock } from "@blog-agent/proto-gen";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { useState, useEffect } from "react";
+import type { BlogPost, ConversationMessage, PromptSuggestion } from "@blog-agent/proto-gen";
+import { ConversationViewer } from "@/components/conversation-viewer";
 import { PromptSidebar } from "@/components/prompt-sidebar";
 import { PromptAccordion } from "@/components/prompt-accordion";
+import { OptimizedContentViewer } from "@/components/optimized-content-viewer";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@blog-agent/ui/components/tabs";
 
 interface BlogPostClientProps {
   blogPost: BlogPost;
-  contentBlocks: ContentBlock[];
+  conversationMessages: ConversationMessage[];
+  promptSuggestions: PromptSuggestion[];
 }
 
 export function BlogPostClient({
   blogPost,
-  contentBlocks,
+  conversationMessages,
+  promptSuggestions,
 }: BlogPostClientProps) {
-  // Extract block IDs that have prompt metadata
-  const blockIds = contentBlocks
-    .filter((block) => block.promptMeta)
-    .map((block) => block.id);
+  const [activeTab, setActiveTab] = useState<"original" | "optimized">("original");
 
-  // Use Intersection Observer to track active block (desktop only)
-  const activeBlockId = useIntersectionObserver(blockIds, {
-    enabled: blockIds.length > 0,
-  });
+  // Check if optimized content is available
+  const hasOptimizedContent = blogPost.content && blogPost.content.trim().length > 0;
 
-  const [hoveredBlockId, setHoveredBlockId] = useState<string | undefined>();
+  // Find message indices that have associated prompt suggestions
+  // Match by comparing original_prompt with user message content
+  const messageIndicesWithPrompts = conversationMessages
+    .map((msg, index) => {
+      if (msg.role === "user") {
+        const hasMatchingPrompt = promptSuggestions.some(
+          (ps) => ps.originalPrompt === msg.content || ps.originalPrompt.trim() === msg.content.trim()
+        );
+        return hasMatchingPrompt ? index : null;
+      }
+      return null;
+    })
+    .filter((idx): idx is number => idx !== null);
 
-  // Determine which block to show in sidebar (hover takes priority)
-  const sidebarBlockId = hoveredBlockId || activeBlockId;
+  // Use Intersection Observer to track active message (desktop only, only for original tab)
+  const activeMessageIndex = useIntersectionObserver(messageIndicesWithPrompts, {
+    enabled: messageIndicesWithPrompts.length > 0 && activeTab === "original",
+  }) as number | undefined;
 
-  return (
+  const [hoveredMessageIndex, setHoveredMessageIndex] = useState<number | undefined>();
+  // Track the last valid user message index to maintain sidebar content when hovering over AI messages
+  const [lastValidUserMessageIndex, setLastValidUserMessageIndex] = useState<number | undefined>();
+
+  // Determine which message to show in sidebar
+  // Priority: hovered user message > active message > last valid user message
+  const sidebarMessageIndex = (() => {
+    // If hovering over a user message, use it
+    if (hoveredMessageIndex !== undefined) {
+      const hoveredMessage = conversationMessages[hoveredMessageIndex];
+      if (hoveredMessage?.role === "user") {
+        return hoveredMessageIndex;
+      }
+    }
+    // Otherwise, use active message from intersection observer
+    if (activeMessageIndex !== undefined) {
+      return activeMessageIndex;
+    }
+    // Fallback to last valid user message to maintain content
+    return lastValidUserMessageIndex;
+  })();
+
+  // Update last valid user message index when active message changes
+  useEffect(() => {
+    if (activeMessageIndex !== undefined) {
+      const activeMessage = conversationMessages[activeMessageIndex];
+      if (activeMessage?.role === "user") {
+        setLastValidUserMessageIndex(activeMessageIndex);
+      }
+    }
+  }, [activeMessageIndex, conversationMessages]);
+
+  // Handle message hover - update hover state and last valid index for user messages
+  const handleMessageHover = (index: number) => {
+    const message = conversationMessages[index];
+    setHoveredMessageIndex(index);
+    // Update last valid user message index when hovering over user messages
+    if (message?.role === "user") {
+      setLastValidUserMessageIndex(index);
+    }
+  };
+
+  const handleMessageLeave = () => {
+    setHoveredMessageIndex(undefined);
+    // Keep lastValidUserMessageIndex unchanged to maintain sidebar content
+  };
+
+  // Reset scroll position when switching tabs
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
+
+  // Original content view (with prompt suggestions)
+  const originalContentView = (
     <div className="flex flex-col lg:flex-row gap-8">
-      {/* Left Column - Article Content (70% on desktop, 100% on mobile) */}
+      {/* Left Column - Original Conversation (70% on desktop, 100% on mobile) */}
       <article className="flex-1 lg:w-[70%]">
-        <div className="prose prose-lg dark:prose-invert max-w-none">
-          <MarkdownRenderer
-            content={blogPost.content || ""}
-            contentBlocks={contentBlocks}
-            activeBlockId={sidebarBlockId}
-            onBlockHover={(blockId) => setHoveredBlockId(blockId)}
-            onBlockLeave={() => setHoveredBlockId(undefined)}
-          />
-        </div>
+        <ConversationViewer
+          messages={conversationMessages}
+          onMessageHover={handleMessageHover}
+          onMessageLeave={handleMessageLeave}
+          activeMessageIndex={sidebarMessageIndex}
+        />
 
         {/* Mobile Accordion - Shows below content on mobile */}
-        {blockIds.length > 0 && (
+        {promptSuggestions.length > 0 && (
           <div className="mt-8 lg:hidden">
-            <PromptAccordion contentBlocks={contentBlocks} />
+            <PromptAccordion
+              conversationMessages={conversationMessages}
+              promptSuggestions={promptSuggestions}
+            />
           </div>
         )}
       </article>
 
       {/* Right Column - Prompt Sidebar (30% on desktop, hidden on mobile) */}
-      {blockIds.length > 0 && (
+      {promptSuggestions.length > 0 && (
         <PromptSidebar
-          contentBlocks={contentBlocks}
-          activeBlockId={sidebarBlockId}
+          conversationMessages={conversationMessages}
+          promptSuggestions={promptSuggestions}
+          activeMessageIndex={sidebarMessageIndex}
         />
       )}
     </div>
+  );
+
+  // Optimized content view (without prompt suggestions)
+  const optimizedContentView = (
+    <div className="w-full">
+      <OptimizedContentViewer content={blogPost.content || ""} />
+    </div>
+  );
+
+  return (
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value as "original" | "optimized")}
+      className="w-full"
+    >
+      <TabsList className="mb-6">
+        <TabsTrigger value="original">原版</TabsTrigger>
+        {hasOptimizedContent && <TabsTrigger value="optimized">優化版</TabsTrigger>}
+      </TabsList>
+
+      <TabsContent value="original" className="mt-0">
+        {originalContentView}
+      </TabsContent>
+
+      {hasOptimizedContent && (
+        <TabsContent value="optimized" className="mt-0">
+          {optimizedContentView}
+        </TabsContent>
+      )}
+    </Tabs>
   );
 }
 
