@@ -21,6 +21,17 @@ services:
       timeout: 5s
       retries: 5
 
+  phoenix:
+    image: arizephoenix/phoenix:12.25.0
+    container_name: blog-agent-phoenix
+    ports:
+      - "6006:6006"   # Phoenix UI
+      - "4317:4317"   # OTLP gRPC collector
+    environment:
+      - PHOENIX_WORKING_DIR=/data
+    volumes:
+      - phoenix_data:/data  # SQLite stored at /data/phoenix.db
+
   server:
     build:
       context: .
@@ -29,9 +40,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      phoenix:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://postgres:test@db:5432/blog_agent
       GRPC_PORT: 50051
+      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:4317
     ports:
       - "50051:50051"
     volumes:
@@ -40,4 +54,5 @@ services:
 
 volumes:
   postgres_data:
+  phoenix_data:
 

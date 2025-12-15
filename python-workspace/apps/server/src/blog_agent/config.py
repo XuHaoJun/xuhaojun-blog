@@ -67,6 +67,11 @@ class Config:
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # Phoenix Observability
+    PHOENIX_ENABLED: bool = os.getenv("PHOENIX_ENABLED", "true").lower() == "true"
+    PHOENIX_PROJECT_NAME: str = os.getenv("PHOENIX_PROJECT_NAME", "blog_agent")
+    PHOENIX_COLLECTOR_ENDPOINT: Optional[str] = os.getenv("PHOENIX_COLLECTOR_ENDPOINT")  # Optional, defaults to localhost
+
     @classmethod
     def validate(cls) -> None:
         """Validate required configuration."""

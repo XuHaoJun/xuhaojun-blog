@@ -17,6 +17,7 @@ except ImportError:
     grpc = None  # Will be available when grpcio is installed
 
 from blog_agent.config import config
+from blog_agent.observability import init_observability
 from blog_agent.services.blog_service import BlogService
 from blog_agent.services.llm import get_llm
 from blog_agent.storage.models import ConversationMessage
@@ -605,6 +606,9 @@ async def serve():
     """Start gRPC server."""
     import grpc
     from grpc import aio
+
+    # Initialize observability first
+    init_observability()
 
     # Check LLM structured_predict support
     try:
