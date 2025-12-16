@@ -79,28 +79,28 @@ class ContentExtractor:
             filtered_messages = self._filter_noise(messages)
 
             # Check if content is substantive using LLM semantic judgment (Soul Overview aligned)
-            has_substantive = await self._has_substantive_content(filtered_messages)
+            # has_substantive = await self._has_substantive_content(filtered_messages)
             
-            if not has_substantive:
-                logger.warning("Conversation has minimal substantive content")
-                # Still generate but mark as low-quality
-                # Get or create memory manager for error case too
-                memory = ev.memory
-                if memory is None:
-                    memory = ConversationMemoryManager.from_messages(messages)
+            # if not has_substantive:
+            #     logger.warning("Conversation has minimal substantive content")
+            #     # Still generate but mark as low-quality
+            #     # Get or create memory manager for error case too
+            #     memory = ev.memory
+            #     if memory is None:
+            #         memory = ConversationMemoryManager.from_messages(messages)
                 
-                return ExtractEvent(
-                    content_extract=ContentExtract(
-                        conversation_log_id=conversation_log_id,
-                        key_insights=[],
-                        core_concepts=[],
-                        filtered_content="",
-                    ),
-                    conversation_log_id=conversation_log_id,
-                    conversation_log_metadata=ev.conversation_log_metadata or {},
-                    quality_warning="Low quality: minimal substantive content",
-                    memory=memory,
-                )
+            #     return ExtractEvent(
+            #         content_extract=ContentExtract(
+            #             conversation_log_id=conversation_log_id,
+            #             key_insights=[],
+            #             core_concepts=[],
+            #             filtered_content="",
+            #         ),
+            #         conversation_log_id=conversation_log_id,
+            #         conversation_log_metadata=ev.conversation_log_metadata or {},
+            #         quality_warning="Low quality: minimal substantive content",
+            #         memory=memory,
+            #     )
 
             # Use structured extraction to get insights, concepts, and user intent in one call
             # Create memory manager for filtered messages to get summarized context

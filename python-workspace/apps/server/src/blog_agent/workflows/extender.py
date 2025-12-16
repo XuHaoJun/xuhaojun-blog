@@ -323,17 +323,18 @@ class ContentExtender:
         """
         try:
             # Generate embedding for the query
-            query_embedding = await generate_embedding(query)
-            logger.debug("Generated embedding for KB query", query=query, embedding_dim=len(query_embedding))
+            # query_embedding = await generate_embedding(query)
+            # logger.debug("Generated embedding for KB query", query=query, embedding_dim=len(query_embedding))
             
-            # Query knowledge base with the embedding
-            results = await self.vector_store.query_knowledge_base(
-                query=query,
-                query_embedding=query_embedding,
-            )
+            # # Query knowledge base with the embedding
+            # results = await self.vector_store.query_knowledge_base(
+            #     query=query,
+            #     query_embedding=query_embedding,
+            # )
             
-            logger.info("Knowledge base query completed", query=query, results_count=len(results))
-            return results
+            # logger.info("Knowledge base query completed", query=query, results_count=len(results))
+            # return results
+            return []
 
         except Exception as e:
             logger.warning("Knowledge base query failed", query=query, error=str(e))

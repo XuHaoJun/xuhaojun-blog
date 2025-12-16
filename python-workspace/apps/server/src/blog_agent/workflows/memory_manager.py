@@ -30,12 +30,13 @@ def _get_summarizer_llm() -> Union[Ollama, OpenAI]:
     if provider.lower() == "ollama":
         # Use the same model as main LLM for Ollama (no separate summarizer model)
         llm = Ollama(
-            model=config.LLM_MODEL,
-            temperature=0.3,  # Lower temperature for summarization
+            model=config.MEMORY_SUMMARIZER_MODEL,
+            temperature=0.1,  # Lower temperature for summarization
             base_url=config.OLLAMA_BASE_URL,
             request_timeout=120.0,
+            context_window=81920,
         )
-        logger.debug("Initialized Ollama summarizer LLM", model=config.LLM_MODEL)
+        logger.debug("Initialized Ollama summarizer LLM", model=config.MEMORY_SUMMARIZER_MODEL)
     elif provider.lower() == "openai":
         if not config.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is required for OpenAI summarizer")
@@ -43,7 +44,7 @@ def _get_summarizer_llm() -> Union[Ollama, OpenAI]:
         llm = OpenAI(
             api_key=config.OPENAI_API_KEY,
             model=config.MEMORY_SUMMARIZER_MODEL,
-            temperature=0.3,  # Lower temperature for summarization
+            temperature=0.1,  # Lower temperature for summarization
         )
         logger.debug("Initialized OpenAI summarizer LLM", model=config.MEMORY_SUMMARIZER_MODEL)
     else:

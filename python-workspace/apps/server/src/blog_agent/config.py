@@ -24,7 +24,7 @@ class Config:
     # LLM Service
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:8b")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:4b")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.1"))  # Default/fallback temperature
     
     # LLM Temperature Settings (per task type)
@@ -33,19 +33,19 @@ class Config:
     LLM_TEMPERATURE_REVIEW: float = float(os.getenv("LLM_TEMPERATURE_REVIEW", "0.1"))
     
     # Gap identification: needs precision but slightly more flexibility than pure analysis
-    LLM_TEMPERATURE_GAP_IDENTIFICATION: float = float(os.getenv("LLM_TEMPERATURE_GAP_IDENTIFICATION", "0.2"))
+    LLM_TEMPERATURE_GAP_IDENTIFICATION: float = float(os.getenv("LLM_TEMPERATURE_GAP_IDENTIFICATION", "0.1"))
     
     # Research integration: needs natural language flow
-    LLM_TEMPERATURE_RESEARCH_INTEGRATION: float = float(os.getenv("LLM_TEMPERATURE_RESEARCH_INTEGRATION", "0.4"))
+    LLM_TEMPERATURE_RESEARCH_INTEGRATION: float = float(os.getenv("LLM_TEMPERATURE_RESEARCH_INTEGRATION", "0.1"))
     
     # Writing tasks: blog content generation - needs creativity and narrative flow
-    LLM_TEMPERATURE_WRITING: float = float(os.getenv("LLM_TEMPERATURE_WRITING", "0.5"))
+    LLM_TEMPERATURE_WRITING: float = float(os.getenv("LLM_TEMPERATURE_WRITING", "0.1"))
     
     # Creative tasks: titles, summaries, prompt candidates - needs more creativity
-    LLM_TEMPERATURE_CREATIVE: float = float(os.getenv("LLM_TEMPERATURE_CREATIVE", "0.6"))
+    LLM_TEMPERATURE_CREATIVE: float = float(os.getenv("LLM_TEMPERATURE_CREATIVE", "0.1"))
     
     # Safety checks: must be deterministic and precise
-    LLM_TEMPERATURE_SAFETY: float = float(os.getenv("LLM_TEMPERATURE_SAFETY", "0.0"))
+    LLM_TEMPERATURE_SAFETY: float = float(os.getenv("LLM_TEMPERATURE_SAFETY", "0.1"))
     
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
@@ -60,8 +60,8 @@ class Config:
     FACT_CHECK_METHOD: str = os.getenv("FACT_CHECK_METHOD", "LLM").upper()  # "LLM" or "TAVILY"
 
     # Memory Management
-    MEMORY_TOKEN_LIMIT: int = int(os.getenv("MEMORY_TOKEN_LIMIT", "30000"))
-    MEMORY_SUMMARIZER_MODEL: str = os.getenv("MEMORY_SUMMARIZER_MODEL", "qwen3:8b")
+    MEMORY_TOKEN_LIMIT: int = int(os.getenv("MEMORY_TOKEN_LIMIT", "1500"))
+    MEMORY_SUMMARIZER_MODEL: str = os.getenv("MEMORY_SUMMARIZER_MODEL", "qwen3:4b")
     MEMORY_SUMMARIZER_PROVIDER: str = os.getenv("MEMORY_SUMMARIZER_PROVIDER", "ollama")  # Empty means use LLM_PROVIDER
 
     # Logging

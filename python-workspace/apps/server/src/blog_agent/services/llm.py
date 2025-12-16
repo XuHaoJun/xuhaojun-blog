@@ -35,6 +35,7 @@ def get_llm(temperature: Optional[float] = None) -> Union["Ollama", "OpenAI"]:
             temperature=temp,
             base_url=config.OLLAMA_BASE_URL,
             request_timeout=120.0,  # Ollama can be slower, increase timeout
+            context_window=81920,
         )
         logger.debug("Initialized LlamaIndex Ollama LLM", model=config.LLM_MODEL, temperature=temp, base_url=config.OLLAMA_BASE_URL)
     elif config.LLM_PROVIDER.lower() == "openai":

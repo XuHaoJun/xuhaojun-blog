@@ -771,10 +771,6 @@ class PromptAnalyzer:
         Returns:
             String representation of conversation context (with summaries if needed)
         """
-        # If messages are very short, return simple summary
-        if len(messages) <= 2:
-            return f"對話包含 {len(messages)} 條訊息"
-        
         # Use memory manager if provided, otherwise create from messages
         if memory is None:
             memory = ConversationMemoryManager.from_messages(messages)
