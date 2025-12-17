@@ -6,6 +6,7 @@
 import { notFound } from "next/navigation";
 import { BlogPostList } from "@/components/blog-post-list";
 import { BlogPagination } from "@/components/blog-pagination";
+import { PaginationHead } from "@/components/pagination-head";
 import {
   getBlogPostsPage,
   getTotalPostCount,
@@ -58,15 +59,6 @@ export async function generateMetadata({ params }: PageProps) {
     alternates: {
       canonical: `/page/${page}`,
     },
-    // SEO: rel="prev" and rel="next" are handled in the head
-    other: {
-      ...(pagination.hasPrevious && {
-        "link:prev": `/page/${page - 1}`,
-      }),
-      ...(pagination.hasNext && {
-        "link:next": `/page/${page + 1}`,
-      }),
-    },
   };
 }
 
@@ -92,25 +84,28 @@ export default async function PaginatedPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <header className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Blog Agent
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            AI Conversation to Blog Posts
-          </p>
-          {pagination.totalPages > 1 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              第 {page} 頁，共 {pagination.totalPages} 頁
+    <>
+      <PaginationHead pagination={pagination} />
+      <div className="min-h-screen bg-white dark:bg-gray-900">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <header className="mb-12">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+              Blog Agent
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              AI Conversation to Blog Posts
             </p>
-          )}
-        </header>
+            {pagination.totalPages > 1 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                第 {page} 頁，共 {pagination.totalPages} 頁
+              </p>
+            )}
+          </header>
 
-        <BlogPostList posts={posts} />
-        <BlogPagination pagination={pagination} />
+          <BlogPostList posts={posts} />
+          <BlogPagination pagination={pagination} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
