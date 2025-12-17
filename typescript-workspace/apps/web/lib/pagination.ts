@@ -160,53 +160,66 @@ export function paginatePosts<T>(
 /**
  * 產生分頁頁碼陣列（含省略號）
  * 用於 UI 顯示分頁導覽
+ *
+ * maxVisible = 7 時的佈局：
+ * - 無省略號：[1, 2, 3, 4, 5, 6, 7]
+ * - 單省略號：[1, 2, 3, 4, 5, ..., 10] 或 [1, ..., 6, 7, 8, 9, 10]
+ * - 雙省略號：[1, ..., 4, 5, 6, ..., 10]
  */
 export function getPageNumbers(
   currentPage: number,
   totalPages: number,
   maxVisible = 7
 ): (number | "ellipsis")[] {
+  // 如果總頁數少於或等於 maxVisible，顯示所有頁碼
   if (totalPages <= maxVisible) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
 
-  const pages: (number | "ellipsis")[] = [];
-  const halfVisible = Math.floor((maxVisible - 3) / 2); // 扣除首頁、尾頁、當前頁
+  // 計算各區塊大小
+  // - 單省略號：首/尾頁(1) + 省略號(1) + 連續頁碼(maxVisible-2) = maxVisible
+  // - 雙省略號：首頁(1) + 省略號(1) + 中間頁碼(maxVisible-4) + 省略號(1) + 尾頁(1) = maxVisible
+  const siblingCount = Math.floor((maxVisible - 5) / 2); // 雙省略號時，當前頁左右各顯示的鄰居數
+  const boundaryPagesCount = maxVisible - 3; // 單省略號時，連續顯示的頁碼數（不含首/尾頁）
 
-  // 總是顯示第一頁
+  // 閾值計算
+  const leftThreshold = boundaryPagesCount; // currentPage > leftThreshold 時顯示開始省略號
+  const rightThreshold = totalPages - boundaryPagesCount + 1; // currentPage < rightThreshold 時顯示結束省略號
+
+  const showStartEllipsis = currentPage > leftThreshold;
+  const showEndEllipsis = currentPage < rightThreshold;
+
+  const pages: (number | "ellipsis")[] = [];
+
+  // 總是加入第一頁
   pages.push(1);
 
-  // 計算開始和結束的頁碼
-  let start = Math.max(2, currentPage - halfVisible);
-  let end = Math.min(totalPages - 1, currentPage + halfVisible);
-
-  // 調整以確保顯示足夠的頁碼
-  if (currentPage - halfVisible <= 2) {
-    end = Math.min(totalPages - 1, maxVisible - 2);
-  }
-  if (currentPage + halfVisible >= totalPages - 1) {
-    start = Math.max(2, totalPages - maxVisible + 3);
-  }
-
-  // 加入前省略號
-  if (start > 2) {
+  if (!showStartEllipsis) {
+    // 不顯示開始省略號：連續顯示頁碼 2 到 boundaryPagesCount+1
+    for (let i = 2; i <= boundaryPagesCount + 1; i++) {
+      pages.push(i);
+    }
+    // 加入結束省略號（如果需要）
+    if (showEndEllipsis) {
+      pages.push("ellipsis");
+    }
+  } else if (!showEndEllipsis) {
+    // 只顯示開始省略號
+    pages.push("ellipsis");
+    for (let i = totalPages - boundaryPagesCount; i <= totalPages - 1; i++) {
+      pages.push(i);
+    }
+  } else {
+    // 雙省略號：顯示當前頁及其鄰居
+    pages.push("ellipsis");
+    for (let i = currentPage - siblingCount; i <= currentPage + siblingCount; i++) {
+      pages.push(i);
+    }
     pages.push("ellipsis");
   }
 
-  // 加入中間頁碼
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-
-  // 加入後省略號
-  if (end < totalPages - 1) {
-    pages.push("ellipsis");
-  }
-
-  // 總是顯示最後一頁
-  if (totalPages > 1) {
-    pages.push(totalPages);
-  }
+  // 總是加入最後一頁
+  pages.push(totalPages);
 
   return pages;
 }
