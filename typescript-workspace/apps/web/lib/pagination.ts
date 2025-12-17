@@ -17,12 +17,12 @@ export const PAGINATION_CONFIG = {
  * 分頁資訊介面
  */
 export interface PaginationInfo {
-  currentPage: number;      // 目前頁碼 (1-based)
-  totalPages: number;       // 總頁數
-  pageSize: number;         // 每頁文章數
-  totalPosts: number;       // 文章總數
-  hasPrevious: boolean;     // 是否有上一頁
-  hasNext: boolean;         // 是否有下一頁
+  currentPage: number; // 目前頁碼 (1-based)
+  totalPages: number; // 總頁數
+  pageSize: number; // 每頁文章數
+  totalPosts: number; // 文章總數
+  hasPrevious: boolean; // 是否有上一頁
+  hasNext: boolean; // 是否有下一頁
 }
 
 /**
@@ -37,7 +37,7 @@ export interface BlogPostsPageResult {
 /**
  * 使用 pageToken 取得特定頁面的文章（SSR 相容）
  * Fetches blog posts for a specific page using offset-based pagination
- * 
+ *
  * @param page - 頁碼 (1-based)
  * @param pageSize - 每頁文章數
  * @returns 該頁文章及是否有下一頁
@@ -59,6 +59,7 @@ export async function getBlogPostsPage(
       statusFilter: 0, // UNSPECIFIED
     });
 
+    // 後端已依 created_at DESC 排序 (FR-005)
     const posts = response.blogPosts || [];
     const hasNext = response.nextPageToken !== "";
 
@@ -80,7 +81,7 @@ export async function getBlogPostsPage(
 /**
  * 取得文章總數（用於 generateStaticParams 計算總頁數）
  * Gets total post count by fetching all posts once during build time
- * 
+ *
  * @returns 文章總數
  */
 export async function getTotalPostCount(): Promise<number> {
@@ -115,14 +116,9 @@ export async function getAllBlogPosts(): Promise<BlogPost[]> {
       pageToken: "",
       statusFilter: 0, // UNSPECIFIED
     });
-    
-    // 依建立日期降序排列（最新在前）
-    const posts = response.blogPosts || [];
-    return posts.sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
+
+    // 後端已依 created_at DESC 排序
+    return response.blogPosts || [];
   } catch (error) {
     console.error("Failed to fetch blog posts:", error);
     return [];
@@ -138,7 +134,7 @@ export function getPaginationInfo(
   pageSize = PAGINATION_CONFIG.pageSize
 ): PaginationInfo {
   const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize));
-  
+
   return {
     currentPage,
     totalPages,
@@ -214,4 +210,3 @@ export function getPageNumbers(
 
   return pages;
 }
-
