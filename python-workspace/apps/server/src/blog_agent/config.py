@@ -26,6 +26,7 @@ class Config:
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:4b")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.1"))  # Default/fallback temperature
+    LLM_CONTEXT_WINDOW: int = int(os.getenv("LLM_CONTEXT_WINDOW", "81920"))
     
     # LLM Temperature Settings (per task type)
     # Analysis tasks: extraction, review - need precision and consistency
