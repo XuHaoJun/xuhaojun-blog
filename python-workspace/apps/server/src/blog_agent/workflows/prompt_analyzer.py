@@ -109,46 +109,6 @@ class PromptAnalyzer:
                     context_messages = messages[:prompt_message_index]
                     memory = await ConversationMemoryManager.from_messages(context_messages)
                     
-                    # Safety & Intent Check: Check for harmful content before optimization
-#                     is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, context_messages, memory)
-                    
-#                     if not is_safe or safety_level in ["high_risk", "medium_risk"]:
-#                         logger.warning(
-#                             "Harmful content detected, skipping optimization or providing safety guidance",
-#                             safety_level=safety_level,
-#                             prompt_index=idx + 1,
-#                             conversation_log_id=conversation_log_id,
-#                         )
-#                         # Create a safety-focused suggestion instead of optimizing
-#                         safety_analysis = f"""安全性評估：{safety_message}
-
-# 此提示詞涉及安全風險（風險等級：{safety_level}），不適合進行優化。
-
-# 建議：
-# - 如果涉及敏感話題（如自殺、醫療、法律），請尋求專業協助
-# - 如果涉及非法活動，請勿繼續
-# - 請重新思考您的需求，使用安全且合法的方式達成目標"""
-                        
-#                         # Create safety guidance candidates instead of optimization
-#                         safety_candidates = [
-#                             PromptCandidate(
-#                                 type="safety-guidance",
-#                                 prompt="此提示詞涉及安全風險，無法提供優化建議。請重新思考您的需求，使用安全且合法的方式達成目標。",
-#                                 reasoning="安全優先：檢測到有害內容，提供安全引導而非優化建議",
-#                             )
-#                         ]
-                        
-#                         prompt_suggestion = PromptSuggestion(
-#                             conversation_log_id=conversation_log_id,
-#                             original_prompt=user_prompt,
-#                             analysis=safety_analysis,
-#                             better_candidates=safety_candidates,
-#                             reasoning="由於檢測到安全風險，無法提供優化建議。請重新思考您的需求。",
-#                             expected_effect="此提示詞涉及安全風險，建議重新思考需求。",
-#                         )
-#                         prompt_suggestions.append(prompt_suggestion)
-#                         continue
-                    
                     # T075: Evaluate prompt effectiveness
                     effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, context_messages, memory)
                     
@@ -268,74 +228,6 @@ class PromptAnalyzer:
             logger.warning("Failed to extract prompts via LLM", error=str(e))
         
         return []
-
-    async def _check_prompt_safety(
-        self, prompt: str, messages: List[Message], memory: Optional[ConversationMemoryManager] = None
-    ) -> Tuple[bool, str, str]:
-        """
-        Check if a prompt contains harmful content or attempts to bypass safety restrictions.
-        
-        Returns:
-            tuple: (is_safe, safety_level, safety_message)
-            - is_safe: True if prompt is safe to optimize, False if harmful
-            - safety_level: "safe", "low_risk", "medium_risk", "high_risk"
-            - safety_message: Description of safety concerns if any
-        """
-        context_summary = await self._summarize_conversation_context(messages, memory)
-        
-        safety_check_prompt = f"""請評估以下使用者提示詞的安全性。
-
-使用者提示詞：
-{prompt}
-
-對話上下文摘要：
-{context_summary}
-
-請評估：
-1. 該提示詞是否試圖繞過安全限制或 AI 的使用政策？
-2. 是否涉及有害內容，例如：
-   - 生化武器、化學武器製造
-   - CSAM（兒童性虐待材料）
-   - 破壞基礎設施或非法活動
-   - 自殺或自我傷害
-   - 未經授權的醫療或法律建議
-3. 是否涉及其他敏感或有害話題？
-
-請以 JSON 格式返回評估結果：
-{{
-  "is_safe": true/false,
-  "safety_level": "safe" | "low_risk" | "medium_risk" | "high_risk",
-  "safety_message": "安全性評估說明",
-  "concerns": ["具體的安全疑慮列表"]
-}}
-
-請只輸出 JSON，不要額外說明。"""
-
-        try:
-            # Use safety temperature (0.0) for deterministic safety checks
-            safety_llm = get_llm(temperature=config.LLM_TEMPERATURE_SAFETY)
-            response = await safety_llm.acomplete(safety_check_prompt)
-            response_text = response.text.strip()
-            
-            # Try to extract JSON from response
-            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-            if json_match:
-                response_text = json_match.group(1)
-            else:
-                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-                if json_match:
-                    response_text = json_match.group(0)
-            
-            safety_result = json.loads(response_text)
-            is_safe = safety_result.get("is_safe", True)
-            safety_level = safety_result.get("safety_level", "safe")
-            safety_message = safety_result.get("safety_message", "")
-            
-            return (is_safe, safety_level, safety_message)
-        except Exception as e:
-            logger.warning("Failed to perform safety check, defaulting to safe", error=str(e))
-            # Default to safe if check fails
-            return (True, "safe", "")
 
     async def _evaluate_prompt_effectiveness(
         self, prompt: str, messages: List[Message], memory: Optional[ConversationMemoryManager] = None
