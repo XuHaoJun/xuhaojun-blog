@@ -206,7 +206,7 @@ class BlogService:
             
             # Create memory manager from messages (shared across workflow steps)
             from blog_agent.workflows.memory_manager import ConversationMemoryManager
-            memory = ConversationMemoryManager.from_messages(messages)
+            memory = await ConversationMemoryManager.from_messages(messages)
             
             # T079: Run prompt analysis in parallel with extraction
             extract_start = ExtractStartEvent(

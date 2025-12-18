@@ -107,7 +107,7 @@ class PromptAnalyzer:
                     # Create memory manager with only messages BEFORE this user prompt
                     # This ensures each prompt analysis uses only its historical context
                     context_messages = messages[:prompt_message_index]
-                    memory = ConversationMemoryManager.from_messages(context_messages)
+                    memory = await ConversationMemoryManager.from_messages(context_messages)
                     
                     # Safety & Intent Check: Check for harmful content before optimization
                     is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, context_messages, memory)
@@ -221,7 +221,7 @@ class PromptAnalyzer:
             
             # Use the memory from the last prompt's context (or create new one if needed)
             # Note: This memory may not be used downstream, but we include it for consistency
-            final_memory = ConversationMemoryManager.from_messages(messages)
+            final_memory = await ConversationMemoryManager.from_messages(messages)
             
             return PromptAnalysisEvent(
                 prompt_suggestions=prompt_suggestions,
@@ -235,7 +235,7 @@ class PromptAnalyzer:
             # Return empty suggestions list on error
             memory = ev.memory
             if memory is None:
-                memory = ConversationMemoryManager.from_messages(ev.messages)
+                memory = await ConversationMemoryManager.from_messages(ev.messages)
             return PromptAnalysisEvent(
                 prompt_suggestions=[],
                 conversation_log_id=ev.conversation_log_id,
@@ -773,15 +773,15 @@ class PromptAnalyzer:
         """
         # Use memory manager if provided, otherwise create from messages
         if memory is None:
-            memory = ConversationMemoryManager.from_messages(messages)
+            memory = await ConversationMemoryManager.from_messages(messages)
         
-        # Get summarized context from memory
+        # Get context text from memory (facts + recent turns)
         try:
-            context = memory.get_summarized_context()
-            logger.debug("Retrieved summarized context from memory", context_length=len(context))
+            context = await memory.get_context_text()
+            logger.debug("Retrieved context text from memory", context_length=len(context))
             return context
         except Exception as e:
-            logger.warning("Failed to get summarized context from memory, using fallback", error=str(e))
+            logger.warning("Failed to get context text from memory, using fallback", error=str(e))
             # Fallback to simple truncation on error
             assistant_responses = [
                 msg.content[:200]

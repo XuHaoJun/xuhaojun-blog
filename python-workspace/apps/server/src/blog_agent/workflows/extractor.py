@@ -73,7 +73,7 @@ class ContentExtractor:
             # Get or create memory manager
             memory = ev.memory
             if memory is None:
-                memory = ConversationMemoryManager.from_messages(messages)
+                memory = await ConversationMemoryManager.from_messages(messages)
 
             # Filter out noise (greetings, small talk) - keep simple heuristic for efficiency
             filtered_messages = self._filter_noise(messages)
@@ -104,7 +104,7 @@ class ContentExtractor:
 
             # Use structured extraction to get insights, concepts, and user intent in one call
             # Create memory manager for filtered messages to get summarized context
-            filtered_memory = ConversationMemoryManager.from_messages(filtered_messages)
+            filtered_memory = await ConversationMemoryManager.from_messages(filtered_messages)
             analysis = await self._extract_structured_analysis(filtered_messages, filtered_memory)
 
             # Combine filtered content
@@ -223,8 +223,8 @@ class ContentExtractor:
         
         Uses ChatSummaryMemoryBuffer to get summarized context for better token efficiency.
         """
-        # Use memory manager to get summarized context instead of raw message concatenation
-        conversation_text = memory.get_summarized_context()
+        # Use memory manager to get context text (facts + recent turns) instead of raw message concatenation
+        conversation_text = await memory.get_context_text()
 
         template_str = """請以一位具備深度洞察力的專家身份分析此對話。請仔細閱讀對話內容，並填寫以下所有欄位：
 

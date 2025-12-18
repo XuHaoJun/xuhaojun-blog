@@ -63,6 +63,7 @@ class Config:
     MEMORY_TOKEN_LIMIT: int = int(os.getenv("MEMORY_TOKEN_LIMIT", "1500"))
     MEMORY_SUMMARIZER_MODEL: str = os.getenv("MEMORY_SUMMARIZER_MODEL", "qwen3:4b")
     MEMORY_SUMMARIZER_PROVIDER: str = os.getenv("MEMORY_SUMMARIZER_PROVIDER", "ollama")  # Empty means use LLM_PROVIDER
+    MEMORY_MAX_FACTS: int = int(os.getenv("MEMORY_MAX_FACTS", "100"))
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
