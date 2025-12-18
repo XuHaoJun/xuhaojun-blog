@@ -78,30 +78,6 @@ class ContentExtractor:
             # Filter out noise (greetings, small talk) - keep simple heuristic for efficiency
             filtered_messages = self._filter_noise(messages)
 
-            # Check if content is substantive using LLM semantic judgment (Soul Overview aligned)
-            # has_substantive = await self._has_substantive_content(filtered_messages)
-            
-            # if not has_substantive:
-            #     logger.warning("Conversation has minimal substantive content")
-            #     # Still generate but mark as low-quality
-            #     # Get or create memory manager for error case too
-            #     memory = ev.memory
-            #     if memory is None:
-            #         memory = ConversationMemoryManager.from_messages(messages)
-                
-            #     return ExtractEvent(
-            #         content_extract=ContentExtract(
-            #             conversation_log_id=conversation_log_id,
-            #             key_insights=[],
-            #             core_concepts=[],
-            #             filtered_content="",
-            #         ),
-            #         conversation_log_id=conversation_log_id,
-            #         conversation_log_metadata=ev.conversation_log_metadata or {},
-            #         quality_warning="Low quality: minimal substantive content",
-            #         memory=memory,
-            #     )
-
             # Use structured extraction to get insights, concepts, and user intent in one call
             # Create memory manager for filtered messages to get summarized context
             filtered_memory = await ConversationMemoryManager.from_messages(filtered_messages)
@@ -166,48 +142,6 @@ class ContentExtractor:
             filtered.append(msg)
 
         return filtered
-
-    async def _has_substantive_content(self, messages: List[Message]) -> bool:
-        """Check if conversation has substantive content using LLM semantic judgment.
-        
-        Aligned with Soul Overview: focuses on value exchange rather than surface patterns.
-        Even short conversations can be substantive if they solve specific user problems.
-        """
-        if not messages:
-            return False
-        
-        # Quick heuristic check first for efficiency
-        total_length = sum(len(msg.content) for msg in messages)
-        if total_length < 50:  # Very short, likely not substantive
-            return False
-
-        # Use LLM for semantic judgment (Soul Overview aligned)
-        # Preview first few messages to avoid token waste
-        preview_messages = messages[:6]
-        conversation_text = "\n".join([f"{m.role}: {m.content}" for m in preview_messages])
-        
-        template_str = """你是一位資深的主編。請判斷以下對話是否包含「實質性內容」(Substantive Content)。
-
-判斷標準（基於 Anthropic 的 "Helpfulness" 原則）：
-1. 是否包含具體的問題解決、知識交換或創意發想？
-2. 是否超越了單純的寒暄 (Small talk) 或無意義的噪音？
-3. 即使對話簡短，如果解決了使用者的特定疑惑，也算有實質內容。
-4. 是否有價值交換發生，而不僅僅是表面的互動？
-
-對話預覽：
-{conversation_text}
-
-請只回答 "YES" 或 "NO"，不要有其他說明。"""
-
-        try:
-            prompt_tmpl = PromptTemplate(template_str)
-            response = await self.llm.acomplete(prompt_tmpl.format(conversation_text=conversation_text))
-            result = response.text.strip().upper()
-            return "YES" in result or result == "YES"
-        except Exception as e:
-            logger.warning("Failed to use LLM for substantive check, falling back to heuristic", error=str(e))
-            # Fallback to simple heuristic
-            return total_length >= 200 and len(messages) >= 2
 
     async def _extract_structured_analysis(
         self, 
