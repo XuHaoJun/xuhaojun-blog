@@ -49,7 +49,7 @@ class BlogWorkflow(Workflow):
         """Content extraction step."""
         logger.info("Starting content extraction", conversation_log_id=ev.conversation_log_id)
         # Create memory manager from messages
-        memory = ConversationMemoryManager.from_messages(ev.messages)
+        memory = await ConversationMemoryManager.from_messages(ev.messages)
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,
@@ -68,7 +68,7 @@ class BlogWorkflow(Workflow):
         """
         logger.info("Starting prompt analysis", conversation_log_id=ev.conversation_log_id)
         # Create memory manager from messages (shared with extract_step)
-        memory = ConversationMemoryManager.from_messages(ev.messages)
+        memory = await ConversationMemoryManager.from_messages(ev.messages)
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,

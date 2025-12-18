@@ -28,7 +28,7 @@ async function getBlogPost(id: string) {
 export async function generateStaticParams() {
   const client = createServerClient();
   const request = create(ListBlogPostsRequestSchema, {
-    pageSize: 100,
+    pageSize: 100000,
     pageToken: "",
     statusFilter: 0, // UNSPECIFIED
   });

@@ -26,6 +26,7 @@ class Config:
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3:4b")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.1"))  # Default/fallback temperature
+    LLM_CONTEXT_WINDOW: int = int(os.getenv("LLM_CONTEXT_WINDOW", "81920"))
     
     # LLM Temperature Settings (per task type)
     # Analysis tasks: extraction, review - need precision and consistency
@@ -39,10 +40,10 @@ class Config:
     LLM_TEMPERATURE_RESEARCH_INTEGRATION: float = float(os.getenv("LLM_TEMPERATURE_RESEARCH_INTEGRATION", "0.1"))
     
     # Writing tasks: blog content generation - needs creativity and narrative flow
-    LLM_TEMPERATURE_WRITING: float = float(os.getenv("LLM_TEMPERATURE_WRITING", "0.1"))
+    LLM_TEMPERATURE_WRITING: float = float(os.getenv("LLM_TEMPERATURE_WRITING", "0.3"))
     
     # Creative tasks: titles, summaries, prompt candidates - needs more creativity
-    LLM_TEMPERATURE_CREATIVE: float = float(os.getenv("LLM_TEMPERATURE_CREATIVE", "0.1"))
+    LLM_TEMPERATURE_CREATIVE: float = float(os.getenv("LLM_TEMPERATURE_CREATIVE", "0.3"))
     
     # Safety checks: must be deterministic and precise
     LLM_TEMPERATURE_SAFETY: float = float(os.getenv("LLM_TEMPERATURE_SAFETY", "0.1"))
@@ -60,9 +61,14 @@ class Config:
     FACT_CHECK_METHOD: str = os.getenv("FACT_CHECK_METHOD", "LLM").upper()  # "LLM" or "TAVILY"
 
     # Memory Management
-    MEMORY_TOKEN_LIMIT: int = int(os.getenv("MEMORY_TOKEN_LIMIT", "1500"))
+    # Default to 25% of context window, capped at 20000 for safety and cost
+    MEMORY_TOKEN_LIMIT: int = int(os.getenv(
+        "MEMORY_TOKEN_LIMIT", 
+        str(min(20000, LLM_CONTEXT_WINDOW // 4))
+    ))
     MEMORY_SUMMARIZER_MODEL: str = os.getenv("MEMORY_SUMMARIZER_MODEL", "qwen3:4b")
     MEMORY_SUMMARIZER_PROVIDER: str = os.getenv("MEMORY_SUMMARIZER_PROVIDER", "ollama")  # Empty means use LLM_PROVIDER
+    MEMORY_MAX_FACTS: int = int(os.getenv("MEMORY_MAX_FACTS", "100"))
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

@@ -1,8 +1,13 @@
 """Blog editor workflow step (simple version without review/extension)."""
 
+import json
+import re
 from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from uuid import uuid4
 
+from pydantic import BaseModel, Field
+
+from llama_index.core import PromptTemplate
 from llama_index.core.workflow import Event, step
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
@@ -68,8 +73,8 @@ class BlogEditor:
             )
 
             # Extract metadata (title, summary, tags)
-            title = await self._generate_title(content_extract)
-            summary = await self._generate_summary(content_extract)
+            title = await self._generate_title(content_extract, prompt_suggestions, memory)
+            summary = await self._generate_summary(content_extract, prompt_suggestions, memory)
             tags = content_extract.core_concepts[:5]  # Use core concepts as tags
 
             # Build structured metadata from conversation log (FR-015: preserve timestamps, participants)
@@ -183,46 +188,249 @@ class BlogEditor:
         
         return blog_content
 
-    async def _generate_title(self, content_extract: ContentExtract) -> str:
-        """Generate blog post title."""
-        prompt = f"""請為這篇技術文章構思一個標題。
+    def _collect_user_prompts(self, prompt_suggestions: List[PromptSuggestion]) -> List[str]:
+        """Collect up to 3 user prompts as anchors for title/summary."""
+        prompts: List[str] = []
+        for ps in prompt_suggestions or []:
+            p = (ps.original_prompt or "").strip()
+            if p and p not in prompts:
+                prompts.append(p)
+            if len(prompts) >= 3:
+                break
+        return prompts
 
-核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+    def _extract_json_object(self, text: str) -> Optional[dict]:
+        """
+        Best-effort: extract a JSON object from model output.
+        Handles markdown fenced blocks and raw JSON in text.
+        """
+        raw = (text or "").strip()
+        if not raw:
+            return None
 
-要求：
-1. **拒絕陳腔濫調**：不要使用 "揭密"、"解鎖...的力量"、"終極指南" 這類行銷話術。
-2. **實質與精準**：標題應直接反映文章解決的具體技術問題或提供的核心洞見。
-3. **風格**：簡潔、專業，像是一個開發者會在 Hacker News 或技術論壇上點擊的標題。
-4. 長度控制在 60 個字元以內。
+        # Prefer fenced JSON block
+        m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+        if m:
+            raw = m.group(1).strip()
+        else:
+            # Fallback: find first {...} blob
+            m = re.search(r"\{.*\}", raw, re.DOTALL)
+            if m:
+                raw = m.group(0).strip()
 
-請只輸出標題本身，不要加引號。"""
+        try:
+            obj = json.loads(raw)
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            return None
 
-        # Use creative temperature (0.6) for title generation
+    def _clean_single_line_title(self, text: str) -> str:
+        """
+        Clean model output into a single-line title.
+        If multiple lines are present, prefer the last plausible title-like line.
+        """
+        s = (text or "").strip().strip('"').strip("'").strip()
+        if not s:
+            return ""
+
+        lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
+        if not lines:
+            return ""
+
+        # Prefer lines that look like a title (short-ish, not a list item)
+        candidates = [
+            ln
+            for ln in lines
+            if len(ln) <= 80 and not ln.startswith(("-", "*", "1.", "2.", "3."))
+        ]
+        chosen = candidates[-1] if candidates else lines[-1]
+        return chosen.strip().strip('"').strip("'").strip()
+
+    def _clean_summary(self, text: str) -> str:
+        """Clean summary output (allow multi-line, but strip obvious junk)."""
+        s = (text or "").strip()
+        if not s:
+            return ""
+        # Drop leading/trailing code fences if model used them
+        s = re.sub(r"^```(?:text)?\s*", "", s)
+        s = re.sub(r"\s*```$", "", s)
+        return s.strip()
+
+    async def _get_memory_hint(
+        self, memory: Optional[ConversationMemoryManager], limit: int = 1200
+    ) -> str:
+        """Best-effort: get a short memory context hint (facts + recent turns)."""
+        if memory is None:
+            return ""
+        try:
+            ctx = await memory.get_context_text()
+            return ctx[:limit] if ctx else ""
+        except Exception:
+            return ""
+
+    class _TitleResult(BaseModel):
+        final_title: str = Field(..., min_length=1)
+
+    class _SummaryResult(BaseModel):
+        summary: str = Field(..., min_length=1)
+
+    async def _generate_title(
+        self,
+        content_extract: ContentExtract,
+        prompt_suggestions: List[PromptSuggestion],
+        memory: Optional[ConversationMemoryManager] = None,
+    ) -> str:
+        """Generate blog post title (anchor on user prompt + concepts + evidence)."""
+        user_prompts = self._collect_user_prompts(prompt_suggestions)
+        memory_hint = await self._get_memory_hint(memory, limit=1200)
+
+        template_str = """你是資深技術編輯。請為這篇技術文章產生一個「不跑題」的標題。
+
+使用者原始問題（title 必須對準它）：
+{user_prompts}
+
+核心概念（title 需包含 1-2 個關鍵詞）：
+{core_concepts}
+
+核心觀點（可能是結論，僅供參考）：
+{key_insights}
+
+原始素材（避免憑空發揮）：
+{evidence}
+
+補充（可選：facts/上下文，若有就用；若沒有忽略）：
+{memory_hint}
+
+硬性要求：
+1. **只輸出最終標題**，不得輸出候選、不得輸出說明、不得輸出換行（單行）。
+2. <= 60 字元。
+3. 必須命中使用者原始問題，並包含 1-2 個核心概念關鍵詞。
+4. 禁用行銷話術（揭密/解鎖/終極指南/必看/懶人包/最強/大全等）。
+"""
+
+        user_prompts_block = (
+            "\n".join("- " + p for p in user_prompts) if user_prompts else "- (無)"
+        )
+        core_concepts = ", ".join(content_extract.core_concepts[:10])
+        key_insights = "\n".join("- " + i for i in content_extract.key_insights)
+        evidence = content_extract.filtered_content[:1200]
+
         creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
-        response = await creative_llm.acomplete(prompt)
-        # Clean up title (remove quotes, extra spaces)
-        title = response.text.strip().strip('"').strip("'").strip()
-        return title[:200]  # Limit length
 
-    async def _generate_summary(self, content_extract: ContentExtract) -> str:
-        """Generate blog post summary."""
-        prompt = f"""請為這篇文章撰寫一段摘要（TL;DR）。
+        # Prefer structured output (more stable than free-form acomplete)
+        try:
+            prompt_tmpl = PromptTemplate(template_str)
+            result = await creative_llm.astructured_predict(
+                BlogEditor._TitleResult,
+                prompt_tmpl,
+                user_prompts=user_prompts_block,
+                core_concepts=core_concepts,
+                key_insights=key_insights,
+                evidence=evidence,
+                memory_hint=memory_hint,
+            )
+            title = self._clean_single_line_title(result.final_title)
+            return title[:200]
+        except Exception:
+            # Fallback: JSON-only response via acomplete + parsing + strict cleanup
+            formatted_prompt = template_str.format(
+                user_prompts=user_prompts_block,
+                core_concepts=core_concepts,
+                key_insights=key_insights,
+                evidence=evidence,
+                memory_hint=memory_hint,
+            )
+            json_prompt = f"""{formatted_prompt}
 
-核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+請以 JSON 格式回傳，且只能回傳 JSON（不要 markdown）：
+{{"final_title":"..."}}
+"""
+            response = await creative_llm.acomplete(json_prompt)
+            obj = self._extract_json_object(response.text)
+            if obj and isinstance(obj.get("final_title"), str):
+                title = self._clean_single_line_title(obj["final_title"])
+                return title[:200]
 
-要求：
-1. **尊重讀者時間**：不要寫 "這篇文章將會討論..."，直接說出文章的結論和價值。
-2. **高密度資訊**：用 2-3 句話濃縮最關鍵的技術決策或洞見。
-3. **語氣**：客觀、冷靜、有洞察力。
+            # Last resort: pick a plausible single-line title from raw text
+            title = self._clean_single_line_title(response.text)
+            return title[:200]
 
-請只輸出摘要內容。"""
+    async def _generate_summary(
+        self,
+        content_extract: ContentExtract,
+        prompt_suggestions: List[PromptSuggestion],
+        memory: Optional[ConversationMemoryManager] = None,
+    ) -> str:
+        """Generate blog post summary (TL;DR) anchored on the user prompt."""
+        user_prompts = self._collect_user_prompts(prompt_suggestions)
+        memory_hint = await self._get_memory_hint(memory, limit=1200)
 
-        # Use creative temperature (0.6) for summary generation
+        template_str = """你是資深技術編輯。請為這篇文章撰寫一段摘要（TL;DR），要求「不跑題」且高密度。
+
+使用者原始問題（摘要必須對準它）：
+{user_prompts}
+
+核心概念：
+{core_concepts}
+
+核心觀點（可能是結論，僅供參考）：
+{key_insights}
+
+原始素材（避免憑空發揮）：
+{evidence}
+
+補充（可選：facts/上下文，若有就用；若沒有忽略）：
+{memory_hint}
+
+硬性要求：
+1. 只輸出摘要內容（可多行），不要標題、不要列表、不要額外說明。
+2. 2-3 句話，必須命中使用者原始問題與核心概念。
+3. 不要寫「這篇文章將會討論...」這類廢話，直接給結論與價值。
+"""
+
+        user_prompts_block = (
+            "\n".join("- " + p for p in user_prompts) if user_prompts else "- (無)"
+        )
+        core_concepts = ", ".join(content_extract.core_concepts[:10])
+        key_insights = "\n".join("- " + i for i in content_extract.key_insights)
+        evidence = content_extract.filtered_content[:1400]
+
         creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
-        response = await creative_llm.acomplete(prompt)
-        return response.text.strip()[:500]  # Limit length
+
+        try:
+            prompt_tmpl = PromptTemplate(template_str)
+            result = await creative_llm.astructured_predict(
+                BlogEditor._SummaryResult,
+                prompt_tmpl,
+                user_prompts=user_prompts_block,
+                core_concepts=core_concepts,
+                key_insights=key_insights,
+                evidence=evidence,
+                memory_hint=memory_hint,
+            )
+            summary = self._clean_summary(result.summary)
+            return summary[:500]
+        except Exception:
+            formatted_prompt = template_str.format(
+                user_prompts=user_prompts_block,
+                core_concepts=core_concepts,
+                key_insights=key_insights,
+                evidence=evidence,
+                memory_hint=memory_hint,
+            )
+            json_prompt = f"""{formatted_prompt}
+
+請以 JSON 格式回傳，且只能回傳 JSON（不要 markdown）：
+{{"summary":"..."}}
+"""
+            response = await creative_llm.acomplete(json_prompt)
+            obj = self._extract_json_object(response.text)
+            if obj and isinstance(obj.get("summary"), str):
+                summary = self._clean_summary(obj["summary"])
+                return summary[:500]
+
+            summary = self._clean_summary(response.text)
+            return summary[:500]
 
     def _format_prompt_suggestions(self, prompt_suggestions: List[PromptSuggestion]) -> str:
         """
