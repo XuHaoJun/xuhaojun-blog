@@ -110,44 +110,44 @@ class PromptAnalyzer:
                     memory = await ConversationMemoryManager.from_messages(context_messages)
                     
                     # Safety & Intent Check: Check for harmful content before optimization
-                    is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, context_messages, memory)
+#                     is_safe, safety_level, safety_message = await self._check_prompt_safety(user_prompt, context_messages, memory)
                     
-                    if not is_safe or safety_level in ["high_risk", "medium_risk"]:
-                        logger.warning(
-                            "Harmful content detected, skipping optimization or providing safety guidance",
-                            safety_level=safety_level,
-                            prompt_index=idx + 1,
-                            conversation_log_id=conversation_log_id,
-                        )
-                        # Create a safety-focused suggestion instead of optimizing
-                        safety_analysis = f"""安全性評估：{safety_message}
+#                     if not is_safe or safety_level in ["high_risk", "medium_risk"]:
+#                         logger.warning(
+#                             "Harmful content detected, skipping optimization or providing safety guidance",
+#                             safety_level=safety_level,
+#                             prompt_index=idx + 1,
+#                             conversation_log_id=conversation_log_id,
+#                         )
+#                         # Create a safety-focused suggestion instead of optimizing
+#                         safety_analysis = f"""安全性評估：{safety_message}
 
-此提示詞涉及安全風險（風險等級：{safety_level}），不適合進行優化。
+# 此提示詞涉及安全風險（風險等級：{safety_level}），不適合進行優化。
 
-建議：
-- 如果涉及敏感話題（如自殺、醫療、法律），請尋求專業協助
-- 如果涉及非法活動，請勿繼續
-- 請重新思考您的需求，使用安全且合法的方式達成目標"""
+# 建議：
+# - 如果涉及敏感話題（如自殺、醫療、法律），請尋求專業協助
+# - 如果涉及非法活動，請勿繼續
+# - 請重新思考您的需求，使用安全且合法的方式達成目標"""
                         
-                        # Create safety guidance candidates instead of optimization
-                        safety_candidates = [
-                            PromptCandidate(
-                                type="safety-guidance",
-                                prompt="此提示詞涉及安全風險，無法提供優化建議。請重新思考您的需求，使用安全且合法的方式達成目標。",
-                                reasoning="安全優先：檢測到有害內容，提供安全引導而非優化建議",
-                            )
-                        ]
+#                         # Create safety guidance candidates instead of optimization
+#                         safety_candidates = [
+#                             PromptCandidate(
+#                                 type="safety-guidance",
+#                                 prompt="此提示詞涉及安全風險，無法提供優化建議。請重新思考您的需求，使用安全且合法的方式達成目標。",
+#                                 reasoning="安全優先：檢測到有害內容，提供安全引導而非優化建議",
+#                             )
+#                         ]
                         
-                        prompt_suggestion = PromptSuggestion(
-                            conversation_log_id=conversation_log_id,
-                            original_prompt=user_prompt,
-                            analysis=safety_analysis,
-                            better_candidates=safety_candidates,
-                            reasoning="由於檢測到安全風險，無法提供優化建議。請重新思考您的需求。",
-                            expected_effect="此提示詞涉及安全風險，建議重新思考需求。",
-                        )
-                        prompt_suggestions.append(prompt_suggestion)
-                        continue
+#                         prompt_suggestion = PromptSuggestion(
+#                             conversation_log_id=conversation_log_id,
+#                             original_prompt=user_prompt,
+#                             analysis=safety_analysis,
+#                             better_candidates=safety_candidates,
+#                             reasoning="由於檢測到安全風險，無法提供優化建議。請重新思考您的需求。",
+#                             expected_effect="此提示詞涉及安全風險，建議重新思考需求。",
+#                         )
+#                         prompt_suggestions.append(prompt_suggestion)
+#                         continue
                     
                     # T075: Evaluate prompt effectiveness
                     effectiveness_analysis = await self._evaluate_prompt_effectiveness(user_prompt, context_messages, memory)

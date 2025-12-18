@@ -34,11 +34,60 @@ class ConversationMemoryManager:
         llm = get_llm(temperature=0.1)
 
         fact_extraction_prompt = RichPromptTemplate(
-            """你是一個精準的「事實抽取」系統，負責從對話中擷取使用者已明確透露或對任務關鍵的資訊。\n\n指示：\n1. 請閱讀此訊息之前提供的對話片段\n2. 抽取具體、可驗證的事實（例如：偏好、個人資訊、需求、限制、背景脈絡）\n3. 不要加入主觀推測、意見、摘要或詮釋\n4. 不要重複已存在於 existing_facts 的事實\n5. 每個事實用一個 <fact> XML 標籤呈現\n6. 請使用「正體中文」輸出\n\n<existing_facts>\n{{ existing_facts }}\n</existing_facts>\n\n請只回傳以下格式（不要有任何額外文字）：\n<facts>\n  <fact>具體事實 1</fact>\n  <fact>具體事實 2</fact>\n  <!-- 視需要增加 -->\n</facts>\n\n如果沒有新事實，回傳：<facts></facts>"""
+            """你是一個精準的「事實抽取」系統，負責從對話中擷取關鍵資訊。
+
+指示：
+1. 請閱讀此訊息之前提供的對話片段
+2. 抽取以下類型的資訊：
+   - 使用者的偏好、需求、限制
+   - 對話中討論的主題與要點
+   - 任務的具體要求（例如：文章主題、風格、長度）
+   - 重要的上下文背景
+3. 不要加入推測或詮釋，只提取明確提到的內容
+4. 不要重複已存在於 existing_facts 的事實
+5. 每個事實用一個 <fact> XML 標籤呈現
+6. 請使用「正體中文」輸出
+
+<existing_facts>
+{{ existing_facts }}
+</existing_facts>
+
+請只回傳以下格式：
+<facts>
+  <fact>具體事實 1</fact>
+  <fact>具體事實 2</fact>
+</facts>
+
+如果沒有新事實，回傳：<facts></facts>"""
         )
 
         fact_condense_prompt = RichPromptTemplate(
-            """你是一個精準的「事實濃縮」系統，負責把現有事實整理成更精簡的清單。\n\n指示：\n1. 請閱讀現有事實清單 existing_facts\n2. 請將事實濃縮為少於 {{ max_facts }} 條\n3. 只保留對任務重要且可驗證的事實（偏好、個人資訊、需求、限制、背景）\n4. 不要加入主觀推測、意見、摘要或詮釋\n5. 每個事實用一個 <fact> XML 標籤呈現\n6. 請使用「正體中文」輸出\n\n<existing_facts>\n{{ existing_facts }}\n</existing_facts>\n\n請只回傳以下格式（不要有任何額外文字）：\n<facts>\n  <fact>具體事實 1</fact>\n  <fact>具體事實 2</fact>\n  <!-- 視需要增加 -->\n</facts>\n\n如果沒有新事實，回傳：<facts></facts>"""
+            """你是一個精準的「事實濃縮」系統，負責把現有事實整理成更精簡的清單。
+
+指示：
+1. 請閱讀現有事實清單 existing_facts
+2. 請將事實濃縮為少於 {{ max_facts }} 條
+3. 保留以下類型的資訊：
+   - 使用者的偏好、需求、限制
+   - 對話中討論的主題與要點
+   - 任務的具體要求（例如：文章主題、風格、長度）
+   - 重要的上下文背景
+4. 合併語意相近或重複的事實
+5. 移除已過時或不再相關的事實
+6. 每個事實用一個 <fact> XML 標籤呈現
+7. 請使用「正體中文」輸出
+
+<existing_facts>
+{{ existing_facts }}
+</existing_facts>
+
+請只回傳以下格式：
+<facts>
+  <fact>具體事實 1</fact>
+  <fact>具體事實 2</fact>
+</facts>
+
+如果沒有可保留的事實，回傳：<facts></facts>"""
         )
 
         fact_block = FactExtractionMemoryBlock(
@@ -54,8 +103,8 @@ class ConversationMemoryManager:
         self.memory = Memory.from_defaults(
             session_id=session_id or "blog_agent",
             token_limit=config.MEMORY_TOKEN_LIMIT,
-            token_flush_size=500,
-            chat_history_token_ratio=0.2,
+            chat_history_token_ratio=0.7,
+            token_flush_size=config.MEMORY_TOKEN_LIMIT // 10,
             memory_blocks=[fact_block],
             insert_method="system",
             async_database_uri="sqlite+aiosqlite:///:memory:",
