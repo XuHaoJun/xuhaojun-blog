@@ -9,6 +9,10 @@ plugins:
     out: src
     # Also generate any imported dependencies
     include_imports: true
-    # Add more plugin options here
+    opt: target=ts
+  # This will invoke protoc-gen-connect-es and write output to src
+  - local: protoc-gen-connect-es
+    out: src
+    include_imports: true
     opt: target=ts
 

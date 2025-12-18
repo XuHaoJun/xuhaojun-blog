@@ -16,10 +16,14 @@ try:
 except ImportError:
     grpc = None  # Will be available when grpcio is installed
 
+from connectrpc import Code, ConnectError
+from connectrpc.request import RequestContext
+
 from blog_agent.config import config
 from blog_agent.observability import init_observability
 from blog_agent.services.blog_service import BlogService
 from blog_agent.services.llm import get_llm
+from blog_agent.services.memory import MemoryService
 from blog_agent.storage.models import ConversationMessage
 from blog_agent.storage.repository import (
     BlogPostRepository,
@@ -35,22 +39,26 @@ from blog_agent.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-from blog_agent.proto import blog_agent_pb2, blog_agent_pb2_grpc
+from blog_agent.proto import blog_agent_pb2
+from blog_agent.proto.blog_agent_connect import BlogAgentService, BlogAgentServiceASGIApplication
 
 
-class BlogAgentServiceImpl:
-    """gRPC service implementation for Blog Agent."""
+class BlogAgentServiceImpl(BlogAgentService):
+    """ConnectRPC service implementation for Blog Agent."""
 
     def __init__(self):
         """Initialize service."""
         self.blog_service = BlogService()
+        self.memory_service = MemoryService()
         self.conversation_repo = ConversationLogRepository()
         self.blog_repo = BlogPostRepository()
         self.history_repo = ProcessingHistoryRepository()
         self.content_block_repo = ContentBlockRepository()  # T085a: For GetBlogPostWithPrompts
         self.prompt_suggestion_repo = PromptSuggestionRepository()  # T085a: For GetBlogPostWithPrompts
 
-    async def ProcessConversation(self, request, context):
+    async def process_conversation(
+        self, request: blog_agent_pb2.ProcessConversationRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.ProcessConversationResponse:
         """Process conversation log and generate blog post."""
         try:
             # Extract request data
@@ -79,11 +87,10 @@ class BlogAgentServiceImpl:
 
         except BlogAgentError as e:
             logger.error("Processing error", error=str(e), details=e.to_dict())
-            # TODO: Return error response with full technical details (FR-024)
-            raise
+            raise ConnectError(Code.INTERNAL, str(e))
         except Exception as e:
             logger.error("Unexpected error", error=str(e), exc_info=True)
-            raise
+            raise ConnectError(Code.INTERNAL, "Internal server error")
 
     def _map_file_format(self, proto_format):
         """Map proto FileFormat to string."""
@@ -182,17 +189,19 @@ class BlogAgentServiceImpl:
             created_at=processing_history.created_at.isoformat() if processing_history.created_at else "",
         )
 
-    # T082: GetConversationLog handler
-    async def GetConversationLog(self, request, context):
+    # T082: get_conversation_log handler
+    async def get_conversation_log(
+        self, request: blog_agent_pb2.GetConversationLogRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.GetConversationLogResponse:
         """Get a specific conversation log by ID."""
         try:
             conversation_log_id = UUID(request.conversation_log_id)
             conversation_log = await self.conversation_repo.get_by_id(conversation_log_id)
 
             if not conversation_log:
-                context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Conversation log not found: {request.conversation_log_id}")
-                return None
+                raise ConnectError(
+                    Code.NOT_FOUND, f"Conversation log not found: {request.conversation_log_id}"
+                )
 
             response = blog_agent_pb2.GetConversationLogResponse(
                 conversation_log=self._conversation_log_to_proto(conversation_log)
@@ -201,17 +210,15 @@ class BlogAgentServiceImpl:
 
         except ValueError as e:
             logger.error("Invalid conversation log ID", error=str(e))
-            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Invalid conversation log ID: {str(e)}")
-            return None
+            raise ConnectError(Code.INVALID_ARGUMENT, f"Invalid conversation log ID: {str(e)}")
         except Exception as e:
             logger.error("GetConversationLog error", error=str(e), exc_info=True)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"Internal error: {str(e)}")
-            return None
+            raise ConnectError(Code.INTERNAL, str(e))
 
-    # T083: ListConversationLogs handler
-    async def ListConversationLogs(self, request, context):
+    # T083: list_conversation_logs handler
+    async def list_conversation_logs(
+        self, request: blog_agent_pb2.ListConversationLogsRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.ListConversationLogsResponse:
         """List conversation logs with pagination."""
         try:
             page_size = request.page_size if request.page_size > 0 else 100
@@ -246,21 +253,21 @@ class BlogAgentServiceImpl:
 
         except Exception as e:
             logger.error("ListConversationLogs error", error=str(e), exc_info=True)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"Internal error: {str(e)}")
-            return None
+            raise ConnectError(Code.INTERNAL, str(e))
 
-    # T084: GetBlogPost handler
-    async def GetBlogPost(self, request, context):
+    # T084: get_blog_post handler
+    async def get_blog_post(
+        self, request: blog_agent_pb2.GetBlogPostRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.GetBlogPostResponse:
         """Get a specific blog post by ID."""
         try:
             blog_post_id = UUID(request.blog_post_id)
             blog_post = await self.blog_repo.get_by_id(blog_post_id)
 
             if not blog_post:
-                context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Blog post not found: {request.blog_post_id}")
-                return None
+                raise ConnectError(
+                    Code.NOT_FOUND, f"Blog post not found: {request.blog_post_id}"
+                )
 
             response = blog_agent_pb2.GetBlogPostResponse(
                 blog_post=self._blog_post_to_proto(blog_post)
@@ -269,17 +276,15 @@ class BlogAgentServiceImpl:
 
         except ValueError as e:
             logger.error("Invalid blog post ID", error=str(e))
-            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Invalid blog post ID: {str(e)}")
-            return None
+            raise ConnectError(Code.INVALID_ARGUMENT, f"Invalid blog post ID: {str(e)}")
         except Exception as e:
             logger.error("GetBlogPost error", error=str(e), exc_info=True)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"Internal error: {str(e)}")
-            return None
+            raise ConnectError(Code.INTERNAL, str(e))
 
-    # T085a: GetBlogPostWithPrompts handler (UI/UX P0)
-    async def GetBlogPostWithPrompts(self, request, context):
+    # T085a: get_blog_post_with_prompts handler (UI/UX P0)
+    async def get_blog_post_with_prompts(
+        self, request: blog_agent_pb2.GetBlogPostRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.GetBlogPostWithPromptsResponse:
         """
         Get blog post with conversation messages and prompt suggestions for UI/UX support.
         
@@ -291,9 +296,9 @@ class BlogAgentServiceImpl:
             blog_post = await self.blog_repo.get_by_id(blog_post_id)
 
             if not blog_post:
-                context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Blog post not found: {request.blog_post_id}")
-                return None
+                raise ConnectError(
+                    Code.NOT_FOUND, f"Blog post not found: {request.blog_post_id}"
+                )
 
             # Get conversation log
             conversation_log = await self.conversation_repo.get_by_id(blog_post.conversation_log_id)
@@ -316,7 +321,7 @@ class BlogAgentServiceImpl:
             # Convert ConversationMessage to proto
             conversation_message_protos = []
             for msg in conversation_messages:
-                timestamp_str = None
+                timestamp_str = ""
                 if msg.timestamp:
                     timestamp_str = msg.timestamp.isoformat()
                 
@@ -359,17 +364,15 @@ class BlogAgentServiceImpl:
 
         except ValueError as e:
             logger.error("Invalid blog post ID", error=str(e))
-            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Invalid blog post ID: {str(e)}")
-            return None
+            raise ConnectError(Code.INVALID_ARGUMENT, f"Invalid blog post ID: {str(e)}")
         except Exception as e:
             logger.error("GetBlogPostWithPrompts error", error=str(e), exc_info=True)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"Internal error: {str(e)}")
-            return None
+            raise ConnectError(Code.INTERNAL, str(e))
 
-    # T085: ListBlogPosts handler
-    async def ListBlogPosts(self, request, context):
+    # T085: list_blog_posts handler
+    async def list_blog_posts(
+        self, request: blog_agent_pb2.ListBlogPostsRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.ListBlogPostsResponse:
         """List blog posts with pagination and status filter."""
         try:
             page_size = request.page_size if request.page_size > 0 else 100
@@ -405,21 +408,21 @@ class BlogAgentServiceImpl:
 
         except Exception as e:
             logger.error("ListBlogPosts error", error=str(e), exc_info=True)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"Internal error: {str(e)}")
-            return None
+            raise ConnectError(Code.INTERNAL, str(e))
 
-    # T086: GetProcessingHistory handler
-    async def GetProcessingHistory(self, request, context):
+    # T086: get_processing_history handler
+    async def get_processing_history(
+        self, request: blog_agent_pb2.GetProcessingHistoryRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.GetProcessingHistoryResponse:
         """Get processing history by ID."""
         try:
             processing_id = UUID(request.processing_id)
             processing_history = await self.history_repo.get_by_id(processing_id)
 
             if not processing_history:
-                context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f"Processing history not found: {request.processing_id}")
-                return None
+                raise ConnectError(
+                    Code.NOT_FOUND, f"Processing history not found: {request.processing_id}"
+                )
 
             response = blog_agent_pb2.GetProcessingHistoryResponse(
                 processing_history=self._processing_history_to_proto(processing_history)
@@ -428,14 +431,53 @@ class BlogAgentServiceImpl:
 
         except ValueError as e:
             logger.error("Invalid processing ID", error=str(e))
-            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-            context.set_details(f"Invalid processing ID: {str(e)}")
-            return None
+            raise ConnectError(Code.INVALID_ARGUMENT, f"Invalid processing ID: {str(e)}")
         except Exception as e:
             logger.error("GetProcessingHistory error", error=str(e), exc_info=True)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"Internal error: {str(e)}")
-            return None
+            raise ConnectError(Code.INTERNAL, str(e))
+
+    async def extract_conversation_facts(
+        self, request: blog_agent_pb2.ExtractConversationFactsRequest, ctx: RequestContext
+    ) -> blog_agent_pb2.ExtractConversationFactsResponse:
+        """
+        Extract key facts from a conversation for context simulation.
+        """
+        try:
+            conversation_log_id = UUID(request.conversation_log_id)
+            conversation_log = await self.conversation_repo.get_by_id(conversation_log_id)
+
+            if not conversation_log:
+                raise ConnectError(
+                    Code.NOT_FOUND, f"Conversation log not found: {request.conversation_log_id}"
+                )
+
+            # Get messages up to the requested index
+            messages = self._extract_conversation_messages(conversation_log)
+            if request.up_to_message_index >= 0:
+                messages = messages[:request.up_to_message_index + 1]
+
+            # Use MemoryService for fact extraction
+            limit = request.max_characters if request.max_characters > 0 else 5000
+            extracted_facts = await self.memory_service.extract_facts(
+                messages=messages,
+                max_characters=limit
+            )
+            
+            actual_characters = len(extracted_facts)
+            limit_exceeded = actual_characters >= limit
+
+            return blog_agent_pb2.ExtractConversationFactsResponse(
+                extracted_facts=extracted_facts,
+                actual_characters=actual_characters,
+                limit_exceeded=limit_exceeded,
+            )
+
+        except ValueError as e:
+            logger.error("Invalid conversation log ID", error=str(e))
+            raise ConnectError(Code.INVALID_ARGUMENT, f"Invalid ID: {str(e)}")
+        except Exception as e:
+            logger.error("ExtractConversationFacts error", error=str(e), exc_info=True)
+            raise ConnectError(Code.INTERNAL, str(e))
 
     def _extract_conversation_messages(self, conversation_log):
         """
@@ -603,91 +645,38 @@ class BlogAgentServiceImpl:
 
 
 async def serve():
-    """Start gRPC server."""
-    import grpc
-    from grpc import aio
+    """Start ConnectRPC server using Starlette and Uvicorn."""
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    import uvicorn
 
     # Initialize observability first
     init_observability()
 
-    # Check LLM structured_predict support
-    try:
-        llm = get_llm()
-        has_structured_predict = hasattr(llm, 'structured_predict')
-        llm_type = type(llm).__name__
-        llm_provider = config.LLM_PROVIDER
-        llm_model = config.LLM_MODEL
-        
-        logger.info(
-            "LLM structured_predict support check",
-            provider=llm_provider,
-            model=llm_model,
-            llm_type=llm_type,
-            has_structured_predict=has_structured_predict,
-        )
-        
-        if not has_structured_predict:
-            logger.warning(
-                "LLM does not support structured_predict - workflows will use fallback methods",
-                provider=llm_provider,
-                model=llm_model,
-            )
-    except Exception as e:
-        logger.warning(
-            "Failed to check LLM structured_predict support",
-            error=str(e),
-            exc_info=True,
-        )
-
-    # Create gRPC server
-    server = aio.server()
-
-    # Add service implementation
+    # Create service implementation
     service_impl = BlogAgentServiceImpl()
-    blog_agent_pb2_grpc.add_BlogAgentServiceServicer_to_server(
-        service_impl, server
+    
+    # Create ConnectRPC ASGI application
+    rpc_app = BlogAgentServiceASGIApplication(service_impl)
+
+    # Create Starlette app and mount RPC app
+    app = Starlette(
+        routes=[
+            Mount(rpc_app.path, app=rpc_app),
+        ]
     )
 
-    # Listen on port
-    listen_addr = f"{config.GRPC_HOST}:{config.GRPC_PORT}"
-    server.add_insecure_port(listen_addr)
-
-    logger.info("Starting gRPC server", address=listen_addr)
-    await server.start()
-
-    logger.info("gRPC server started", port=config.GRPC_PORT)
-
-    # Set up signal handlers for graceful shutdown
-    shutdown_event = asyncio.Event()
-
-    def signal_handler():
-        """Handle shutdown signals."""
-        logger.info("Received shutdown signal, initiating graceful shutdown")
-        shutdown_event.set()
-
-    # Register signal handlers
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        try:
-            loop.add_signal_handler(sig, signal_handler)
-        except NotImplementedError:
-            # Signal handlers are only available on Unix
-            logger.warning("Signal handlers not available on this platform")
-            break
-
-    try:
-        # Wait for shutdown signal
-        await shutdown_event.wait()
-    except Exception as e:
-        logger.error("Error waiting for shutdown signal", error=str(e), exc_info=True)
-    finally:
-        # Gracefully stop the server
-        logger.info("Stopping gRPC server")
-        try:
-            await server.stop(grace=5)  # Give 5 seconds for graceful shutdown
-            logger.info("gRPC server stopped")
-        except Exception as e:
-            logger.error("Error stopping server", error=str(e), exc_info=True)
+    logger.info("Starting ConnectRPC server", host=config.GRPC_HOST, port=config.GRPC_PORT)
+    
+    # Run with uvicorn
+    config_uvicorn = uvicorn.Config(
+        app, 
+        host=config.GRPC_HOST, 
+        port=config.GRPC_PORT,
+        log_level="info"
+    )
+    server = uvicorn.Server(config_uvicorn)
+    await server.serve()
 
 def main():
     asyncio.run(serve())

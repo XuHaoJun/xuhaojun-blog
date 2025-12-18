@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file blog_agent.proto.
  */
 export const file_blog_agent: GenFile = /*@__PURE__*/
-  fileDesc("ChBibG9nX2FnZW50LnByb3RvEg1ibG9nX2FnZW50LnYxIvEBChpQcm9jZXNzQ29udmVyc2F0aW9uUmVxdWVzdBIRCglmaWxlX3BhdGgYASABKAkSLgoLZmlsZV9mb3JtYXQYAiABKA4yGS5ibG9nX2FnZW50LnYxLkZpbGVGb3JtYXQSFAoMZmlsZV9jb250ZW50GAMgASgMEkkKCG1ldGFkYXRhGAQgAygLMjcuYmxvZ19hZ2VudC52MS5Qcm9jZXNzQ29udmVyc2F0aW9uUmVxdWVzdC5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKoAQobUHJvY2Vzc0NvbnZlcnNhdGlvblJlc3BvbnNlEhUKDXByb2Nlc3NpbmdfaWQYASABKAkSLwoGc3RhdHVzGAIgASgOMh8uYmxvZ19hZ2VudC52MS5Qcm9jZXNzaW5nU3RhdHVzEhUKDWVycm9yX21lc3NhZ2UYAyABKAkSKgoJYmxvZ19wb3N0GAQgASgLMhcuYmxvZ19hZ2VudC52MS5CbG9nUG9zdCJdChtMaXN0Q29udmVyc2F0aW9uTG9nc1JlcXVlc3QSEQoJcGFnZV9zaXplGAEgASgFEhIKCnBhZ2VfdG9rZW4YAiABKAkSFwoPbGFuZ3VhZ2VfZmlsdGVyGAMgASgJIocBChxMaXN0Q29udmVyc2F0aW9uTG9nc1Jlc3BvbnNlEjkKEWNvbnZlcnNhdGlvbl9sb2dzGAEgAygLMh4uYmxvZ19hZ2VudC52MS5Db252ZXJzYXRpb25Mb2cSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJEhMKC3RvdGFsX2NvdW50GAMgASgFIjgKGUdldENvbnZlcnNhdGlvbkxvZ1JlcXVlc3QSGwoTY29udmVyc2F0aW9uX2xvZ19pZBgBIAEoCSJWChpHZXRDb252ZXJzYXRpb25Mb2dSZXNwb25zZRI4ChBjb252ZXJzYXRpb25fbG9nGAEgASgLMh4uYmxvZ19hZ2VudC52MS5Db252ZXJzYXRpb25Mb2ciKgoSR2V0QmxvZ1Bvc3RSZXF1ZXN0EhQKDGJsb2dfcG9zdF9pZBgBIAEoCSJBChNHZXRCbG9nUG9zdFJlc3BvbnNlEioKCWJsb2dfcG9zdBgBIAEoCzIXLmJsb2dfYWdlbnQudjEuQmxvZ1Bvc3QigQIKHkdldEJsb2dQb3N0V2l0aFByb21wdHNSZXNwb25zZRIqCglibG9nX3Bvc3QYASABKAsyFy5ibG9nX2FnZW50LnYxLkJsb2dQb3N0EjMKDmNvbnRlbnRfYmxvY2tzGAIgAygLMhsuYmxvZ19hZ2VudC52MS5Db250ZW50QmxvY2sSQQoVY29udmVyc2F0aW9uX21lc3NhZ2VzGAMgAygLMiIuYmxvZ19hZ2VudC52MS5Db252ZXJzYXRpb25NZXNzYWdlEjsKEnByb21wdF9zdWdnZXN0aW9ucxgEIAMoCzIfLmJsb2dfYWdlbnQudjEuUHJvbXB0U3VnZ2VzdGlvbiJzChRMaXN0QmxvZ1Bvc3RzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKAUSEgoKcGFnZV90b2tlbhgCIAEoCRI0Cg1zdGF0dXNfZmlsdGVyGAMgASgOMh0uYmxvZ19hZ2VudC52MS5CbG9nUG9zdFN0YXR1cyJyChVMaXN0QmxvZ1Bvc3RzUmVzcG9uc2USKwoKYmxvZ19wb3N0cxgBIAMoCzIXLmJsb2dfYWdlbnQudjEuQmxvZ1Bvc3QSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJEhMKC3RvdGFsX2NvdW50GAMgASgFIjQKG0dldFByb2Nlc3NpbmdIaXN0b3J5UmVxdWVzdBIVCg1wcm9jZXNzaW5nX2lkGAEgASgJIlwKHEdldFByb2Nlc3NpbmdIaXN0b3J5UmVzcG9uc2USPAoScHJvY2Vzc2luZ19oaXN0b3J5GAEgASgLMiAuYmxvZ19hZ2VudC52MS5Qcm9jZXNzaW5nSGlzdG9yeSLUAgoPQ29udmVyc2F0aW9uTG9nEgoKAmlkGAEgASgJEhEKCWZpbGVfcGF0aBgCIAEoCRIuCgtmaWxlX2Zvcm1hdBgDIAEoDjIZLmJsb2dfYWdlbnQudjEuRmlsZUZvcm1hdBITCgtyYXdfY29udGVudBgEIAEoCRIbChNwYXJzZWRfY29udGVudF9qc29uGAUgASgJEj4KCG1ldGFkYXRhGAYgAygLMiwuYmxvZ19hZ2VudC52MS5Db252ZXJzYXRpb25Mb2cuTWV0YWRhdGFFbnRyeRIQCghsYW5ndWFnZRgHIAEoCRIVCg1tZXNzYWdlX2NvdW50GAggASgFEhIKCmNyZWF0ZWRfYXQYCSABKAkSEgoKdXBkYXRlZF9hdBgKIAEoCRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiswIKCEJsb2dQb3N0EgoKAmlkGAEgASgJEhsKE2NvbnZlcnNhdGlvbl9sb2dfaWQYAiABKAkSDQoFdGl0bGUYAyABKAkSDwoHc3VtbWFyeRgEIAEoCRIMCgR0YWdzGAUgAygJEg8KB2NvbnRlbnQYBiABKAkSNwoIbWV0YWRhdGEYByADKAsyJS5ibG9nX2FnZW50LnYxLkJsb2dQb3N0Lk1ldGFkYXRhRW50cnkSLQoGc3RhdHVzGAggASgOMh0uYmxvZ19hZ2VudC52MS5CbG9nUG9zdFN0YXR1cxISCgpjcmVhdGVkX2F0GAkgASgJEhIKCnVwZGF0ZWRfYXQYCiABKAkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoMBCgxDb250ZW50QmxvY2sSCgoCaWQYASABKAkSFAoMYmxvZ19wb3N0X2lkGAIgASgJEhMKC2Jsb2NrX29yZGVyGAMgASgFEgwKBHRleHQYBCABKAkSLgoLcHJvbXB0X21ldGEYBSABKAsyGS5ibG9nX2FnZW50LnYxLlByb21wdE1ldGEiiwEKClByb21wdE1ldGESFwoPb3JpZ2luYWxfcHJvbXB0GAEgASgJEhAKCGFuYWx5c2lzGAIgASgJEjkKEWJldHRlcl9jYW5kaWRhdGVzGAMgAygLMh4uYmxvZ19hZ2VudC52MS5Qcm9tcHRDYW5kaWRhdGUSFwoPZXhwZWN0ZWRfZWZmZWN0GAQgASgJIkIKD1Byb21wdENhbmRpZGF0ZRIMCgR0eXBlGAEgASgJEg4KBnByb21wdBgCIAEoCRIRCglyZWFzb25pbmcYAyABKAki9wEKEVByb2Nlc3NpbmdIaXN0b3J5EgoKAmlkGAEgASgJEhsKE2NvbnZlcnNhdGlvbl9sb2dfaWQYAiABKAkSFAoMYmxvZ19wb3N0X2lkGAMgASgJEi8KBnN0YXR1cxgEIAEoDjIfLmJsb2dfYWdlbnQudjEuUHJvY2Vzc2luZ1N0YXR1cxIVCg1lcnJvcl9tZXNzYWdlGAUgASgJEh0KFXByb2Nlc3Npbmdfc3RlcHNfanNvbhgGIAEoCRISCgpzdGFydGVkX2F0GAcgASgJEhQKDGNvbXBsZXRlZF9hdBgIIAEoCRISCgpjcmVhdGVkX2F0GAkgASgJIkcKE0NvbnZlcnNhdGlvbk1lc3NhZ2USDAoEcm9sZRgBIAEoCRIPCgdjb250ZW50GAIgASgJEhEKCXRpbWVzdGFtcBgDIAEoCSKdAQoQUHJvbXB0U3VnZ2VzdGlvbhIKCgJpZBgBIAEoCRIXCg9vcmlnaW5hbF9wcm9tcHQYAiABKAkSEAoIYW5hbHlzaXMYAyABKAkSOQoRYmV0dGVyX2NhbmRpZGF0ZXMYBCADKAsyHi5ibG9nX2FnZW50LnYxLlByb21wdENhbmRpZGF0ZRIXCg9leHBlY3RlZF9lZmZlY3QYBSABKAkqhAEKCkZpbGVGb3JtYXQSGwoXRklMRV9GT1JNQVRfVU5TUEVDSUZJRUQQABIYChRGSUxFX0ZPUk1BVF9NQVJLRE9XThABEhQKEEZJTEVfRk9STUFUX0pTT04QAhITCg9GSUxFX0ZPUk1BVF9DU1YQAxIUChBGSUxFX0ZPUk1BVF9URVhUEAQqtQEKEFByb2Nlc3NpbmdTdGF0dXMSIQodUFJPQ0VTU0lOR19TVEFUVVNfVU5TUEVDSUZJRUQQABIdChlQUk9DRVNTSU5HX1NUQVRVU19QRU5ESU5HEAESIAocUFJPQ0VTU0lOR19TVEFUVVNfUFJPQ0VTU0lORxACEh8KG1BST0NFU1NJTkdfU1RBVFVTX0NPTVBMRVRFRBADEhwKGFBST0NFU1NJTkdfU1RBVFVTX0ZBSUxFRBAEKo0BCg5CbG9nUG9zdFN0YXR1cxIgChxCTE9HX1BPU1RfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGgoWQkxPR19QT1NUX1NUQVRVU19EUkFGVBABEh4KGkJMT0dfUE9TVF9TVEFUVVNfUFVCTElTSEVEEAISHQoZQkxPR19QT1NUX1NUQVRVU19BUkNISVZFRBADMusFChBCbG9nQWdlbnRTZXJ2aWNlEmwKE1Byb2Nlc3NDb252ZXJzYXRpb24SKS5ibG9nX2FnZW50LnYxLlByb2Nlc3NDb252ZXJzYXRpb25SZXF1ZXN0GiouYmxvZ19hZ2VudC52MS5Qcm9jZXNzQ29udmVyc2F0aW9uUmVzcG9uc2USbwoUTGlzdENvbnZlcnNhdGlvbkxvZ3MSKi5ibG9nX2FnZW50LnYxLkxpc3RDb252ZXJzYXRpb25Mb2dzUmVxdWVzdBorLmJsb2dfYWdlbnQudjEuTGlzdENvbnZlcnNhdGlvbkxvZ3NSZXNwb25zZRJpChJHZXRDb252ZXJzYXRpb25Mb2cSKC5ibG9nX2FnZW50LnYxLkdldENvbnZlcnNhdGlvbkxvZ1JlcXVlc3QaKS5ibG9nX2FnZW50LnYxLkdldENvbnZlcnNhdGlvbkxvZ1Jlc3BvbnNlElQKC0dldEJsb2dQb3N0EiEuYmxvZ19hZ2VudC52MS5HZXRCbG9nUG9zdFJlcXVlc3QaIi5ibG9nX2FnZW50LnYxLkdldEJsb2dQb3N0UmVzcG9uc2USagoWR2V0QmxvZ1Bvc3RXaXRoUHJvbXB0cxIhLmJsb2dfYWdlbnQudjEuR2V0QmxvZ1Bvc3RSZXF1ZXN0Gi0uYmxvZ19hZ2VudC52MS5HZXRCbG9nUG9zdFdpdGhQcm9tcHRzUmVzcG9uc2USWgoNTGlzdEJsb2dQb3N0cxIjLmJsb2dfYWdlbnQudjEuTGlzdEJsb2dQb3N0c1JlcXVlc3QaJC5ibG9nX2FnZW50LnYxLkxpc3RCbG9nUG9zdHNSZXNwb25zZRJvChRHZXRQcm9jZXNzaW5nSGlzdG9yeRIqLmJsb2dfYWdlbnQudjEuR2V0UHJvY2Vzc2luZ0hpc3RvcnlSZXF1ZXN0GisuYmxvZ19hZ2VudC52MS5HZXRQcm9jZXNzaW5nSGlzdG9yeVJlc3BvbnNlYgZwcm90bzM");
+  fileDesc("ChBibG9nX2FnZW50LnByb3RvEg1ibG9nX2FnZW50LnYxIvEBChpQcm9jZXNzQ29udmVyc2F0aW9uUmVxdWVzdBIRCglmaWxlX3BhdGgYASABKAkSLgoLZmlsZV9mb3JtYXQYAiABKA4yGS5ibG9nX2FnZW50LnYxLkZpbGVGb3JtYXQSFAoMZmlsZV9jb250ZW50GAMgASgMEkkKCG1ldGFkYXRhGAQgAygLMjcuYmxvZ19hZ2VudC52MS5Qcm9jZXNzQ29udmVyc2F0aW9uUmVxdWVzdC5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJzCh9FeHRyYWN0Q29udmVyc2F0aW9uRmFjdHNSZXF1ZXN0EhsKE2NvbnZlcnNhdGlvbl9sb2dfaWQYASABKAkSFgoObWF4X2NoYXJhY3RlcnMYAiABKAUSGwoTdXBfdG9fbWVzc2FnZV9pbmRleBgDIAEoBSJuCiBFeHRyYWN0Q29udmVyc2F0aW9uRmFjdHNSZXNwb25zZRIXCg9leHRyYWN0ZWRfZmFjdHMYASABKAkSGQoRYWN0dWFsX2NoYXJhY3RlcnMYAiABKAUSFgoObGltaXRfZXhjZWVkZWQYAyABKAgiqAEKG1Byb2Nlc3NDb252ZXJzYXRpb25SZXNwb25zZRIVCg1wcm9jZXNzaW5nX2lkGAEgASgJEi8KBnN0YXR1cxgCIAEoDjIfLmJsb2dfYWdlbnQudjEuUHJvY2Vzc2luZ1N0YXR1cxIVCg1lcnJvcl9tZXNzYWdlGAMgASgJEioKCWJsb2dfcG9zdBgEIAEoCzIXLmJsb2dfYWdlbnQudjEuQmxvZ1Bvc3QiXQobTGlzdENvbnZlcnNhdGlvbkxvZ3NSZXF1ZXN0EhEKCXBhZ2Vfc2l6ZRgBIAEoBRISCgpwYWdlX3Rva2VuGAIgASgJEhcKD2xhbmd1YWdlX2ZpbHRlchgDIAEoCSKHAQocTGlzdENvbnZlcnNhdGlvbkxvZ3NSZXNwb25zZRI5ChFjb252ZXJzYXRpb25fbG9ncxgBIAMoCzIeLmJsb2dfYWdlbnQudjEuQ29udmVyc2F0aW9uTG9nEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBSI4ChlHZXRDb252ZXJzYXRpb25Mb2dSZXF1ZXN0EhsKE2NvbnZlcnNhdGlvbl9sb2dfaWQYASABKAkiVgoaR2V0Q29udmVyc2F0aW9uTG9nUmVzcG9uc2USOAoQY29udmVyc2F0aW9uX2xvZxgBIAEoCzIeLmJsb2dfYWdlbnQudjEuQ29udmVyc2F0aW9uTG9nIioKEkdldEJsb2dQb3N0UmVxdWVzdBIUCgxibG9nX3Bvc3RfaWQYASABKAkiQQoTR2V0QmxvZ1Bvc3RSZXNwb25zZRIqCglibG9nX3Bvc3QYASABKAsyFy5ibG9nX2FnZW50LnYxLkJsb2dQb3N0IoECCh5HZXRCbG9nUG9zdFdpdGhQcm9tcHRzUmVzcG9uc2USKgoJYmxvZ19wb3N0GAEgASgLMhcuYmxvZ19hZ2VudC52MS5CbG9nUG9zdBIzCg5jb250ZW50X2Jsb2NrcxgCIAMoCzIbLmJsb2dfYWdlbnQudjEuQ29udGVudEJsb2NrEkEKFWNvbnZlcnNhdGlvbl9tZXNzYWdlcxgDIAMoCzIiLmJsb2dfYWdlbnQudjEuQ29udmVyc2F0aW9uTWVzc2FnZRI7ChJwcm9tcHRfc3VnZ2VzdGlvbnMYBCADKAsyHy5ibG9nX2FnZW50LnYxLlByb21wdFN1Z2dlc3Rpb24icwoUTGlzdEJsb2dQb3N0c1JlcXVlc3QSEQoJcGFnZV9zaXplGAEgASgFEhIKCnBhZ2VfdG9rZW4YAiABKAkSNAoNc3RhdHVzX2ZpbHRlchgDIAEoDjIdLmJsb2dfYWdlbnQudjEuQmxvZ1Bvc3RTdGF0dXMicgoVTGlzdEJsb2dQb3N0c1Jlc3BvbnNlEisKCmJsb2dfcG9zdHMYASADKAsyFy5ibG9nX2FnZW50LnYxLkJsb2dQb3N0EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBSI0ChtHZXRQcm9jZXNzaW5nSGlzdG9yeVJlcXVlc3QSFQoNcHJvY2Vzc2luZ19pZBgBIAEoCSJcChxHZXRQcm9jZXNzaW5nSGlzdG9yeVJlc3BvbnNlEjwKEnByb2Nlc3NpbmdfaGlzdG9yeRgBIAEoCzIgLmJsb2dfYWdlbnQudjEuUHJvY2Vzc2luZ0hpc3Rvcnki1AIKD0NvbnZlcnNhdGlvbkxvZxIKCgJpZBgBIAEoCRIRCglmaWxlX3BhdGgYAiABKAkSLgoLZmlsZV9mb3JtYXQYAyABKA4yGS5ibG9nX2FnZW50LnYxLkZpbGVGb3JtYXQSEwoLcmF3X2NvbnRlbnQYBCABKAkSGwoTcGFyc2VkX2NvbnRlbnRfanNvbhgFIAEoCRI+CghtZXRhZGF0YRgGIAMoCzIsLmJsb2dfYWdlbnQudjEuQ29udmVyc2F0aW9uTG9nLk1ldGFkYXRhRW50cnkSEAoIbGFuZ3VhZ2UYByABKAkSFQoNbWVzc2FnZV9jb3VudBgIIAEoBRISCgpjcmVhdGVkX2F0GAkgASgJEhIKCnVwZGF0ZWRfYXQYCiABKAkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIrMCCghCbG9nUG9zdBIKCgJpZBgBIAEoCRIbChNjb252ZXJzYXRpb25fbG9nX2lkGAIgASgJEg0KBXRpdGxlGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSDAoEdGFncxgFIAMoCRIPCgdjb250ZW50GAYgASgJEjcKCG1ldGFkYXRhGAcgAygLMiUuYmxvZ19hZ2VudC52MS5CbG9nUG9zdC5NZXRhZGF0YUVudHJ5Ei0KBnN0YXR1cxgIIAEoDjIdLmJsb2dfYWdlbnQudjEuQmxvZ1Bvc3RTdGF0dXMSEgoKY3JlYXRlZF9hdBgJIAEoCRISCgp1cGRhdGVkX2F0GAogASgJGi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKDAQoMQ29udGVudEJsb2NrEgoKAmlkGAEgASgJEhQKDGJsb2dfcG9zdF9pZBgCIAEoCRITCgtibG9ja19vcmRlchgDIAEoBRIMCgR0ZXh0GAQgASgJEi4KC3Byb21wdF9tZXRhGAUgASgLMhkuYmxvZ19hZ2VudC52MS5Qcm9tcHRNZXRhIosBCgpQcm9tcHRNZXRhEhcKD29yaWdpbmFsX3Byb21wdBgBIAEoCRIQCghhbmFseXNpcxgCIAEoCRI5ChFiZXR0ZXJfY2FuZGlkYXRlcxgDIAMoCzIeLmJsb2dfYWdlbnQudjEuUHJvbXB0Q2FuZGlkYXRlEhcKD2V4cGVjdGVkX2VmZmVjdBgEIAEoCSJCCg9Qcm9tcHRDYW5kaWRhdGUSDAoEdHlwZRgBIAEoCRIOCgZwcm9tcHQYAiABKAkSEQoJcmVhc29uaW5nGAMgASgJIvcBChFQcm9jZXNzaW5nSGlzdG9yeRIKCgJpZBgBIAEoCRIbChNjb252ZXJzYXRpb25fbG9nX2lkGAIgASgJEhQKDGJsb2dfcG9zdF9pZBgDIAEoCRIvCgZzdGF0dXMYBCABKA4yHy5ibG9nX2FnZW50LnYxLlByb2Nlc3NpbmdTdGF0dXMSFQoNZXJyb3JfbWVzc2FnZRgFIAEoCRIdChVwcm9jZXNzaW5nX3N0ZXBzX2pzb24YBiABKAkSEgoKc3RhcnRlZF9hdBgHIAEoCRIUCgxjb21wbGV0ZWRfYXQYCCABKAkSEgoKY3JlYXRlZF9hdBgJIAEoCSJHChNDb252ZXJzYXRpb25NZXNzYWdlEgwKBHJvbGUYASABKAkSDwoHY29udGVudBgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkinQEKEFByb21wdFN1Z2dlc3Rpb24SCgoCaWQYASABKAkSFwoPb3JpZ2luYWxfcHJvbXB0GAIgASgJEhAKCGFuYWx5c2lzGAMgASgJEjkKEWJldHRlcl9jYW5kaWRhdGVzGAQgAygLMh4uYmxvZ19hZ2VudC52MS5Qcm9tcHRDYW5kaWRhdGUSFwoPZXhwZWN0ZWRfZWZmZWN0GAUgASgJKoQBCgpGaWxlRm9ybWF0EhsKF0ZJTEVfRk9STUFUX1VOU1BFQ0lGSUVEEAASGAoURklMRV9GT1JNQVRfTUFSS0RPV04QARIUChBGSUxFX0ZPUk1BVF9KU09OEAISEwoPRklMRV9GT1JNQVRfQ1NWEAMSFAoQRklMRV9GT1JNQVRfVEVYVBAEKrUBChBQcm9jZXNzaW5nU3RhdHVzEiEKHVBST0NFU1NJTkdfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHQoZUFJPQ0VTU0lOR19TVEFUVVNfUEVORElORxABEiAKHFBST0NFU1NJTkdfU1RBVFVTX1BST0NFU1NJTkcQAhIfChtQUk9DRVNTSU5HX1NUQVRVU19DT01QTEVURUQQAxIcChhQUk9DRVNTSU5HX1NUQVRVU19GQUlMRUQQBCqNAQoOQmxvZ1Bvc3RTdGF0dXMSIAocQkxPR19QT1NUX1NUQVRVU19VTlNQRUNJRklFRBAAEhoKFkJMT0dfUE9TVF9TVEFUVVNfRFJBRlQQARIeChpCTE9HX1BPU1RfU1RBVFVTX1BVQkxJU0hFRBACEh0KGUJMT0dfUE9TVF9TVEFUVVNfQVJDSElWRUQQAzLoBgoQQmxvZ0FnZW50U2VydmljZRJsChNQcm9jZXNzQ29udmVyc2F0aW9uEikuYmxvZ19hZ2VudC52MS5Qcm9jZXNzQ29udmVyc2F0aW9uUmVxdWVzdBoqLmJsb2dfYWdlbnQudjEuUHJvY2Vzc0NvbnZlcnNhdGlvblJlc3BvbnNlEm8KFExpc3RDb252ZXJzYXRpb25Mb2dzEiouYmxvZ19hZ2VudC52MS5MaXN0Q29udmVyc2F0aW9uTG9nc1JlcXVlc3QaKy5ibG9nX2FnZW50LnYxLkxpc3RDb252ZXJzYXRpb25Mb2dzUmVzcG9uc2USaQoSR2V0Q29udmVyc2F0aW9uTG9nEiguYmxvZ19hZ2VudC52MS5HZXRDb252ZXJzYXRpb25Mb2dSZXF1ZXN0GikuYmxvZ19hZ2VudC52MS5HZXRDb252ZXJzYXRpb25Mb2dSZXNwb25zZRJUCgtHZXRCbG9nUG9zdBIhLmJsb2dfYWdlbnQudjEuR2V0QmxvZ1Bvc3RSZXF1ZXN0GiIuYmxvZ19hZ2VudC52MS5HZXRCbG9nUG9zdFJlc3BvbnNlEmoKFkdldEJsb2dQb3N0V2l0aFByb21wdHMSIS5ibG9nX2FnZW50LnYxLkdldEJsb2dQb3N0UmVxdWVzdBotLmJsb2dfYWdlbnQudjEuR2V0QmxvZ1Bvc3RXaXRoUHJvbXB0c1Jlc3BvbnNlEloKDUxpc3RCbG9nUG9zdHMSIy5ibG9nX2FnZW50LnYxLkxpc3RCbG9nUG9zdHNSZXF1ZXN0GiQuYmxvZ19hZ2VudC52MS5MaXN0QmxvZ1Bvc3RzUmVzcG9uc2USbwoUR2V0UHJvY2Vzc2luZ0hpc3RvcnkSKi5ibG9nX2FnZW50LnYxLkdldFByb2Nlc3NpbmdIaXN0b3J5UmVxdWVzdBorLmJsb2dfYWdlbnQudjEuR2V0UHJvY2Vzc2luZ0hpc3RvcnlSZXNwb25zZRJ7ChhFeHRyYWN0Q29udmVyc2F0aW9uRmFjdHMSLi5ibG9nX2FnZW50LnYxLkV4dHJhY3RDb252ZXJzYXRpb25GYWN0c1JlcXVlc3QaLy5ibG9nX2FnZW50LnYxLkV4dHJhY3RDb252ZXJzYXRpb25GYWN0c1Jlc3BvbnNlYgZwcm90bzM");
 
 /**
  * 處理對話紀錄請求
@@ -55,6 +55,76 @@ export const ProcessConversationRequestSchema: GenMessage<ProcessConversationReq
   messageDesc(file_blog_agent, 0);
 
 /**
+ * 提取對話事實請求
+ *
+ * @generated from message blog_agent.v1.ExtractConversationFactsRequest
+ */
+export type ExtractConversationFactsRequest = Message<"blog_agent.v1.ExtractConversationFactsRequest"> & {
+  /**
+   * 對話紀錄 ID
+   *
+   * @generated from field: string conversation_log_id = 1;
+   */
+  conversationLogId: string;
+
+  /**
+   * 最大字數限制
+   *
+   * @generated from field: int32 max_characters = 2;
+   */
+  maxCharacters: number;
+
+  /**
+   * 包含到第幾則訊息（從 0 開始）
+   *
+   * @generated from field: int32 up_to_message_index = 3;
+   */
+  upToMessageIndex: number;
+};
+
+/**
+ * Describes the message blog_agent.v1.ExtractConversationFactsRequest.
+ * Use `create(ExtractConversationFactsRequestSchema)` to create a new message.
+ */
+export const ExtractConversationFactsRequestSchema: GenMessage<ExtractConversationFactsRequest> = /*@__PURE__*/
+  messageDesc(file_blog_agent, 1);
+
+/**
+ * 提取對話事實回應
+ *
+ * @generated from message blog_agent.v1.ExtractConversationFactsResponse
+ */
+export type ExtractConversationFactsResponse = Message<"blog_agent.v1.ExtractConversationFactsResponse"> & {
+  /**
+   * 提取後的事實（Markdown 格式）
+   *
+   * @generated from field: string extracted_facts = 1;
+   */
+  extractedFacts: string;
+
+  /**
+   * 實際字數
+   *
+   * @generated from field: int32 actual_characters = 2;
+   */
+  actualCharacters: number;
+
+  /**
+   * 是否超過限制
+   *
+   * @generated from field: bool limit_exceeded = 3;
+   */
+  limitExceeded: boolean;
+};
+
+/**
+ * Describes the message blog_agent.v1.ExtractConversationFactsResponse.
+ * Use `create(ExtractConversationFactsResponseSchema)` to create a new message.
+ */
+export const ExtractConversationFactsResponseSchema: GenMessage<ExtractConversationFactsResponse> = /*@__PURE__*/
+  messageDesc(file_blog_agent, 2);
+
+/**
  * 處理對話紀錄回應
  *
  * @generated from message blog_agent.v1.ProcessConversationResponse
@@ -94,7 +164,7 @@ export type ProcessConversationResponse = Message<"blog_agent.v1.ProcessConversa
  * Use `create(ProcessConversationResponseSchema)` to create a new message.
  */
 export const ProcessConversationResponseSchema: GenMessage<ProcessConversationResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 1);
+  messageDesc(file_blog_agent, 3);
 
 /**
  * 列出對話紀錄請求
@@ -129,7 +199,7 @@ export type ListConversationLogsRequest = Message<"blog_agent.v1.ListConversatio
  * Use `create(ListConversationLogsRequestSchema)` to create a new message.
  */
 export const ListConversationLogsRequestSchema: GenMessage<ListConversationLogsRequest> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 2);
+  messageDesc(file_blog_agent, 4);
 
 /**
  * 列出對話紀錄回應
@@ -162,7 +232,7 @@ export type ListConversationLogsResponse = Message<"blog_agent.v1.ListConversati
  * Use `create(ListConversationLogsResponseSchema)` to create a new message.
  */
 export const ListConversationLogsResponseSchema: GenMessage<ListConversationLogsResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 3);
+  messageDesc(file_blog_agent, 5);
 
 /**
  * 取得對話紀錄請求
@@ -183,7 +253,7 @@ export type GetConversationLogRequest = Message<"blog_agent.v1.GetConversationLo
  * Use `create(GetConversationLogRequestSchema)` to create a new message.
  */
 export const GetConversationLogRequestSchema: GenMessage<GetConversationLogRequest> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 4);
+  messageDesc(file_blog_agent, 6);
 
 /**
  * 取得對話紀錄回應
@@ -202,7 +272,7 @@ export type GetConversationLogResponse = Message<"blog_agent.v1.GetConversationL
  * Use `create(GetConversationLogResponseSchema)` to create a new message.
  */
 export const GetConversationLogResponseSchema: GenMessage<GetConversationLogResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 5);
+  messageDesc(file_blog_agent, 7);
 
 /**
  * 取得部落格文章請求
@@ -223,7 +293,7 @@ export type GetBlogPostRequest = Message<"blog_agent.v1.GetBlogPostRequest"> & {
  * Use `create(GetBlogPostRequestSchema)` to create a new message.
  */
 export const GetBlogPostRequestSchema: GenMessage<GetBlogPostRequest> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 6);
+  messageDesc(file_blog_agent, 8);
 
 /**
  * 取得部落格文章回應
@@ -242,7 +312,7 @@ export type GetBlogPostResponse = Message<"blog_agent.v1.GetBlogPostResponse"> &
  * Use `create(GetBlogPostResponseSchema)` to create a new message.
  */
 export const GetBlogPostResponseSchema: GenMessage<GetBlogPostResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 7);
+  messageDesc(file_blog_agent, 9);
 
 /**
  * 取得部落格文章（包含 prompts）回應
@@ -285,7 +355,7 @@ export type GetBlogPostWithPromptsResponse = Message<"blog_agent.v1.GetBlogPostW
  * Use `create(GetBlogPostWithPromptsResponseSchema)` to create a new message.
  */
 export const GetBlogPostWithPromptsResponseSchema: GenMessage<GetBlogPostWithPromptsResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 8);
+  messageDesc(file_blog_agent, 10);
 
 /**
  * 列出部落格文章請求
@@ -316,7 +386,7 @@ export type ListBlogPostsRequest = Message<"blog_agent.v1.ListBlogPostsRequest">
  * Use `create(ListBlogPostsRequestSchema)` to create a new message.
  */
 export const ListBlogPostsRequestSchema: GenMessage<ListBlogPostsRequest> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 9);
+  messageDesc(file_blog_agent, 11);
 
 /**
  * 列出部落格文章回應
@@ -345,7 +415,7 @@ export type ListBlogPostsResponse = Message<"blog_agent.v1.ListBlogPostsResponse
  * Use `create(ListBlogPostsResponseSchema)` to create a new message.
  */
 export const ListBlogPostsResponseSchema: GenMessage<ListBlogPostsResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 10);
+  messageDesc(file_blog_agent, 12);
 
 /**
  * 取得處理歷史請求
@@ -366,7 +436,7 @@ export type GetProcessingHistoryRequest = Message<"blog_agent.v1.GetProcessingHi
  * Use `create(GetProcessingHistoryRequestSchema)` to create a new message.
  */
 export const GetProcessingHistoryRequestSchema: GenMessage<GetProcessingHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 11);
+  messageDesc(file_blog_agent, 13);
 
 /**
  * 取得處理歷史回應
@@ -385,7 +455,7 @@ export type GetProcessingHistoryResponse = Message<"blog_agent.v1.GetProcessingH
  * Use `create(GetProcessingHistoryResponseSchema)` to create a new message.
  */
 export const GetProcessingHistoryResponseSchema: GenMessage<GetProcessingHistoryResponse> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 12);
+  messageDesc(file_blog_agent, 14);
 
 /**
  * 對話紀錄
@@ -461,7 +531,7 @@ export type ConversationLog = Message<"blog_agent.v1.ConversationLog"> & {
  * Use `create(ConversationLogSchema)` to create a new message.
  */
 export const ConversationLogSchema: GenMessage<ConversationLog> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 13);
+  messageDesc(file_blog_agent, 15);
 
 /**
  * 部落格文章
@@ -533,7 +603,7 @@ export type BlogPost = Message<"blog_agent.v1.BlogPost"> & {
  * Use `create(BlogPostSchema)` to create a new message.
  */
 export const BlogPostSchema: GenMessage<BlogPost> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 14);
+  messageDesc(file_blog_agent, 16);
 
 /**
  * 內容區塊（用於 UI/UX Side-by-Side 顯示）
@@ -582,7 +652,7 @@ export type ContentBlock = Message<"blog_agent.v1.ContentBlock"> & {
  * Use `create(ContentBlockSchema)` to create a new message.
  */
 export const ContentBlockSchema: GenMessage<ContentBlock> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 15);
+  messageDesc(file_blog_agent, 17);
 
 /**
  * Prompt 元資料（用於前端 UI/UX 顯示）
@@ -624,7 +694,7 @@ export type PromptMeta = Message<"blog_agent.v1.PromptMeta"> & {
  * Use `create(PromptMetaSchema)` to create a new message.
  */
 export const PromptMetaSchema: GenMessage<PromptMeta> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 16);
+  messageDesc(file_blog_agent, 18);
 
 /**
  * Prompt 候選（結構化）
@@ -659,7 +729,7 @@ export type PromptCandidate = Message<"blog_agent.v1.PromptCandidate"> & {
  * Use `create(PromptCandidateSchema)` to create a new message.
  */
 export const PromptCandidateSchema: GenMessage<PromptCandidate> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 17);
+  messageDesc(file_blog_agent, 19);
 
 /**
  * 處理歷史
@@ -730,7 +800,7 @@ export type ProcessingHistory = Message<"blog_agent.v1.ProcessingHistory"> & {
  * Use `create(ProcessingHistorySchema)` to create a new message.
  */
 export const ProcessingHistorySchema: GenMessage<ProcessingHistory> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 18);
+  messageDesc(file_blog_agent, 20);
 
 /**
  * 對話訊息（新增，用於前端顯示原始對話內容）
@@ -765,7 +835,7 @@ export type ConversationMessage = Message<"blog_agent.v1.ConversationMessage"> &
  * Use `create(ConversationMessageSchema)` to create a new message.
  */
 export const ConversationMessageSchema: GenMessage<ConversationMessage> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 19);
+  messageDesc(file_blog_agent, 21);
 
 /**
  * Prompt 建議（新增，用於前端顯示提示詞分析）
@@ -814,7 +884,7 @@ export type PromptSuggestion = Message<"blog_agent.v1.PromptSuggestion"> & {
  * Use `create(PromptSuggestionSchema)` to create a new message.
  */
 export const PromptSuggestionSchema: GenMessage<PromptSuggestion> = /*@__PURE__*/
-  messageDesc(file_blog_agent, 20);
+  messageDesc(file_blog_agent, 22);
 
 /**
  * 檔案格式
@@ -1001,6 +1071,16 @@ export const BlogAgentService: GenService<{
     methodKind: "unary";
     input: typeof GetProcessingHistoryRequestSchema;
     output: typeof GetProcessingHistoryResponseSchema;
+  },
+  /**
+   * 提取對話事實（用於 context simulation）
+   *
+   * @generated from rpc blog_agent.v1.BlogAgentService.ExtractConversationFacts
+   */
+  extractConversationFacts: {
+    methodKind: "unary";
+    input: typeof ExtractConversationFactsRequestSchema;
+    output: typeof ExtractConversationFactsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_blog_agent, 0);

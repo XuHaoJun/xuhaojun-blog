@@ -103,6 +103,7 @@ export function BlogPostClient({
       <article className="flex-1 lg:w-[70%]">
         <ConversationViewer
           messages={conversationMessages}
+          conversationLogId={blogPost.conversationLogId}
           onMessageHover={handleMessageHover}
           onMessageLeave={handleMessageLeave}
           activeMessageIndex={sidebarMessageIndex}
