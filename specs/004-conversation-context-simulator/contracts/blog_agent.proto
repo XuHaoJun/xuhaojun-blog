@@ -1,0 +1,239 @@
+syntax = "proto3";
+
+package blog_agent.v1;
+
+// Blog Agent Service - 處理對話紀錄轉換為部落格文章
+service BlogAgentService {
+  // 處理對話紀錄並生成部落格文章
+  rpc ProcessConversation(ProcessConversationRequest) returns (ProcessConversationResponse);
+  
+  // 列出所有已處理的對話紀錄
+  rpc ListConversationLogs(ListConversationLogsRequest) returns (ListConversationLogsResponse);
+  
+  // 取得特定的對話紀錄
+  rpc GetConversationLog(GetConversationLogRequest) returns (GetConversationLogResponse);
+  
+  // 取得生成的部落格文章
+  rpc GetBlogPost(GetBlogPostRequest) returns (GetBlogPostResponse);
+  
+  // 取得部落格文章（包含結構化的 content blocks 和 prompt meta，用於 UI/UX）
+  // 變更：新增 conversation_messages 欄位，content_blocks 保留但設為空（向後兼容）
+  rpc GetBlogPostWithPrompts(GetBlogPostRequest) returns (GetBlogPostWithPromptsResponse);
+  
+  // 列出所有部落格文章
+  rpc ListBlogPosts(ListBlogPostsRequest) returns (ListBlogPostsResponse);
+  
+  // 取得處理歷史
+  rpc GetProcessingHistory(GetProcessingHistoryRequest) returns (GetProcessingHistoryResponse);
+
+  // 提取對話事實（用於 context simulation）
+  rpc ExtractConversationFacts(ExtractConversationFactsRequest) returns (ExtractConversationFactsResponse);
+}
+
+// 處理對話紀錄請求
+message ProcessConversationRequest {
+  string file_path = 1;                    // 檔案路徑
+  FileFormat file_format = 2;              // 檔案格式
+  bytes file_content = 3;                  // 檔案內容（二進位）
+  map<string, string> metadata = 4;        // 額外 metadata
+}
+// ... existing messages ...
+
+// 提取對話事實請求
+message ExtractConversationFactsRequest {
+  string conversation_log_id = 1;          // 對話紀錄 ID
+  int32 max_characters = 2;                // 最大字數限制
+  int32 up_to_message_index = 3;           // 包含到第幾則訊息（從 0 開始）
+}
+
+// 提取對話事實回應
+message ExtractConversationFactsResponse {
+  string extracted_facts = 1;              // 提取後的事實（Markdown 格式）
+  int32 actual_characters = 2;             // 實際字數
+  bool limit_exceeded = 3;                 // 是否超過限制
+}
+
+// 處理對話紀錄回應
+message ProcessConversationResponse {
+  string processing_id = 1;                // 處理 ID (UUID)
+  ProcessingStatus status = 2;             // 處理狀態
+  string error_message = 3;                 // 錯誤訊息（如果失敗）
+  BlogPost blog_post = 4;                   // 生成的部落格文章（如果成功）
+}
+
+// 列出對話紀錄請求
+message ListConversationLogsRequest {
+  int32 page_size = 1;                     // 每頁數量
+  string page_token = 2;                   // 分頁 token
+  string language_filter = 3;              // 語言篩選（可選）
+}
+
+// 列出對話紀錄回應
+message ListConversationLogsResponse {
+  repeated ConversationLog conversation_logs = 1;
+  string next_page_token = 2;              // 下一頁 token
+  int32 total_count = 3;                   // 總數
+}
+
+// 取得對話紀錄請求
+message GetConversationLogRequest {
+  string conversation_log_id = 1;         // 對話紀錄 ID (UUID)
+}
+
+// 取得對話紀錄回應
+message GetConversationLogResponse {
+  ConversationLog conversation_log = 1;
+}
+
+// 取得部落格文章請求
+message GetBlogPostRequest {
+  string blog_post_id = 1;                 // 部落格文章 ID (UUID)
+}
+
+// 取得部落格文章回應
+message GetBlogPostResponse {
+  BlogPost blog_post = 1;
+}
+
+// 取得部落格文章（包含 prompts）回應
+// 變更說明：
+// - content_blocks: 保留欄位但設為空（向後兼容，不再用於新文章）
+// - conversation_messages: 新增欄位，包含原始對話訊息
+message GetBlogPostWithPromptsResponse {
+  BlogPost blog_post = 1;
+  repeated ContentBlock content_blocks = 2;  // 保留但設為空（向後兼容）
+  repeated ConversationMessage conversation_messages = 3;  // 新增：原始對話訊息
+  repeated PromptSuggestion prompt_suggestions = 4;  // 新增：提示詞建議（可選）
+}
+
+// 列出部落格文章請求
+message ListBlogPostsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  BlogPostStatus status_filter = 3;        // 狀態篩選（可選）
+}
+
+// 列出部落格文章回應
+message ListBlogPostsResponse {
+  repeated BlogPost blog_posts = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// 取得處理歷史請求
+message GetProcessingHistoryRequest {
+  string processing_id = 1;                // 處理 ID (UUID)
+}
+
+// 取得處理歷史回應
+message GetProcessingHistoryResponse {
+  ProcessingHistory processing_history = 1;
+}
+
+// 檔案格式
+enum FileFormat {
+  FILE_FORMAT_UNSPECIFIED = 0;
+  FILE_FORMAT_MARKDOWN = 1;
+  FILE_FORMAT_JSON = 2;
+  FILE_FORMAT_CSV = 3;
+  FILE_FORMAT_TEXT = 4;
+}
+
+// 處理狀態
+enum ProcessingStatus {
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  PROCESSING_STATUS_PENDING = 1;
+  PROCESSING_STATUS_PROCESSING = 2;
+  PROCESSING_STATUS_COMPLETED = 3;
+  PROCESSING_STATUS_FAILED = 4;
+}
+
+// 部落格文章狀態
+enum BlogPostStatus {
+  BLOG_POST_STATUS_UNSPECIFIED = 0;
+  BLOG_POST_STATUS_DRAFT = 1;
+  BLOG_POST_STATUS_PUBLISHED = 2;
+  BLOG_POST_STATUS_ARCHIVED = 3;
+}
+
+// 對話紀錄
+message ConversationLog {
+  string id = 1;                           // UUID
+  string file_path = 2;
+  FileFormat file_format = 3;
+  string raw_content = 4;                  // 原始內容（文字）
+  string parsed_content_json = 5;          // 解析後的 JSON 字串
+  map<string, string> metadata = 6;
+  string language = 7;                     // 偵測到的語言
+  int32 message_count = 8;                 // 訊息數量
+  string created_at = 9;                   // ISO 8601 timestamp
+  string updated_at = 10;
+}
+
+// 部落格文章
+message BlogPost {
+  string id = 1;                           // UUID
+  string conversation_log_id = 2;          // 關聯的對話紀錄 ID
+  string title = 3;
+  string summary = 4;
+  repeated string tags = 5;
+  string content = 6;                      // Markdown 格式（保留用於向後兼容）
+  map<string, string> metadata = 7;
+  BlogPostStatus status = 8;
+  string created_at = 9;                   // ISO 8601 timestamp
+  string updated_at = 10;
+}
+
+// 內容區塊（用於 UI/UX Side-by-Side 顯示）
+message ContentBlock {
+  string id = 1;                           // UUID
+  string blog_post_id = 2;                 // 關聯的部落格文章 ID
+  int32 block_order = 3;                   // 在文章中的順序（從 0 開始）
+  string text = 4;                         // 文章內容（Markdown 格式）
+  PromptMeta prompt_meta = 5;             // 可選：對應的 Prompt 元資料（用於前端顯示）
+}
+
+// Prompt 元資料（用於前端 UI/UX 顯示）
+message PromptMeta {
+  string original_prompt = 1;              // 原始提問
+  string analysis = 2;                     // AI 診斷
+  repeated PromptCandidate better_candidates = 3;  // 優化建議候選
+  string expected_effect = 4;             // 預期效果說明
+}
+
+// Prompt 候選（結構化）
+message PromptCandidate {
+  string type = 1;                         // 'structured' | 'role-play' | 'chain-of-thought'
+  string prompt = 2;                       // 優化後的 Prompt
+  string reasoning = 3;                    // 為什麼這個版本更好
+}
+
+// 處理歷史
+message ProcessingHistory {
+  string id = 1;                           // UUID
+  string conversation_log_id = 2;
+  string blog_post_id = 3;                 // 可選，如果處理成功
+  ProcessingStatus status = 4;
+  string error_message = 5;                // 如果失敗，錯誤訊息
+  string processing_steps_json = 6;        // 各步驟的 JSON 字串
+  string started_at = 7;                   // ISO 8601 timestamp
+  string completed_at = 8;                 // ISO 8601 timestamp（可選）
+  string created_at = 9;
+}
+
+// 對話訊息（新增，用於前端顯示原始對話內容）
+message ConversationMessage {
+  string role = 1;                    // "user", "system", "assistant"
+  string content = 2;                // 訊息內容（Markdown 格式）
+  string timestamp = 3;               // 可選：ISO 8601 timestamp
+}
+
+// Prompt 建議（新增，用於前端顯示提示詞分析）
+message PromptSuggestion {
+  string id = 1;                       // UUID
+  string original_prompt = 2;         // 原始提問
+  string analysis = 3;                // AI 診斷
+  repeated PromptCandidate better_candidates = 4;  // 優化建議候選
+  string expected_effect = 5;          // 預期效果說明
+}
+
