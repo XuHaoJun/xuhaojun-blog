@@ -59,9 +59,9 @@ class ConversationMemoryManager:
             memory_blocks=[fact_block],
             insert_method="system",
             async_database_uri="sqlite+aiosqlite:///:memory:",
-        )
+            )
         logger.debug(
-            "Created new LlamaIndex Memory",
+        "Created new LlamaIndex Memory",
             token_limit=config.MEMORY_TOKEN_LIMIT,
             max_facts=config.MEMORY_MAX_FACTS,
         )
@@ -78,6 +78,12 @@ class ConversationMemoryManager:
             ConversationMemoryManager instance with messages loaded
         """
         manager = cls()
+
+        # Important: LlamaIndex SQL chat store currently errors on empty inserts for Memory.aput_messages.
+        # The first user prompt may have an empty historical context (messages[:0] == []).
+        if not messages:
+            logger.debug("Initialized memory from messages (empty history)")
+            return manager
         
         chat_messages = [ChatMessage(role=msg.role, content=msg.content) for msg in messages]
         await manager.memory.aput_messages(chat_messages)
