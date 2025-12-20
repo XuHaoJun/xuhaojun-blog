@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@blog-agent/ui/components/dialog";
+import { Button } from "@blog-agent/ui/components/button";
+import { Spinner } from "@blog-agent/ui/components/spinner";
 
 interface SimulationModalProps {
   prompt: string;
@@ -33,86 +42,61 @@ export function SimulationModal({
     }, 1000);
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-xl flex items-center gap-2">
             🚀 模擬運行
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-            aria-label="關閉"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+          </DialogTitle>
+          <DialogDescription>
+            查看 AI 使用優化後的 Prompt 產生的預期回應。
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <div className="flex-1 overflow-y-auto py-4 space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
               使用的 Prompt：
             </h3>
-            <div className="bg-gray-50 dark:bg-gray-900 rounded p-3 font-mono text-sm">
+            <div className="bg-muted rounded-md p-3 font-mono text-sm border">
               {prompt}
             </div>
           </div>
 
           {!simulationResult && !isLoading && (
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
+              <p className="text-muted-foreground mb-4">
                 點擊下方按鈕來模擬 AI 的回應
               </p>
-              <button
-                onClick={runSimulation}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded transition-colors"
-              >
+              <Button onClick={runSimulation} variant="default">
                 執行模擬
-              </button>
+              </Button>
             </div>
           )}
 
           {isLoading && (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">
+            <div className="text-center py-12">
+              <Spinner className="h-8 w-8 mb-4 mx-auto" />
+              <p className="text-muted-foreground">
                 正在模擬 AI 回應...
               </p>
             </div>
           )}
 
           {simulationResult && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <h3 className="text-sm font-medium text-muted-foreground">
                 AI 回應：
               </h3>
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-4 border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+              <div className="bg-primary/5 dark:bg-primary/10 rounded-md p-4 border border-primary/20">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
                   {simulationResult}
                 </p>
               </div>
@@ -120,17 +104,12 @@ export function SimulationModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded transition-colors"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             關閉
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-

@@ -115,6 +115,7 @@ export function BlogPostClient({
             <PromptAccordion
               conversationMessages={conversationMessages}
               promptSuggestions={promptSuggestions}
+              conversationLogId={blogPost.conversationLogId}
             />
           </div>
         )}
@@ -126,6 +127,7 @@ export function BlogPostClient({
           conversationMessages={conversationMessages}
           promptSuggestions={promptSuggestions}
           activeMessageIndex={sidebarMessageIndex}
+          conversationLogId={blogPost.conversationLogId}
         />
       )}
     </div>

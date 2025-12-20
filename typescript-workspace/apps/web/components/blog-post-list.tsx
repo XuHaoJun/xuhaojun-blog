@@ -5,6 +5,16 @@
 
 import Link from "next/link";
 import type { BlogPost } from "@blog-agent/proto-gen";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@blog-agent/ui/components/card";
+import { Badge } from "@blog-agent/ui/components/badge";
+import { Calendar } from "lucide-react";
 
 interface BlogPostListProps {
   posts: BlogPost[];
@@ -13,8 +23,8 @@ interface BlogPostListProps {
 export function BlogPostList({ posts }: BlogPostListProps) {
   if (posts.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 dark:text-gray-400">
+      <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed">
+        <p className="text-muted-foreground">
           目前還沒有部落格文章。使用 CLI 處理對話紀錄以生成文章。
         </p>
       </div>
@@ -24,42 +34,53 @@ export function BlogPostList({ posts }: BlogPostListProps) {
   return (
     <div className="space-y-6">
       {posts.map((post) => (
-        <article
-          key={post.id}
-          className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-lg transition-shadow"
-        >
-          <Link href={`/blog/${post.id}`}>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 hover:text-blue-600 dark:hover:text-blue-400">
-              {post.title || "無標題"}
-            </h2>
-          </Link>
+        <Card key={post.id} className="overflow-hidden transition-all hover:shadow-md border-muted">
+          <CardHeader>
+            <Link href={`/blog/${post.id}`} className="group">
+              <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+                {post.title || "無標題"}
+              </CardTitle>
+            </Link>
+          </CardHeader>
+          
           {post.summary && (
-            <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-              {post.summary}
-            </p>
+            <CardContent>
+              <p className="text-muted-foreground line-clamp-3 leading-relaxed">
+                {post.summary}
+              </p>
+            </CardContent>
           )}
-          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-            {post.tags && post.tags.length > 0 && (
-              <div className="flex gap-2">
-                {post.tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded"
-                  >
+          
+          <CardFooter className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t bg-muted/5">
+            <div className="flex flex-wrap gap-1.5">
+              {post.tags && post.tags.length > 0 ? (
+                post.tags.map((tag, idx) => (
+                  <Badge key={idx} variant="secondary" className="px-2 py-0 text-[10px] uppercase tracking-wider font-semibold">
                     {tag}
-                  </span>
-                ))}
+                  </Badge>
+                ))
+              ) : (
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wider opacity-50">
+                  Uncategorized
+                </Badge>
+              )}
+            </div>
+            
+            {post.createdAt && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Calendar className="w-3.5 h-3.5" />
+                <time dateTime={post.createdAt}>
+                  {new Date(post.createdAt).toLocaleDateString("zh-TW", {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </time>
               </div>
             )}
-            {post.createdAt && (
-              <time dateTime={post.createdAt}>
-                {new Date(post.createdAt).toLocaleDateString("zh-TW")}
-              </time>
-            )}
-          </div>
-        </article>
+          </CardFooter>
+        </Card>
       ))}
     </div>
   );
 }
-

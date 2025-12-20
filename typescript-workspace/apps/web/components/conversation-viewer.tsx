@@ -4,16 +4,10 @@ import { useState } from "react";
 import type { ConversationMessage } from "@blog-agent/proto-gen";
 import { cn } from "@/lib/utils";
 import { MyReactMarkdown } from "./my-react-markdown";
-import { Copy, MoreVertical } from "lucide-react";
-import { formatConversationContext } from "@/lib/context-formatter";
-import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@blog-agent/ui/components/dropdown-menu";
-import { createBlogAgentClient } from "@blog-agent/rpc-client";
+import { User, Bot } from "lucide-react";
+import { useCopyActions } from "@/hooks/use-copy-actions";
+import { CopyDropdown } from "./copy-dropdown";
+import { Badge } from "@blog-agent/ui/components/badge";
 import { CompressionLimitForm } from "./compression-limit-form";
 
 interface ConversationViewerProps {
@@ -31,81 +25,26 @@ export function ConversationViewer({
   onMessageLeave,
   activeMessageIndex,
 }: ConversationViewerProps) {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isCompressing, setIsCompressing] = useState(false);
-  const [targetIndex, setTargetIndex] = useState<number | null>(null);
-
-  const handleCopyOriginal = (index: number) => {
-    const messagesToCopy = messages.slice(0, index + 1);
-    const formattedContext = formatConversationContext(messagesToCopy);
-    
-    if (formattedContext) {
-      navigator.clipboard.writeText(formattedContext);
-      toast.success("已複製原始對話內容");
-    }
-  };
-
-  const handleCompressedCopyRequest = (index: number) => {
-    setTargetIndex(index);
-    setIsFormOpen(true);
-  };
-
-  const handleCompressedSubmit = async (limit: number) => {
-    if (!conversationLogId || targetIndex === null) return;
-
-    setIsCompressing(true);
-    try {
-      const client = createBlogAgentClient({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:50051"
-      });
-
-      const response = await client.extractConversationFacts({
-        conversationLogId,
-        maxCharacters: limit,
-        upToMessageIndex: targetIndex,
-      });
-
-      if (response.extractedFacts) {
-        const header = `以下是我們之前對話的重點事實摘要，請作為背景參考，並根據最後的 <Task> 進行回覆。`;
-        const historyBlock = `<History>\n${response.extractedFacts}\n</History>`;
-        const taskMessage = messages[targetIndex];
-        
-        if (!taskMessage) {
-          toast.error("找不到目標訊息");
-          return;
-        }
-
-        const taskBlock = `<Task>\n${taskMessage.content}\n</Task>`;
-        
-        const fullPackage = `${header}\n\n${historyBlock}\n\n${taskBlock}`;
-        
-        await navigator.clipboard.writeText(fullPackage);
-        
-        if (response.limitExceeded) {
-          toast.warning(`已複製摘要內容，但已超過 ${limit} 字限制，已提供最佳壓縮版本`);
-        } else {
-          toast.success("已複製事實提取後的摘要內容");
-        }
-        setIsFormOpen(false);
-      }
-    } catch (error) {
-      console.error("Fact extraction failed:", error);
-      toast.error("事實提取失敗，請稍後再試");
-    } finally {
-      setIsCompressing(false);
-    }
-  };
+  const {
+    isFormOpen,
+    setIsFormOpen,
+    isCompressing,
+    copyCurrentMessage,
+    copyOriginal,
+    startCompressedCopy,
+    handleCompressedSubmit,
+  } = useCopyActions({ messages, conversationLogId });
 
   if (messages.length === 0) {
     return (
-      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+      <div className="text-center text-muted-foreground py-12 bg-muted/20 rounded-lg border-2 border-dashed">
         沒有對話內容
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {messages.map((msg, index) => {
         const isUser = msg.role === "user";
         const isActive = activeMessageIndex === index;
@@ -115,69 +54,55 @@ export function ConversationViewer({
             key={index}
             id={`message-${index}`}
             className={cn(
-              "p-4 rounded-lg transition-all duration-300 relative group",
+              "p-5 rounded-xl transition-all duration-300 relative group border-2",
               isUser
-                ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
-                : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
+                ? "bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 shadow-sm"
+                : "bg-background border-muted shadow-sm",
               isActive &&
-                "ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-gray-900"
+                "ring-2 ring-primary ring-offset-2 dark:ring-offset-background z-10 scale-[1.01]"
             )}
             onMouseEnter={() => onMessageHover?.(index)}
             onMouseLeave={onMessageLeave}
           >
-            {/* Actions overlay */}
-            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => handleCopyOriginal(index)}
-                className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-                title="複製原始對話"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
-                    className="cursor-pointer"
-                    onClick={() => handleCompressedCopyRequest(index)}
+            {/* Role label and actions */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {isUser ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 gap-1.5 px-2 py-0.5"
                   >
-                    壓縮版本 (需事實提取)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                    <User className="w-3.5 h-3.5" /> 使用者
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="bg-muted text-foreground border-muted-foreground/20 gap-1.5 px-2 py-0.5"
+                  >
+                    <Bot className="w-3.5 h-3.5" /> AI
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground font-mono">#{index + 1}</span>
+              </div>
 
-            {/* Role label */}
-            <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-              {isUser ? (
-                <>
-                  <span>👤</span>
-                  <span className="text-blue-700 dark:text-blue-300">使用者</span>
-                </>
-              ) : (
-                <>
-                  <span>🤖</span>
-                  <span className="text-gray-700 dark:text-gray-300">AI</span>
-                </>
-              )}
-              <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 font-normal">
-                #{index + 1}
-              </span>
+              {/* Actions overlay */}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <CopyDropdown
+                  onCopyCurrent={() => copyCurrentMessage(index)}
+                  onCopyOriginal={() => copyOriginal(index)}
+                  onCopyCompressed={() => startCompressedCopy(index)}
+                />
+              </div>
             </div>
 
             {/* Message content */}
-            <div className="prose prose-lg dark:prose-invert max-w-none font-serif">
+            <div className="prose prose-slate dark:prose-invert max-w-none font-serif leading-relaxed">
               <MyReactMarkdown content={msg.content} />
             </div>
 
             {/* Timestamp (if available) */}
             {msg.timestamp && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <div className="text-[10px] text-muted-foreground mt-4 text-right tabular-nums opacity-60">
                 {new Date(msg.timestamp).toLocaleString("zh-TW")}
               </div>
             )}
