@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { MyReactMarkdown } from "./my-react-markdown";
 import { useCopyActions } from "@/hooks/use-copy-actions";
 import { CopyDropdown } from "./copy-dropdown";
-import { CompressionLimitForm } from "./compression-limit-form";
 import {
   Card,
   CardContent,
@@ -50,13 +49,9 @@ export function PromptCard({
   const candidates = promptMeta.betterCandidates || [];
 
   const {
-    isFormOpen,
-    setIsFormOpen,
-    isCompressing,
     copyCurrentMessage,
     copyOriginal,
     startCompressedCopy,
-    handleCompressedSubmit,
   } = useCopyActions({ messages, conversationLogId });
 
   const currentCandidatePrompt = candidates[selectedCandidateIndex]?.prompt;
@@ -201,14 +196,6 @@ export function PromptCard({
           </CollapsibleContent>
         </Collapsible>
       )}
-
-      {/* Compression Limit Form */}
-      <CompressionLimitForm
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSubmit={handleCompressedSubmit}
-        isLoading={isCompressing}
-      />
     </Card>
   );
 }

@@ -8,7 +8,6 @@ import { User, Bot } from "lucide-react";
 import { useCopyActions } from "@/hooks/use-copy-actions";
 import { CopyDropdown } from "./copy-dropdown";
 import { Badge } from "@blog-agent/ui/components/badge";
-import { CompressionLimitForm } from "./compression-limit-form";
 
 interface ConversationViewerProps {
   messages: ConversationMessage[];
@@ -26,13 +25,9 @@ export function ConversationViewer({
   activeMessageIndex,
 }: ConversationViewerProps) {
   const {
-    isFormOpen,
-    setIsFormOpen,
-    isCompressing,
     copyCurrentMessage,
     copyOriginal,
     startCompressedCopy,
-    handleCompressedSubmit,
   } = useCopyActions({ messages, conversationLogId });
 
   if (messages.length === 0) {
@@ -109,13 +104,6 @@ export function ConversationViewer({
           </div>
         );
       })}
-
-      <CompressionLimitForm
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSubmit={handleCompressedSubmit}
-        isLoading={isCompressing}
-      />
     </div>
   );
 }

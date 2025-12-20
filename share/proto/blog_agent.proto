@@ -42,15 +42,12 @@ message ProcessConversationRequest {
 // 提取對話事實請求
 message ExtractConversationFactsRequest {
   string conversation_log_id = 1;          // 對話紀錄 ID
-  int32 max_characters = 2;                // 最大字數限制
-  int32 up_to_message_index = 3;           // 包含到第幾則訊息（從 0 開始）
+  int32 up_to_message_index = 2;           // 包含到第幾則訊息（從 0 開始）
 }
 
 // 提取對話事實回應
 message ExtractConversationFactsResponse {
   string extracted_facts = 1;              // 提取後的事實（Markdown 格式）
-  int32 actual_characters = 2;             // 實際字數
-  bool limit_exceeded = 3;                 // 是否超過限制
 }
 
 // 處理對話紀錄回應

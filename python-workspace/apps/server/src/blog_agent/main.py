@@ -469,19 +469,9 @@ class BlogAgentServiceImpl(BlogAgentService):
                     Code.FAILED_PRECONDITION,
                     "Fact extraction failed: no facts were extracted from the conversation"
                 )
-            
-            limit = request.max_characters if request.max_characters > 0 else 5000
-            # Manually truncate if needed as MemoryManager handles extraction differently
-            if len(extracted_facts) > limit:
-                extracted_facts = extracted_facts[:limit]
-            
-            actual_characters = len(extracted_facts)
-            limit_exceeded = actual_characters >= limit
 
             return blog_agent_pb2.ExtractConversationFactsResponse(
                 extracted_facts=extracted_facts,
-                actual_characters=actual_characters,
-                limit_exceeded=limit_exceeded,
             )
 
         except ValueError as e:
