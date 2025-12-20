@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/grpc-client";
 import { GetBlogPostRequestSchema, ListBlogPostsRequestSchema } from "@blog-agent/proto-gen";
 import { BlogPostClient } from "@/app/blog/[id]/blog-post-client";
 import { BlogMetadata } from "@/components/blog-metadata";
+import { LayoutContainer } from "@/components/layout-container";
 
 import "@/styles/prism-plus.css";
 import "@/styles/prism-xonokai.css";
@@ -56,7 +57,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
+      <LayoutContainer className="px-4 py-8">
         {/* Header - Full Width */}
         <header className="mb-8 max-w-4xl mx-auto">
           <BlogMetadata blogPost={blogPost} />
@@ -68,7 +69,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           conversationMessages={conversationMessages || []}
           promptSuggestions={promptSuggestions || []}
         />
-      </div>
+      </LayoutContainer>
     </div>
   );
 }
