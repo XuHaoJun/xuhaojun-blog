@@ -48,16 +48,16 @@ export function PromptCard({
   // 處理遊戲風格的自動展開邏輯
   const startHoverTimer = () => {
     if (isAnalysisOpen) return;
-    
+
     const startTime = Date.now();
     const duration = 700; // 0.7 秒自動展開
-    
+
     hoverTimerRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / duration) * 100, 100);
-      
+
       setHoverProgress(progress);
-      
+
       if (progress >= 100) {
         setIsAnalysisOpen(true);
         setHoverProgress(0);
@@ -80,11 +80,10 @@ export function PromptCard({
     };
   }, []);
 
-  const {
-    copyCurrentMessage,
-    copyOriginal,
-    startCompressedCopy,
-  } = useCopyActions({ messages, conversationLogId });
+  const { copyCurrentMessage, copyOriginal, startCompressedCopy } = useCopyActions({
+    messages,
+    conversationLogId,
+  });
 
   const currentCandidatePrompt = candidates[selectedCandidateIndex]?.prompt;
   const targetIndex = activeMessageIndex ?? (messageNumber ? messageNumber - 1 : -1);
@@ -202,7 +201,11 @@ export function PromptCard({
 
       {/* 4. 🧐 AI 診斷 - 改為直接顯示部分內容並提供「閱讀更多」 */}
       {promptMeta.analysis && (
-        <div className="p-4 bg-amber-50/30 dark:bg-amber-900/5 border-t border-amber-100/50 dark:border-amber-900/20">
+        <div
+          className="p-4 bg-amber-50/30 dark:bg-amber-900/5 border-t border-amber-100/50 dark:border-amber-900/20"
+          onMouseEnter={startHoverTimer}
+          onMouseLeave={stopHoverTimer}
+        >
           <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
             <Search className="w-4 h-4" />
             <span className="text-sm font-semibold">為什麼這樣改？(AI 診斷)</span>
@@ -226,8 +229,6 @@ export function PromptCard({
               size="sm"
               className="mt-2 h-8 text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 px-2 font-medium relative overflow-hidden group/btn"
               onClick={() => setIsAnalysisOpen(!isAnalysisOpen)}
-              onMouseEnter={startHoverTimer}
-              onMouseLeave={stopHoverTimer}
             >
               {isAnalysisOpen ? (
                 <>
@@ -261,10 +262,12 @@ export function PromptCard({
                         className="transition-all duration-75"
                       />
                     </svg>
-                    <ChevronDown className={cn(
-                      "w-3.5 h-3.5 transition-transform duration-200",
-                      hoverProgress > 0 && "scale-75"
-                    )} />
+                    <ChevronDown
+                      className={cn(
+                        "w-3.5 h-3.5 transition-transform duration-200",
+                        hoverProgress > 0 && "scale-75"
+                      )}
+                    />
                   </div>
                   <span>{hoverProgress > 0 ? `自動展開中...` : `閱讀更多深度分析`}</span>
                 </div>
