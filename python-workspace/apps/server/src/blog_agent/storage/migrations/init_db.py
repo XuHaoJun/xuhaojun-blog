@@ -2,6 +2,7 @@
 """Initialize database schema and run all migrations."""
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 
@@ -18,7 +19,7 @@ async def init_db():
     # Get all migration files in order
     migration_files = sorted([
         f for f in migrations_dir.glob("*.sql")
-        if f.name.startswith(("001_", "002_", "003_", "004_"))
+        if re.match(r"^\d{3}_.*\.sql$", f.name)
     ])
     
     if not migration_files:

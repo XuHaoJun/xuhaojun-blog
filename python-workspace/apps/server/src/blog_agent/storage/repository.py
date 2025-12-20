@@ -2,7 +2,7 @@
 
 import json
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Generic, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
@@ -19,6 +19,7 @@ from blog_agent.storage.models import (
     PromptCandidate,
     PromptSuggestion,
     ReviewFindings,
+    TavilySearchCache,
 )
 from blog_agent.utils.logging import get_logger
 
@@ -978,4 +979,195 @@ class ContentBlockRepository(BaseRepository[ContentBlock]):
                 )
                 for row in rows
             ]
+
+
+class TavilySearchCacheRepository(BaseRepository[TavilySearchCache]):
+    """Repository for Tavily search cache."""
+
+    async def create(self, entity: TavilySearchCache) -> TavilySearchCache:
+        """Create a new cache entry."""
+        async with get_db_connection() as conn:
+            entity_id = entity.id or uuid4()
+            now = datetime.utcnow()
+
+            await conn.execute(
+                """
+                INSERT INTO tavily_search_cache (
+                    id, query, search_depth, max_results, include_domains,
+                    exclude_domains, results, expires_at, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                """,
+                entity_id,
+                entity.query,
+                entity.search_depth,
+                entity.max_results,
+                entity.include_domains,
+                entity.exclude_domains,
+                json.dumps(entity.results),
+                entity.expires_at,
+                now,
+                now,
+            )
+
+            entity.id = entity_id
+            entity.created_at = now
+            entity.updated_at = now
+
+            return entity
+
+    async def get_by_id(self, entity_id: UUID) -> Optional[TavilySearchCache]:
+        """Get cache entry by ID."""
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, query, search_depth, max_results, include_domains,
+                       exclude_domains, results, expires_at, created_at, updated_at
+                FROM tavily_search_cache
+                WHERE id = $1
+                """,
+                entity_id,
+            )
+
+            if not row:
+                return None
+
+            return TavilySearchCache(
+                id=row["id"],
+                query=row["query"],
+                search_depth=row["search_depth"],
+                max_results=row["max_results"],
+                include_domains=list(row["include_domains"]) if row["include_domains"] else [],
+                exclude_domains=list(row["exclude_domains"]) if row["exclude_domains"] else [],
+                results=json.loads(row["results"]),
+                expires_at=row["expires_at"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+
+    async def list(self, limit: int = 100, offset: int = 0) -> List[TavilySearchCache]:
+        """List cache entries."""
+        async with get_db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, query, search_depth, max_results, include_domains,
+                       exclude_domains, results, expires_at, created_at, updated_at
+                FROM tavily_search_cache
+                ORDER BY created_at DESC
+                LIMIT $1 OFFSET $2
+                """,
+                limit,
+                offset,
+            )
+
+            return [
+                TavilySearchCache(
+                    id=row["id"],
+                    query=row["query"],
+                    search_depth=row["search_depth"],
+                    max_results=row["max_results"],
+                    include_domains=list(row["include_domains"]) if row["include_domains"] else [],
+                    exclude_domains=list(row["exclude_domains"]) if row["exclude_domains"] else [],
+                    results=json.loads(row["results"]),
+                    expires_at=row["expires_at"],
+                    created_at=row["created_at"],
+                    updated_at=row["updated_at"],
+                )
+                for row in rows
+            ]
+
+    async def get_cached_search(
+        self,
+        query: str,
+        search_depth: str,
+        max_results: int,
+        include_domains: Optional[List[str]] = None,
+        exclude_domains: Optional[List[str]] = None,
+    ) -> Optional[TavilySearchCache]:
+        """
+        Get non-expired cached search results.
+        """
+        async with get_db_connection() as conn:
+            # Handle list/None comparison in SQL
+            # Note: Postgres unique index/constraint treats NULL as distinct from empty array.
+            # We'll normalize to empty arrays for the query if they are None.
+            inc_domains = include_domains or []
+            exc_domains = exclude_domains or []
+
+            row = await conn.fetchrow(
+                """
+                SELECT id, query, search_depth, max_results, include_domains,
+                       exclude_domains, results, expires_at, created_at, updated_at
+                FROM tavily_search_cache
+                WHERE query = $1 
+                  AND search_depth = $2 
+                  AND max_results = $3 
+                  AND COALESCE(include_domains, '{}') = $4
+                  AND COALESCE(exclude_domains, '{}') = $5
+                  AND expires_at > now()
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                query,
+                search_depth,
+                max_results,
+                inc_domains,
+                exc_domains,
+            )
+
+            if not row:
+                return None
+
+            return TavilySearchCache(
+                id=row["id"],
+                query=row["query"],
+                search_depth=row["search_depth"],
+                max_results=row["max_results"],
+                include_domains=list(row["include_domains"]) if row["include_domains"] else [],
+                exclude_domains=list(row["exclude_domains"]) if row["exclude_domains"] else [],
+                results=json.loads(row["results"]),
+                expires_at=row["expires_at"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+
+    async def create_or_update(self, entity: TavilySearchCache) -> TavilySearchCache:
+        """
+        Create or update a cache entry (upsert based on search parameters).
+        """
+        async with get_db_connection() as conn:
+            entity_id = entity.id or uuid4()
+            now = datetime.utcnow()
+            
+            inc_domains = entity.include_domains or []
+            exc_domains = entity.exclude_domains or []
+
+            await conn.execute(
+                """
+                INSERT INTO tavily_search_cache (
+                    id, query, search_depth, max_results, include_domains,
+                    exclude_domains, results, expires_at, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (query, search_depth, max_results, include_domains, exclude_domains)
+                DO UPDATE SET
+                    results = EXCLUDED.results,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                entity_id,
+                entity.query,
+                entity.search_depth,
+                entity.max_results,
+                inc_domains,
+                exc_domains,
+                json.dumps(entity.results),
+                entity.expires_at,
+                now,
+                now,
+            )
+
+            entity.id = entity_id
+            entity.created_at = now
+            entity.updated_at = now
+
+            return entity
 

@@ -1,8 +1,11 @@
 """Tavily API integration for content extension and fact-checking."""
 
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from blog_agent.config import config
+from blog_agent.storage.models import TavilySearchCache
+from blog_agent.storage.repository import TavilySearchCacheRepository
 from blog_agent.utils.errors import ExternalServiceError
 from blog_agent.utils.logging import get_logger
 
@@ -17,6 +20,8 @@ class TavilyService:
         self.api_key = api_key or config.TAVILY_API_KEY
         if not self.api_key:
             raise ValueError("TAVILY_API_KEY is required")
+
+        self.cache_repo = TavilySearchCacheRepository()
 
         try:
             from tavily import TavilyClient
@@ -34,7 +39,7 @@ class TavilyService:
         exclude_domains: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Search for information using Tavily API.
+        Search for information using Tavily API with persistent caching.
         
         Args:
             query: Search query string
@@ -50,6 +55,23 @@ class TavilyService:
             ExternalServiceError: If Tavily API call fails (FR-019)
         """
         try:
+            # Check cache first
+            cached_entry = await self.cache_repo.get_cached_search(
+                query=query,
+                search_depth=search_depth,
+                max_results=max_results,
+                include_domains=include_domains,
+                exclude_domains=exclude_domains,
+            )
+
+            if cached_entry:
+                logger.info(
+                    "Tavily search results retrieved from cache",
+                    query=query,
+                    results_count=len(cached_entry.results),
+                )
+                return cached_entry.results
+
             # Tavily client is synchronous, so we wrap it
             # In a real async context, you might want to use asyncio.to_thread
             import asyncio
@@ -65,16 +87,31 @@ class TavilyService:
 
             # Run synchronous call in thread pool
             result = await asyncio.to_thread(_search)
+            results = result.get("results", [])
 
             logger.info(
                 "Tavily search completed",
                 query=query,
-                results_count=len(result.get("results", [])),
+                results_count=len(results),
             )
 
-            return result.get("results", [])
+            # Save to cache with 3-month expiration
+            cache_entry = TavilySearchCache(
+                query=query,
+                search_depth=search_depth,
+                max_results=max_results,
+                include_domains=include_domains,
+                exclude_domains=exclude_domains,
+                results=results,
+                expires_at=datetime.utcnow() + timedelta(days=90),
+            )
+            await self.cache_repo.create_or_update(cache_entry)
+
+            return results
 
         except Exception as e:
+            if isinstance(e, ExternalServiceError):
+                raise
             logger.error("Tavily API search failed", query=query, error=str(e), exc_info=True)
             raise ExternalServiceError(
                 service_name="Tavily",

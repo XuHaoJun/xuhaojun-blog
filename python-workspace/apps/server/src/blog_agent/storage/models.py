@@ -121,3 +121,18 @@ class ContentBlock(BaseModel):
     prompt_suggestion_id: Optional[UUID] = None  # Optional: associated prompt suggestion
     created_at: Optional[datetime] = None
 
+
+class TavilySearchCache(BaseModel):
+    """Represents a cached Tavily search result."""
+
+    id: Optional[UUID] = None
+    query: str
+    search_depth: str
+    max_results: int
+    include_domains: Optional[List[str]] = None
+    exclude_domains: Optional[List[str]] = None
+    results: List[Dict[str, Any]]
+    expires_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
