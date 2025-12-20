@@ -18,8 +18,8 @@ from connectrpc.request import RequestContext
 from blog_agent.config import config
 from blog_agent.observability import init_observability
 from blog_agent.services.blog_service import BlogService
-from blog_agent.services.memory import MemoryService
-from blog_agent.storage.models import ConversationMessage
+from blog_agent.workflows.memory_manager import ConversationMemoryManager
+from blog_agent.storage.models import ConversationMessage, Message
 from blog_agent.storage.repository import (
     BlogPostRepository,
     ContentBlockRepository,
@@ -43,7 +43,6 @@ class BlogAgentServiceImpl(BlogAgentService):
     def __init__(self):
         """Initialize service."""
         self.blog_service = BlogService()
-        self.memory_service = MemoryService()
         self.conversation_repo = ConversationLogRepository()
         self.blog_repo = BlogPostRepository()
         self.history_repo = ProcessingHistoryRepository()
@@ -442,17 +441,39 @@ class BlogAgentServiceImpl(BlogAgentService):
                     Code.NOT_FOUND, f"Conversation log not found: {request.conversation_log_id}"
                 )
 
+            logger.info("extract_conversation_facts_start", 
+                        log_id=str(conversation_log_id),
+                        up_to=request.up_to_message_index,
+                        parsed_content_type=type(conversation_log.parsed_content).__name__,
+                        has_messages="messages" in conversation_log.parsed_content if isinstance(conversation_log.parsed_content, dict) else False)
+
             # Get messages up to the requested index
             messages = self._extract_conversation_messages(conversation_log)
             if request.up_to_message_index >= 0:
                 messages = messages[:request.up_to_message_index + 1]
 
-            # Use MemoryService for fact extraction
+            # Convert to storage.models.Message objects for MemoryManager
+            internal_messages = [
+                Message(role=m.role, content=m.content) 
+                for m in messages
+            ]
+
+            # Use ConversationMemoryManager for fact extraction
+            memory_manager = await ConversationMemoryManager.from_messages(internal_messages)
+            extracted_facts = await memory_manager.get_extracted_facts()
+            
+            # If fact extraction yields nothing, return failure
+            if not extracted_facts:
+                logger.warning("Fact extraction returned empty, returning failure")
+                raise ConnectError(
+                    Code.FAILED_PRECONDITION,
+                    "Fact extraction failed: no facts were extracted from the conversation"
+                )
+            
             limit = request.max_characters if request.max_characters > 0 else 5000
-            extracted_facts = await self.memory_service.extract_facts(
-                messages=messages,
-                max_characters=limit
-            )
+            # Manually truncate if needed as MemoryManager handles extraction differently
+            if len(extracted_facts) > limit:
+                extracted_facts = extracted_facts[:limit]
             
             actual_characters = len(extracted_facts)
             limit_exceeded = actual_characters >= limit
@@ -588,6 +609,7 @@ class BlogAgentServiceImpl(BlogAgentService):
 async def serve():
     """Start ConnectRPC server using Starlette and Uvicorn."""
     from starlette.applications import Starlette
+    from starlette.middleware.cors import CORSMiddleware
     from starlette.routing import Mount
     import uvicorn
     import signal
@@ -606,6 +628,15 @@ async def serve():
         routes=[
             Mount(rpc_app.path, app=rpc_app),
         ]
+    )
+
+    # Add CORS middleware to handle preflight requests (OPTIONS) from browsers
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.CORS_ALLOW_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
     )
 
     logger.info("Starting ConnectRPC server", host=config.GRPC_HOST, port=config.GRPC_PORT)
