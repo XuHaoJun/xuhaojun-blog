@@ -3,6 +3,9 @@ import { Inter } from 'next/font/google';
 import '@blog-agent/ui/globals.css';
 import './globals.css';
 import { DarkModeToggle } from '@/components/dark-mode-toggle';
+import { LayoutToggle } from '@/components/layout-toggle';
+import { LayoutProvider } from '@/context/layout-context';
+import { Toaster } from '@blog-agent/ui/components/sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -34,10 +37,14 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <div className="fixed top-4 right-4 z-50">
-          <DarkModeToggle />
-        </div>
-        {children}
+        <LayoutProvider>
+          <div className="fixed top-4 right-4 z-50 flex gap-2">
+            <LayoutToggle />
+            <DarkModeToggle />
+          </div>
+          {children}
+          <Toaster />
+        </LayoutProvider>
       </body>
     </html>
   );

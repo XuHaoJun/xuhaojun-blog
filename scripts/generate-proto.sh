@@ -28,18 +28,20 @@ if command -v uv &> /dev/null && [ -d "$PYTHON_SERVER" ]; then
     uv run python -m grpc_tools.protoc \
       --proto_path="$PROTO_DIR" \
       --python_out="$PYTHON_OUT" \
-      --grpc_python_out="$PYTHON_OUT" \
+      --plugin=protoc-gen-connect_python="$(uv run which protoc-gen-connect-python)" \
+      --connect_python_out="$PYTHON_OUT" \
       "$PROTO_DIR/blog_agent.proto"
     
     # Create __init__.py files
     touch "$PYTHON_OUT/__init__.py"
-    echo "✓ Python code generated with uv"
+    echo "✓ Python code generated with uv (ConnectRPC)"
   elif python3 -m grpc_tools.protoc --version &> /dev/null; then
     # Fallback to system-wide grpc_tools
     python3 -m grpc_tools.protoc \
       --proto_path="$PROTO_DIR" \
       --python_out="$PYTHON_OUT" \
-      --grpc_python_out="$PYTHON_OUT" \
+      --plugin=protoc-gen-connect_python="$(which protoc-gen-connect-python)" \
+      --connect_python_out="$PYTHON_OUT" \
       "$PROTO_DIR/blog_agent.proto"
     
     # Create __init__.py files

@@ -103,6 +103,7 @@ export function BlogPostClient({
       <article className="flex-1 lg:w-[70%]">
         <ConversationViewer
           messages={conversationMessages}
+          conversationLogId={blogPost.conversationLogId}
           onMessageHover={handleMessageHover}
           onMessageLeave={handleMessageLeave}
           activeMessageIndex={sidebarMessageIndex}
@@ -114,6 +115,7 @@ export function BlogPostClient({
             <PromptAccordion
               conversationMessages={conversationMessages}
               promptSuggestions={promptSuggestions}
+              conversationLogId={blogPost.conversationLogId}
             />
           </div>
         )}
@@ -125,6 +127,7 @@ export function BlogPostClient({
           conversationMessages={conversationMessages}
           promptSuggestions={promptSuggestions}
           activeMessageIndex={sidebarMessageIndex}
+          conversationLogId={blogPost.conversationLogId}
         />
       )}
     </div>

@@ -2,7 +2,7 @@
 name = "blog-agent-server"
 version = "0.1.0"
 description = "Blog Agent gRPC Server with LlamaIndex workflows"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "llama-index>=0.10.0",
     "llama-index-llms-ollama>=0.1.0",
@@ -22,6 +22,10 @@ dependencies = [
     "pyyaml>=6.0.0",
     "arize-phoenix-otel>=0.14.0",
     "openinference-instrumentation-llama-index>=4.3.9",
+    "starlette>=0.50.0",
+    "uvicorn>=0.38.0",
+    "protoc-gen-connect-python>=0.6.0",
+    "connect-python>=0.6.0",
 ]
 
 [project.optional-dependencies]

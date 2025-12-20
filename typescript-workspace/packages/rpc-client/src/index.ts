@@ -3,7 +3,7 @@
  */
 
 import { createClient, Client } from "@connectrpc/connect";
-import { createGrpcTransport } from "@connectrpc/connect-node";
+import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlogAgentService } from "@blog-agent/proto-gen";
 import type {
   ProcessConversationRequest,
@@ -19,6 +19,8 @@ import type {
   ListBlogPostsResponse,
   GetProcessingHistoryRequest,
   GetProcessingHistoryResponse,
+  ExtractConversationFactsRequest,
+  ExtractConversationFactsResponse,
 } from "@blog-agent/proto-gen";
 
 export interface BlogAgentClientConfig {
@@ -26,19 +28,20 @@ export interface BlogAgentClientConfig {
 }
 
 /**
- * Blog Agent gRPC client type
+ * Blog Agent ConnectRPC client type
  */
 export type BlogAgentClient = Client<typeof BlogAgentService>;
 
 /**
- * Create a Blog Agent gRPC client
+ * Create a Blog Agent ConnectRPC client
  */
 export function createBlogAgentClient(
   config: BlogAgentClientConfig = {}
 ): BlogAgentClient {
   const baseUrl = config.baseUrl || "http://localhost:50051";
 
-  const transport = createGrpcTransport({
+  // Using Connect transport for better compatibility with web and modern backends
+  const transport = createConnectTransport({
     baseUrl,
   });
 
@@ -60,5 +63,7 @@ export type {
   ListBlogPostsResponse,
   GetProcessingHistoryRequest,
   GetProcessingHistoryResponse,
+  ExtractConversationFactsRequest,
+  ExtractConversationFactsResponse,
 };
 

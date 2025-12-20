@@ -6,12 +6,15 @@ import type { ConversationMessage, PromptSuggestion, PromptMeta } from "@blog-ag
 import { PromptMetaSchema } from "@blog-agent/proto-gen";
 import { PromptCard } from "./prompt-card";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@blog-agent/ui/components/scroll-area";
+import { Lightbulb } from "lucide-react";
 
 interface PromptSidebarProps {
   conversationMessages: ConversationMessage[];
   promptSuggestions: PromptSuggestion[];
   activeMessageIndex?: number;
   className?: string;
+  conversationLogId?: string;
 }
 
 export function PromptSidebar({
@@ -19,8 +22,9 @@ export function PromptSidebar({
   promptSuggestions,
   activeMessageIndex,
   className,
+  conversationLogId,
 }: PromptSidebarProps) {
-  const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const previousOriginalPromptRef = useRef<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [displayPromptMeta, setDisplayPromptMeta] = useState<PromptMeta | null>(null);
@@ -57,20 +61,17 @@ export function PromptSidebar({
         && previousOriginalPromptRef.current !== newPromptMeta.originalPrompt;
 
       if (isContentChanging) {
-        // Start fade out animation
         setIsAnimating(true);
         
-        // After fade out, update content and fade in
         const timer = setTimeout(() => {
           setDisplayPromptMeta(newPromptMeta);
           setDisplayMessageNumber(messageNumber);
           setIsAnimating(false);
           previousOriginalPromptRef.current = newPromptMeta.originalPrompt;
-        }, 250); // Half of animation duration
+        }, 250);
 
         return () => clearTimeout(timer);
       } else {
-        // First load or same content, no animation needed
         setDisplayPromptMeta(newPromptMeta);
         setDisplayMessageNumber(messageNumber);
         setIsAnimating(false);
@@ -87,27 +88,13 @@ export function PromptSidebar({
   // Scroll sidebar to top when activeMessageIndex changes
   useEffect(() => {
     if (activeMessageIndex !== undefined && sidebarRef.current) {
-      sidebarRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      // Find the viewport of ScrollArea to scroll
+      const viewport = sidebarRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTo({ top: 0, behavior: "smooth" });
+      }
     }
   }, [activeMessageIndex]);
-
-  // If no active prompt suggestion, show a placeholder or nothing
-  if (!activePromptSuggestion) {
-    return (
-      <aside
-        className={cn(
-          "hidden lg:block w-full lg:w-[30%] lg:sticky lg:top-8 lg:self-start",
-          className
-        )}
-      >
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            捲動文章以查看對應的 Prompt 優化建議
-          </p>
-        </div>
-      </aside>
-    );
-  }
 
   // Scroll to message function
   const handleScrollToMessage = () => {
@@ -122,35 +109,50 @@ export function PromptSidebar({
 
   return (
     <aside
-      ref={sidebarRef}
       className={cn(
-        "hidden lg:block w-full lg:w-[30%] lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto",
-        "scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent",
+        "hidden lg:block w-full lg:w-[30%] lg:sticky lg:top-8 lg:self-start lg:h-[calc(100vh-4rem)]",
         className
       )}
     >
-      <div className="space-y-5 pr-2">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 px-1">
-          💡 Prompt 診斷室
-        </h2>
-        {displayPromptMeta && (
-          <div 
-            className={cn(
-              "transition-all duration-500 ease-in-out",
-              isAnimating 
-                ? "opacity-0 translate-x-4 scale-95" 
-                : "opacity-100 translate-x-0 scale-100"
-            )}
-          >
-            <PromptCard 
-              promptMeta={displayPromptMeta} 
-              messageNumber={displayMessageNumber}
-              onScrollToMessage={handleScrollToMessage}
-            />
+      <ScrollArea className="h-full w-full pr-4" ref={sidebarRef}>
+        <div className="space-y-6 pb-8">
+          <div className="flex items-center gap-2 px-1">
+            <Lightbulb className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Prompt 診斷室
+            </h2>
           </div>
-        )}
-      </div>
+
+          {!activePromptSuggestion ? (
+            <div className="bg-muted/30 rounded-xl border border-dashed border-muted-foreground/20 p-8 text-center animate-in fade-in duration-500">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                捲動文章以查看對應的<br />
+                <span className="font-semibold text-foreground/80">Prompt 優化建議</span>
+              </p>
+            </div>
+          ) : (
+            displayPromptMeta && (
+              <div 
+                className={cn(
+                  "transition-all duration-500 ease-in-out",
+                  isAnimating 
+                    ? "opacity-0 translate-y-4 scale-95 blur-sm" 
+                    : "opacity-100 translate-y-0 scale-100 blur-0"
+                )}
+              >
+                <PromptCard 
+                  promptMeta={displayPromptMeta} 
+                  messageNumber={displayMessageNumber}
+                  onScrollToMessage={handleScrollToMessage}
+                  messages={conversationMessages}
+                  conversationLogId={conversationLogId}
+                  activeMessageIndex={activeMessageIndex}
+                />
+              </div>
+            )
+          )}
+        </div>
+      </ScrollArea>
     </aside>
   );
 }
-

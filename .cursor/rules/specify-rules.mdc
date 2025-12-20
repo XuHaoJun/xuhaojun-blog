@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2025-12-07
 ## Active Technologies
 - TypeScript 5.9, Node.js 24 + Next.js 16 (App Router), React 19, shadcn/ui pagination component (003-ssg-pagination)
 - N/A (靜態網站，資料來自 gRPC API) (003-ssg-pagination)
+- Python 3.11+, TypeScript 5.9+, React 19+ (Next.js 16) (004-conversation-context-simulator)
+- PostgreSQL (via existing repositories for fact extraction) (004-conversation-context-simulator)
 
 - (001-conversation-blog-agent)
 
@@ -24,6 +26,7 @@ tests/
 : Follow standard conventions
 
 ## Recent Changes
+- 004-conversation-context-simulator: Added Python 3.11+, TypeScript 5.9+, React 19+ (Next.js 16)
 - 003-ssg-pagination: Added TypeScript 5.9, Node.js 24 + Next.js 16 (App Router), React 19, shadcn/ui pagination component
 
 - 001-conversation-blog-agent: Added

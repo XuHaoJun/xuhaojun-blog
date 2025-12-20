@@ -61,10 +61,10 @@ class Config:
     FACT_CHECK_METHOD: str = os.getenv("FACT_CHECK_METHOD", "LLM").upper()  # "LLM" or "TAVILY"
 
     # Memory Management
-    # Default to 25% of context window, capped at 20000 for safety and cost
+    # Default to 50% of context window, capped at 20000 for safety and cost
     MEMORY_TOKEN_LIMIT: int = int(os.getenv(
         "MEMORY_TOKEN_LIMIT", 
-        str(min(20000, LLM_CONTEXT_WINDOW // 4))
+        str(min(20000, LLM_CONTEXT_WINDOW // 2))
     ))
     MEMORY_SUMMARIZER_MODEL: str = os.getenv("MEMORY_SUMMARIZER_MODEL", "qwen3:4b")
     MEMORY_SUMMARIZER_PROVIDER: str = os.getenv("MEMORY_SUMMARIZER_PROVIDER", "ollama")  # Empty means use LLM_PROVIDER
@@ -77,6 +77,9 @@ class Config:
     PHOENIX_ENABLED: bool = os.getenv("PHOENIX_ENABLED", "true").lower() == "true"
     PHOENIX_PROJECT_NAME: str = os.getenv("PHOENIX_PROJECT_NAME", "blog_agent")
     PHOENIX_COLLECTOR_ENDPOINT: Optional[str] = os.getenv("PHOENIX_COLLECTOR_ENDPOINT")  # Optional, defaults to localhost
+
+    # CORS Settings
+    CORS_ALLOW_ORIGINS: list[str] = os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")
 
     @classmethod
     def validate(cls) -> None:
