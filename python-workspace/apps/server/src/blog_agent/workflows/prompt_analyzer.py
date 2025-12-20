@@ -1,5 +1,6 @@
 """Prompt analysis workflow step for optimization suggestions."""
 
+import asyncio
 import json
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
@@ -91,10 +92,8 @@ class PromptAnalyzer:
                     conversation_log_metadata=conversation_log_metadata,
                 )
             
-            # Analyze each user prompt and generate a suggestion for each
-            prompt_suggestions = []
-            
-            for idx, (user_prompt, prompt_message_index) in enumerate(user_prompts_with_indices):
+            # Analyze each user prompt and generate a suggestion for each in parallel
+            async def analyze_single_prompt(idx, user_prompt, prompt_message_index):
                 try:
                     logger.info(
                         "Analyzing user prompt",
@@ -152,14 +151,13 @@ class PromptAnalyzer:
                         expected_effect=expected_effect,  # T077b: Add expected effect
                     )
                     
-                    prompt_suggestions.append(prompt_suggestion)
-                    
                     logger.info(
                         "Prompt analysis completed for one prompt",
                         prompt_index=idx + 1,
                         candidates_count=len(better_candidates),
                         conversation_log_id=conversation_log_id,
                     )
+                    return prompt_suggestion
                 except Exception as e:
                     logger.error(
                         "Failed to analyze prompt",
@@ -169,8 +167,15 @@ class PromptAnalyzer:
                         conversation_log_id=conversation_log_id,
                         exc_info=True,
                     )
-                    # Continue with next prompt instead of failing completely
-                    continue
+                    return None
+
+            # Run all analyses in parallel using asyncio.gather
+            tasks = [
+                analyze_single_prompt(idx, user_prompt, prompt_message_index)
+                for idx, (user_prompt, prompt_message_index) in enumerate(user_prompts_with_indices)
+            ]
+            results = await asyncio.gather(*tasks)
+            prompt_suggestions = [r for r in results if r is not None]
             
             logger.info(
                 "Prompt analysis completed for all prompts",
@@ -248,7 +253,9 @@ class PromptAnalyzer:
         evaluation_prompt = f"""請以一位資深 AI 互動專家的角度，深度分析以下使用者提示詞。
 
 使用者提示詞：
+<original_prompt>
 {prompt}
+</original_prompt>
 
 對話上下文摘要：
 {context_summary}
@@ -258,7 +265,7 @@ class PromptAnalyzer:
 2. **底層目標**：使用者真正想要達成的結果是什麼？（例如：使用者問「如何修改這段 code」，底層目標可能是「修復 bug」或「優化效能」，而不僅僅是改語法）
 3. **缺失的背景期望**：有哪些使用者沒說，但預設希望 AI 遵守的標準？（例如：正確性、安全性、不破壞現有架構）
 
-請基於這三個層次的落差，指出目前 Prompt 的主要弱點。
+請基於這三個層次的落差，提供具體且具建設性的分析。重點在於指出目前 Prompt 的主要弱點，並說明如何補足資訊落差以獲得更好的回答。避免過度批判使用者，保持專業且支援的語氣。
 
 請提供詳細的分析，以正體中文撰寫。"""
 
@@ -276,32 +283,27 @@ class PromptAnalyzer:
         """
         context_summary = await self._summarize_conversation_context(messages, memory)
         
-        template_str = """你是一位精通 Prompt Engineering 的專家朋友。請根據使用者的原始提示詞與其「底層目標」，構思至少 3 個不同的優化策略。
+        template_str = """你是一位精通 Prompt Engineering 的專家朋友。請根據使用者的原始提示詞與其「底層目標」，構思至少 3 個不同的優化版本。
 
 原始提示詞：
+<original_prompt>
 {original_prompt}
+</original_prompt>
 
 上下文：
 {context_summary}
 
-不要死板地套用固定模板。請根據問題的性質選擇最適合的策略，例如：
-- 如果任務複雜，可能適合「思維鏈 (chain-of-thought)」或「拆解步驟 (step-by-step)」
-- 如果需要特定風格，可能適合「角色設定 (expert-persona)」或「語氣指導 (tone-guidance)」
-- 如果容易產生幻覺，可能需要「要求引用來源 (source-citation)」或「校準不確定性 (calibrated-uncertainty)」
-- 如果是程式碼，可能需要「提供邊界案例 (edge-cases)」或「輸入輸出範例 (few-shot)」
-- 如果用戶希望保持簡潔，可以提供「極簡版 (minimalist)」，只修正關鍵邏輯，保留用戶原本語氣
-- 如果需要結構化輸出，可以使用「結構化格式 (structured)」
-- 如果需要創意或特定情境，可以使用「情境設定 (scenario-based)」
-
 要求：
-1. 生成至少 3 個候選 Prompt，每個使用不同的策略
-2. 每個候選應該包含：
-   - type: 策略類型（使用描述性的名稱，如 "few-shot", "chain-of-thought", "expert-persona", "minimalist" 等）
-   - prompt: 完整的改進後提示詞（避免使用「作為一個世界級的專家...」這類過度 AI 化的語言）
+1. 為原始提示詞生成至少 3 個候選 Prompt，每個使用不同的優化策略（例如：chain-of-thought, expert-persona, minimalist, few-shot 等）。
+2. **嚴禁生成模板、meta-prompts 或包含 "[使用者提問]"、"請優化以下..." 等佔位符或指令的內容。**
+3. 每個候選必須是對「原始提示詞」內容的直接改寫或擴展。如果用戶在問 UI/UX，候選也必須是具體的 UI/UX 問題。
+4. 候選應該包含：
+   - type: 策略類型（描述性名稱）
+   - prompt: 完整的、可直接使用的改進後提示詞（避免使用「作為一個世界級的專家...」這類過度 AI 化的語言）
    - reasoning: 為什麼選擇這個策略，以及這個版本如何更好地達成用戶的底層目標（簡短說明，包含語氣變化說明）
-3. 確保至少有一個候選是 "minimalist" 類型，只修正關鍵邏輯，保留用戶原本語氣
-4. 改進版本應該更清晰、更具體、更有效，但不要過度說教或家長式
-5. 每個候選應該完整且可以直接使用"""
+5. 確保至少有一個候選是 "minimalist" 類型，只修正關鍵邏輯，保留用戶原本語氣。
+6. 改進版本應該更清晰、更具體、更有效，但不要過度說教或家長式。
+7. 不要死板地套用固定模板，根據問題性質選擇最適合的策略。"""
 
         try:
             # Convert template string to PromptTemplate object
@@ -347,28 +349,28 @@ class PromptAnalyzer:
             )
             json_prompt = f"""{formatted_prompt}
 
-請以 JSON 格式返回，格式如下：
+請以 JSON 格式返回，格式如下（請確保內容是針對原始提問內容的直接改寫，不含預設佔位符）：
 {{
   "candidates": [
     {{
       "type": "few-shot",
-      "prompt": "改進後的提示詞",
-      "reasoning": "為什麼選擇這個策略，以及語氣變化"
+      "prompt": "針對原始提問內容的具體改進版本 1",
+      "reasoning": "為什麼這個特定版本更好，以及語氣變化"
     }},
     {{
       "type": "chain-of-thought",
-      "prompt": "改進後的提示詞",
-      "reasoning": "為什麼選擇這個策略，以及語氣變化"
+      "prompt": "針對原始提問內容的具體改進版本 2",
+      "reasoning": "為什麼這個特定版本更好，以及語氣變化"
     }},
     {{
       "type": "minimalist",
-      "prompt": "改進後的提示詞（保留用戶原本語氣）",
-      "reasoning": "為什麼選擇這個策略，以及語氣變化"
+      "prompt": "針對原始提問內容的具體改進版本 3（保留用戶原本語氣）",
+      "reasoning": "為什麼這個特定版本更好，以及語氣變化"
     }}
   ]
 }}
 
-請只輸出 JSON，不要額外說明。注意：type 可以是任何描述性的策略名稱，不限定於上述範例。"""
+請只輸出 JSON，不要額外說明。"""
             
             # Use creative temperature (0.6) for generating diverse prompt candidates
             creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
@@ -419,22 +421,26 @@ class PromptAnalyzer:
         """Generate additional structured prompt candidates if we don't have enough."""
         context_summary = await self._summarize_conversation_context(messages, memory)
         
-        template_str = """請根據以下原始提示詞，再生成 {needed} 個不同的改進版本，使用與之前不同的策略。
+        template_str = """請根據以下原始提示詞，再生成 {needed} 個不同的具體改進版本，使用與之前不同的策略。
 
 原始提示詞：
+<original_prompt>
 {original_prompt}
+</original_prompt>
 
 對話上下文：
 {context_summary}
 
 要求：
-1. 生成 {needed} 個與之前不同的改進版本
-2. 每個版本使用不同的動態策略（如 few-shot、expert-persona、edge-cases、scenario-based、constraint-based 等，避免重複已使用的策略）
-3. 每個候選應該包含：
+1. 生成 {needed} 個與之前不同的具體改進版本。
+2. **嚴禁生成模板、meta-prompts 或包含 "[使用者提問]" 等佔位符的內容。**
+3. 每個候選必須是對「原始提示詞」內容的直接改寫或擴展。
+4. 每個版本使用不同的策略（如 few-shot、expert-persona、edge-cases、scenario-based、constraint-based 等）。
+5. 每個候選應該包含：
    - type: 策略類型（描述性名稱）
-   - prompt: 完整的改進後提示詞（避免過度 AI 化的語言）
+   - prompt: 完整的、可直接使用的改進後提示詞（避免過度 AI 化的語言）
    - reasoning: 為什麼選擇這個策略，以及語氣變化說明
-4. 每個候選應該完整且可以直接使用"""
+6. 每個候選應該完整且可以直接使用。"""
 
         try:
             # Convert template string to PromptTemplate object
@@ -480,12 +486,12 @@ class PromptAnalyzer:
             )
             json_prompt = f"""{formatted_prompt}
 
-請以 JSON 格式返回，格式如下：
+請以 JSON 格式返回，格式如下（請確保內容是針對原始提問內容的直接改寫）：
 {{
   "candidates": [
     {{
       "type": "structured",
-      "prompt": "改進後的提示詞",
+      "prompt": "針對原始提問內容的具體改進版本",
       "reasoning": "為什麼這個版本更好"
     }}
   ]
@@ -588,7 +594,9 @@ class PromptAnalyzer:
         reasoning_prompt = f"""請分析為什麼以下改進版本的提示詞比原始提示詞更好。
 
 原始提示詞：
+<original_prompt>
 {original_prompt}
+</original_prompt>
 
 改進版本（前 3 個）：
 {chr(10).join(f'{i+1}. {candidate}' for i, candidate in enumerate(better_candidates[:3]))}
@@ -597,11 +605,11 @@ class PromptAnalyzer:
 {context_summary}
 
 請為每個改進版本說明：
-1. 相較於原始提示詞，這個版本做了哪些改進？
-2. 這些改進如何讓提示詞更有效？
+1. 相較於原始提示詞，這個版本在「內容」和「意圖」上做了哪些具體的優化？
+2. 這些優化如何幫助 AI 更精準地理解並執行該特定任務？
 3. 這個版本適合什麼樣的使用場景？
 
-請提供詳細的分析，以正體中文撰寫，結構清晰。"""
+請針對「提問內容本身」進行分析，避免過度討論 Prompt Engineering 理論。以正體中文撰寫，結構清晰。"""
 
         response = await self.llm.acomplete(reasoning_prompt)
         return response.text.strip()
@@ -621,10 +629,12 @@ class PromptAnalyzer:
             f"- {c.type}: {c.prompt[:100]}..." for c in better_candidates[:3]
         )
         
-        effect_prompt = f"""請說明使用以下優化後的提示詞，預期會對 AI 的回答產生什麼效果。
+        effect_prompt = f"""請說明使用以下優化後的提示詞，預期會對 AI 的回答品質產生什麼具體效果。
 
 原始提示詞：
+<original_prompt>
 {original_prompt}
+</original_prompt>
 
 優化後的提示詞候選（前 3 個）：
 {candidate_summary}
@@ -632,12 +642,12 @@ class PromptAnalyzer:
 對話上下文：
 {context_summary}
 
-請說明：
-1. 使用這些優化提示詞後，AI 的回答品質會如何提升？
-2. 回答會變得更具體、更完整、還是更符合需求？
-3. 這些優化如何幫助獲得更好的結果？
+請具體說明：
+1. 使用這些優化提示詞後，AI 的回答在「專業度」、「具體性」或「執行力」上會有什麼變化？
+2. 回答會如何更貼近使用者的底層目標？
+3. 這些優化如何減少歧義並提升效率？
 
-請提供簡潔明瞭的說明（100-200字），以正體中文撰寫。"""
+請提供簡潔明瞭且針對「內容任務」的說明（100-200字），以正體中文撰寫。"""
 
         try:
             response = await self.llm.acomplete(effect_prompt)

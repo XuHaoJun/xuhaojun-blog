@@ -186,108 +186,52 @@ class BlogService:
             messages = [
                 Message(**msg) for msg in conversation_log.parsed_content["messages"]
             ]
-
-            # Use workflow to process
-            from blog_agent.workflows.blog_workflow import BlogWorkflowStartEvent
-            from blog_agent.workflows.extractor import ContentExtractor, ExtractStartEvent
-            from blog_agent.workflows.editor import BlogEditor
-
-            start_event = BlogWorkflowStartEvent(
-                messages=messages,
-                conversation_log_id=str(conversation_log_id),
-            )
-
-            # Run workflow steps
-            extractor = ContentExtractor()
-            editor = BlogEditor()
-
+            logger.info("Starting blog generation workflow", conversation_log_id=str(conversation_log_id))
+            
             # Extract metadata from conversation log (FR-015: preserve timestamps, participants)
             conversation_log_metadata = self._extract_conversation_metadata(conversation_log)
             
-            # Create memory manager from messages (shared across workflow steps)
-            from blog_agent.workflows.memory_manager import ConversationMemoryManager
-            memory = await ConversationMemoryManager.from_messages(messages)
-            
-            # T079: Run prompt analysis in parallel with extraction
-            extract_start = ExtractStartEvent(
+            # Run the complete workflow (joins main flow with parallel prompt analysis)
+            workflow_result = await self.workflow.run_workflow(
                 messages=messages,
                 conversation_log_id=str(conversation_log_id),
                 conversation_log_metadata=conversation_log_metadata,
-                memory=memory,
             )
             
-            # Run extraction and prompt analysis in parallel
-            from blog_agent.workflows.prompt_analyzer import PromptAnalyzer
-            
-            prompt_analyzer = PromptAnalyzer()
-            
-            extract_event, prompt_analysis_event = await asyncio.gather(
-                extractor.extract(extract_start),
-                prompt_analyzer.analyze(extract_start),
-            )
-            
-            # Save all prompt suggestions to database
-            prompt_suggestions = prompt_analysis_event.prompt_suggestions
-            saved_prompt_suggestions = []  # Collect saved suggestions with database-assigned IDs
+            # Save prompt suggestions from workflow result
+            prompt_suggestions = workflow_result.prompt_suggestions
+            saved_prompt_suggestions = []
             if prompt_suggestions:
                 for prompt_suggestion in prompt_suggestions:
                     try:
                         prompt_suggestion.conversation_log_id = conversation_log_id
                         saved_suggestion = await self.prompt_suggestion_repo.create(prompt_suggestion)
-                        saved_prompt_suggestions.append(saved_suggestion)  # Use saved object with ID
+                        saved_prompt_suggestions.append(saved_suggestion)
                     except Exception as e:
                         logger.error(
                             "Failed to save prompt suggestion",
                             error=str(e),
                             original_prompt=prompt_suggestion.original_prompt[:50],
                             conversation_log_id=str(conversation_log_id),
-                            exc_info=True,
                         )
                         continue
                 
                 logger.info(
-                    "Prompt suggestions saved",
+                    "Prompt suggestions saved from workflow",
                     conversation_log_id=str(conversation_log_id),
-                    total_suggestions=len(prompt_suggestions),
                     saved_count=len(saved_prompt_suggestions),
                 )
 
-            # Continue with full workflow: extender → reviewer → editor
-            from blog_agent.workflows.extender import ContentExtender
-            from blog_agent.workflows.reviewer import ContentReviewer
-            
-            extender = ContentExtender()
-            reviewer = ContentReviewer()
-            
-            # Extend
-            extend_event = await extender.extend(extract_event)
-            
-            # Review (pass prompt suggestion through ReviewEvent)
-            from blog_agent.workflows.extractor import ExtractEvent as ExtractorExtractEvent
-            review_extract_event = ExtractorExtractEvent(
-                content_extract=extend_event.content_extract,
-                conversation_log_id=extend_event.conversation_log_id,
-                conversation_log_metadata=extend_event.conversation_log_metadata,
-                memory=extend_event.memory,  # Pass memory through
-            )
-            review_event = await reviewer.review(review_extract_event)
-            # Add all saved prompt suggestions (with database-assigned IDs) to review event
-            review_event.prompt_suggestions = saved_prompt_suggestions
-            
-            # Edit
-            edit_event = await editor.edit(review_event)
-
             # Save blog post
-            blog_post = edit_event.blog_post
+            blog_post = workflow_result.blog_post
             blog_post.conversation_log_id = conversation_log_id
             blog_post = await self.blog_repo.create(blog_post)
             blog_post_id = blog_post.id
 
-            # Content blocks are no longer saved - system now displays original conversation content
-            # edit_event.content_blocks is always empty for backward compatibility
             logger.info(
-                "Blog post created without content blocks",
+                "Blog post created from workflow result",
                 blog_post_id=str(blog_post_id),
+                conversation_log_id=str(conversation_log_id),
             )
 
             # Update processing history

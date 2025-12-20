@@ -35,9 +35,7 @@ export type BlogAgentClient = Client<typeof BlogAgentService>;
 /**
  * Create a Blog Agent ConnectRPC client
  */
-export function createBlogAgentClient(
-  config: BlogAgentClientConfig = {}
-): BlogAgentClient {
+export function createBlogAgentClient(config: BlogAgentClientConfig = {}): BlogAgentClient {
   const baseUrl = config.baseUrl || "http://localhost:50051";
 
   // Using Connect transport for better compatibility with web and modern backends
@@ -66,4 +64,3 @@ export type {
   ExtractConversationFactsRequest,
   ExtractConversationFactsResponse,
 };
-

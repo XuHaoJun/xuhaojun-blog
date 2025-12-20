@@ -189,18 +189,19 @@ class ContentExtender:
         Args:
             knowledge_gaps: List of identified knowledge gaps
             
+            
         Returns:
             List of research results, each with:
             - gap: The original gap information
             - source: "knowledge_base" or "tavily"
             - results: Research results from the source
         """
-        research_results = []
-
-        for gap in knowledge_gaps:
+        import asyncio
+        
+        async def research_single_gap(gap):
             query = gap.get("query", "")
             if not query:
-                continue
+                return None
 
             gap_results = {
                 "gap": gap,
@@ -239,10 +240,11 @@ class ContentExtender:
                     logger.error("Tavily search failed during gap research", query=query, error=str(e))
                     raise
 
-            if gap_results["results"]:
-                research_results.append(gap_results)
+            return gap_results if gap_results["results"] else None
 
-        return research_results
+        tasks = [research_single_gap(gap) for gap in knowledge_gaps]
+        results = await asyncio.gather(*tasks)
+        return [r for r in results if r is not None]
 
     async def _filter_bad_results(
         self, research_results: List[Dict[str, Any]]

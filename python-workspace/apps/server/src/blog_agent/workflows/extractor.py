@@ -75,16 +75,13 @@ class ContentExtractor:
             if memory is None:
                 memory = await ConversationMemoryManager.from_messages(messages)
 
-            # Filter out noise (greetings, small talk) - keep simple heuristic for efficiency
-            filtered_messages = self._filter_noise(messages)
-
             # Use structured extraction to get insights, concepts, and user intent in one call
-            # Create memory manager for filtered messages to get summarized context
-            filtered_memory = await ConversationMemoryManager.from_messages(filtered_messages)
-            analysis = await self._extract_structured_analysis(filtered_messages, filtered_memory)
+            # Use memory manager to get context (facts + recent turns) for analysis
+            analysis = await self._extract_structured_analysis(memory)
 
-            # Combine filtered content
-            filtered_content = self._combine_content(filtered_messages)
+            # Get combined content from memory as the base for further steps
+            # This contains facts and recent conversation turns, serving as high-quality input
+            filtered_content = await memory.get_context_text()
 
             # Determine quality warning based on substantive score
             quality_warning = ""
@@ -110,42 +107,8 @@ class ContentExtractor:
             logger.error("Content extraction failed", error=str(e), exc_info=True)
             raise
 
-    def _filter_noise(self, messages: List[Message]) -> List[Message]:
-        """Filter out greetings and irrelevant exchanges."""
-        filtered = []
-
-        # Simple heuristics to filter noise
-        noise_patterns = [
-            "你好",
-            "謝謝",
-            "再見",
-            "hello",
-            "thanks",
-            "goodbye",
-            "hi",
-            "bye",
-        ]
-
-        for msg in messages:
-            content_lower = msg.content.lower().strip()
-
-            # Skip very short messages (likely greetings)
-            if len(content_lower) < 10:
-                continue
-
-            # Skip if only contains noise patterns
-            if any(pattern in content_lower for pattern in noise_patterns) and len(
-                content_lower
-            ) < 30:
-                continue
-
-            filtered.append(msg)
-
-        return filtered
-
     async def _extract_structured_analysis(
         self, 
-        messages: List[Message],
         memory: ConversationMemoryManager
     ) -> ConversationAnalysis:
         """Extract structured analysis using LLM with Pydantic output.
@@ -221,8 +184,4 @@ class ContentExtractor:
                    concepts_count=len(analysis.core_concepts),
                    substantive_score=analysis.substantive_score)
         return analysis
-
-    def _combine_content(self, messages: List[Message]) -> str:
-        """Combine filtered messages into content string."""
-        return "\n\n".join(f"{msg.role}: {msg.content}" for msg in messages)
 

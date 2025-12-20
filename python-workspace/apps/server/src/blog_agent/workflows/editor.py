@@ -69,7 +69,7 @@ class BlogEditor:
             # Use first prompt suggestion for blog content generation (backward compatibility)
             first_prompt_suggestion = prompt_suggestions[0] if prompt_suggestions else None
             blog_content = await self._generate_blog_content(
-                content_extract, review_findings, first_prompt_suggestion
+                content_extract, review_findings, first_prompt_suggestion, memory
             )
 
             # Extract metadata (title, summary, tags)
@@ -115,8 +115,16 @@ class BlogEditor:
         content_extract: ContentExtract,
         review_findings: ReviewFindings,
         prompt_suggestion: Optional[PromptSuggestion] = None,
+        memory: Optional[ConversationMemoryManager] = None,
     ) -> str:
         """Generate blog post content in Markdown format, incorporating review findings (T061)."""
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"具體事實：\n<facts_text>\n{raw_facts}\n</facts_text>\n\n"
+
         # Build review context for LLM
         review_context = ""
         if review_findings.issues:
@@ -125,7 +133,7 @@ class BlogEditor:
             unclear_explanations = review_findings.issues.get("unclear_explanations", [])
 
             if logical_gaps or factual_inconsistencies or unclear_explanations:
-                review_context = "\n\n審閱發現的問題（請在生成文章時處理或說明）：\n"
+                review_context = "審閱發現的問題（請在生成文章時處理或說明）：\n"
                 if logical_gaps:
                     review_context += f"\n邏輯斷層 ({len(logical_gaps)} 個)：\n"
                     for gap in logical_gaps[:3]:  # Show top 3
@@ -140,53 +148,83 @@ class BlogEditor:
                         review_context += f"- {unclear.get('description', '')} (建議：{unclear.get('suggestion', '')})\n"
 
         if review_findings.improvement_suggestions:
-            review_context += "\n\n改進建議：\n"
+            review_context += "\n改進建議：\n"
             for suggestion in review_findings.improvement_suggestions[:5]:  # Top 5
                 review_context += f"- {suggestion}\n"
 
-        prompt = f"""你是一位擁有深厚技術背景的資深工程師，也是讀者身邊那位聰明、誠實且樂於分享的朋友。
-請基於以下對話內容，撰寫一篇技術部落格文章。
+        template_str = """你是一位擁有深厚技術背景的資深工程師，也是讀者身邊那位聰明、誠實且樂於分享的朋友。
+請基於以下內容，撰寫一篇「高度濃縮、去蕪存菁」的技術部落格文章。
+
+具體事實 (Ground Truth)：
+<facts_text>
+{facts_text}
+</facts_text>
 
 核心觀點 (Key Insights)：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+<key_insights>
+{key_insights}
+</key_insights>
 
 核心概念 (Core Concepts)：
-{', '.join(content_extract.core_concepts)}
+<core_concepts>
+{core_concepts}
+</core_concepts>
 
-原始素材 (Context)：
-{content_extract.filtered_content}
+原始素材 (Original Context)：
+<context>
+{content}
+</context>
+
+審閱問題 (Review Context)：
+<review_context>
 {review_context}
+</review_context>
 
 寫作原則與要求 (Soul Guidelines)：
-1. **語氣與風格**：
-   - 就像在跟一位聰明的同事解釋技術難題，語氣自信、直接、熱情，但不要傲慢。
-   - **嚴禁 AI 式廢話**：不要使用 "總而言之"、"讓我們深入探討"、"就像織錦一樣" 等填充詞。直接切入重點。
+1. **去噪與濃縮 (Denoising & Condensation)**：
+   - 識別對話中的「問題-解決方案」對，將其合併為具備資訊密度的技術敘事。
+   - 移除所有無意義的寒暄、AI 填充句（例如 "正如你所說"、"這是一個好問題"）。
+   - 保持高密度 (High Information Density)，每一句話都應該攜帶新資訊或價值。
+
+2. **語氣與風格**：
+   - 就像在跟一位聰明的同事解釋技術難題，語氣自信、直接、熱情。
    - 展現智識好奇心 (Intellectual Curiosity)，探索概念背後的 "為什麼"，而不僅是 "是什麼"。
 
-2. **結構與內容**：
+3. **結構與內容**：
    - 使用 Markdown 格式。
-   - 將對話中的問答碎片，重組成連貫的敘事流 (Narrative Flow)。
-   - **實質性幫助 (Substantive Helpfulness)**：讀者是成年人，不要過度簡化，也不要過度警告 (除非涉及安全紅線)。提供具體、可操作的建議。
+   - 將碎片化的 Q&A 重組成連貫的敘事流 (Narrative Flow)。
+   - **實質性幫助 (Substantive Helpfulness)**：提供具體、可操作的建議。
 
-3. **處理審閱問題 (Handling Issues)**：
-   - 參考上述的「審閱問題」與「改進建議」。
-   - **誠實 (Honesty)**：如果原始素材有邏輯斷層或不清楚之處，請運用你的知識庫進行合理的推論並補充，但若無法確定，請保持「校準過的懷疑」(Calibrated Uncertainty)，不要捏造事實。
-   - 對於事實不一致處，請在文中以專業角度澄清，幫助讀者建立正確的心理模型。
+4. **處理審閱問題 (Handling Issues)**：
+   - 參考上述的「審閱問題」。
+   - **校準過的懷疑 (Calibrated Uncertainty)**：如果原始素材有邏輯斷層，請運用你的知識庫進行合理推論並補充，但若無法確定，請明確指出。
 
 請直接輸出文章內容，不需包含開場白或額外說明。"""
 
-        # Use writing temperature (0.5) for blog content generation
-        writing_llm = get_llm(temperature=config.LLM_TEMPERATURE_WRITING)
-        response = await writing_llm.acomplete(prompt)
-        blog_content = response.text.strip()
-        
-        # T080: Add prompt suggestions section to blog content (FR-014)
-        # Note: This is kept for backward compatibility, but blog content is no longer displayed in frontend
-        if prompt_suggestion and prompt_suggestion.original_prompt:
-            prompt_section = self._format_prompt_suggestions([prompt_suggestion])
-            blog_content += f"\n\n{prompt_section}"
-        
-        return blog_content
+        try:
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            core_concepts_str = ", ".join(content_extract.core_concepts)
+            
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            # Use writing temperature (0.5) for blog content generation
+            writing_llm = get_llm(temperature=config.LLM_TEMPERATURE_WRITING)
+            response = await writing_llm.acomplete(
+                prompt_tmpl.format(
+                    facts_text=facts_text,
+                    key_insights=key_insights_str,
+                    core_concepts=core_concepts_str,
+                    content=content_extract.filtered_content,
+                    review_context=review_context,
+                )
+            )
+            blog_content = response.text.strip()
+            return blog_content
+
+        except Exception as e:
+            logger.error("Blog content generation failed", error=str(e))
+            # Fallback to simple completion if structured formatting fails
+            return "無法生成部落格內容，請檢查系統日誌。"
 
     def _collect_user_prompts(self, prompt_suggestions: List[PromptSuggestion]) -> List[str]:
         """Collect up to 3 user prompts as anchors for title/summary."""
@@ -256,18 +294,6 @@ class BlogEditor:
         s = re.sub(r"\s*```$", "", s)
         return s.strip()
 
-    async def _get_memory_hint(
-        self, memory: Optional[ConversationMemoryManager], limit: int = 1200
-    ) -> str:
-        """Best-effort: get a short memory context hint (facts + recent turns)."""
-        if memory is None:
-            return ""
-        try:
-            ctx = await memory.get_context_text()
-            return ctx[:limit] if ctx else ""
-        except Exception:
-            return ""
-
     class _TitleResult(BaseModel):
         final_title: str = Field(..., min_length=1)
 
@@ -282,30 +308,36 @@ class BlogEditor:
     ) -> str:
         """Generate blog post title (anchor on user prompt + concepts + evidence)."""
         user_prompts = self._collect_user_prompts(prompt_suggestions)
-        memory_hint = await self._get_memory_hint(memory, limit=1200)
+        
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"具體事實：\n<facts_text>\n{raw_facts}\n</facts_text>\n\n"
 
-        template_str = """你是資深技術編輯。請為這篇技術文章產生一個「不跑題」的標題。
+        template_str = """你是資深技術編輯。請為這篇「深度對話濃縮文章」產生一個精準、專業且具備技術質感的標題。
 
-使用者原始問題（title 必須對準它）：
+使用者原始問題（必須以此為核心）：
+<user_prompts>
 {user_prompts}
+</user_prompts>
 
-核心概念（title 需包含 1-2 個關鍵詞）：
+{facts_text}核心概念與關鍵詞：
+<core_concepts>
 {core_concepts}
+</core_concepts>
 
-核心觀點（可能是結論，僅供參考）：
-{key_insights}
-
-原始素材（避免憑空發揮）：
-{evidence}
-
-補充（可選：facts/上下文，若有就用；若沒有忽略）：
-{memory_hint}
+內容精華：
+<content>
+{content}
+</content>
 
 硬性要求：
-1. **只輸出最終標題**，不得輸出候選、不得輸出說明、不得輸出換行（單行）。
-2. <= 60 字元。
-3. 必須命中使用者原始問題，並包含 1-2 個核心概念關鍵詞。
-4. 禁用行銷話術（揭密/解鎖/終極指南/必看/懶人包/最強/大全等）。
+1. **只輸出最終標題**，單行，無候選，無說明。
+2. <= 60 字元，避免籠統。
+3. 必須涵蓋使用者原始問題的核心意圖。
+4. 禁用行銷廢話（如「揭秘、必看、最強、大全、萬字長文」）。
 """
 
         user_prompts_block = (
@@ -313,7 +345,7 @@ class BlogEditor:
         )
         core_concepts = ", ".join(content_extract.core_concepts[:10])
         key_insights = "\n".join("- " + i for i in content_extract.key_insights)
-        evidence = content_extract.filtered_content[:1200]
+        content = content_extract.filtered_content[:1200]
 
         creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
 
@@ -324,21 +356,22 @@ class BlogEditor:
                 BlogEditor._TitleResult,
                 prompt_tmpl,
                 user_prompts=user_prompts_block,
-                core_concepts=core_concepts,
+                facts_text=facts_text,
                 key_insights=key_insights,
-                evidence=evidence,
-                memory_hint=memory_hint,
+                core_concepts=core_concepts,
+                content=content,
             )
             title = self._clean_single_line_title(result.final_title)
             return title[:200]
         except Exception:
             # Fallback: JSON-only response via acomplete + parsing + strict cleanup
-            formatted_prompt = template_str.format(
+            prompt_tmpl = PromptTemplate(template_str)
+            formatted_prompt = prompt_tmpl.format(
                 user_prompts=user_prompts_block,
-                core_concepts=core_concepts,
+                facts_text=facts_text,
                 key_insights=key_insights,
-                evidence=evidence,
-                memory_hint=memory_hint,
+                core_concepts=core_concepts,
+                content=content,
             )
             json_prompt = f"""{formatted_prompt}
 
@@ -363,29 +396,40 @@ class BlogEditor:
     ) -> str:
         """Generate blog post summary (TL;DR) anchored on the user prompt."""
         user_prompts = self._collect_user_prompts(prompt_suggestions)
-        memory_hint = await self._get_memory_hint(memory, limit=1200)
+        
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"具體事實：\n<facts_text>\n{raw_facts}\n</facts_text>\n\n"
 
-        template_str = """你是資深技術編輯。請為這篇文章撰寫一段摘要（TL;DR），要求「不跑題」且高密度。
+        template_str = """你是資深技術編輯。請為這篇文章撰寫一段「高資訊密度」的摘要（TL;DR）。
 
-使用者原始問題（摘要必須對準它）：
+使用者原始問題：
+<user_prompts>
 {user_prompts}
+</user_prompts>
 
-核心概念：
-{core_concepts}
+具體事實：
+<facts_text>
+{facts_text}
+</facts_text>
 
-核心觀點（可能是結論，僅供參考）：
+核心觀點：
+<key_insights>
 {key_insights}
+</key_insights>
 
-原始素材（避免憑空發揮）：
-{evidence}
-
-補充（可選：facts/上下文，若有就用；若沒有忽略）：
-{memory_hint}
+內容精華：
+<content>
+{content}
+</content>
 
 硬性要求：
-1. 只輸出摘要內容（可多行），不要標題、不要列表、不要額外說明。
-2. 2-3 句話，必須命中使用者原始問題與核心概念。
-3. 不要寫「這篇文章將會討論...」這類廢話，直接給結論與價值。
+1. **直接給結論與價值**：不要使用「這篇文章討論了...」、「本文介紹了...」等開場白。
+2. 2-3 句話，必須命中核心技術方案與使用者問題。
+3. 資訊密度優先：確保讀者讀完摘要就能獲得 80% 的核心價值。
 """
 
         user_prompts_block = (
@@ -393,7 +437,7 @@ class BlogEditor:
         )
         core_concepts = ", ".join(content_extract.core_concepts[:10])
         key_insights = "\n".join("- " + i for i in content_extract.key_insights)
-        evidence = content_extract.filtered_content[:1400]
+        content = content_extract.filtered_content[:1400]
 
         creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
 
@@ -403,20 +447,21 @@ class BlogEditor:
                 BlogEditor._SummaryResult,
                 prompt_tmpl,
                 user_prompts=user_prompts_block,
+                facts_text=facts_text,
                 core_concepts=core_concepts,
                 key_insights=key_insights,
-                evidence=evidence,
-                memory_hint=memory_hint,
+                content=content,
             )
             summary = self._clean_summary(result.summary)
             return summary[:500]
         except Exception:
-            formatted_prompt = template_str.format(
+            prompt_tmpl = PromptTemplate(template_str)
+            formatted_prompt = prompt_tmpl.format(
                 user_prompts=user_prompts_block,
+                facts_text=facts_text,
                 core_concepts=core_concepts,
                 key_insights=key_insights,
-                evidence=evidence,
-                memory_hint=memory_hint,
+                content=content,
             )
             json_prompt = f"""{formatted_prompt}
 

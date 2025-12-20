@@ -1,11 +1,11 @@
 """Blog workflow orchestrator using LlamaIndex Workflows."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from llama_index.core.workflow import Event, StartEvent, StopEvent, Workflow, step
+from llama_index.core.workflow import Context, Event, StartEvent, StopEvent, Workflow, step
 
-from blog_agent.storage.models import Message
+from blog_agent.storage.models import BlogPost, Message, PromptSuggestion
 from blog_agent.workflows.editor import BlogEditor, EditEvent
 from blog_agent.workflows.extractor import ContentExtractor, ExtractEvent, ExtractStartEvent
 from blog_agent.workflows.extender import ContentExtender, ExtendEvent
@@ -26,16 +26,17 @@ class BlogWorkflowStartEvent(StartEvent):
 
 
 class BlogWorkflowStopEvent(StopEvent):
-    """Stop event containing final blog post."""
+    """Stop event containing final results."""
 
-    blog_post_id: str
+    blog_post: BlogPost
+    prompt_suggestions: List[PromptSuggestion]
     conversation_log_id: str
 
 
 class BlogWorkflow(Workflow):
     """Main blog generation workflow (extractor → extender → reviewer → editor)."""
 
-    def __init__(self, timeout: int = 300, verbose: bool = True):
+    def __init__(self, timeout: int = 1200, verbose: bool = True):
         """Initialize blog workflow."""
         super().__init__(timeout=timeout, verbose=verbose)
         self.extractor = ContentExtractor()
@@ -48,12 +49,13 @@ class BlogWorkflow(Workflow):
     async def extract_step(self, ev: BlogWorkflowStartEvent) -> ExtractEvent:
         """Content extraction step."""
         logger.info("Starting content extraction", conversation_log_id=ev.conversation_log_id)
+        
         # Create memory manager from messages
         memory = await ConversationMemoryManager.from_messages(ev.messages)
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,
-            conversation_log_metadata=ev.conversation_log_metadata,
+            conversation_log_metadata=ev.conversation_log_metadata or {},
             memory=memory,
         )
         return await self.extractor.extract(extract_start)
@@ -67,12 +69,13 @@ class BlogWorkflow(Workflow):
         It runs in parallel with the main content processing pipeline.
         """
         logger.info("Starting prompt analysis", conversation_log_id=ev.conversation_log_id)
+        
         # Create memory manager from messages (shared with extract_step)
         memory = await ConversationMemoryManager.from_messages(ev.messages)
         extract_start = ExtractStartEvent(
             messages=ev.messages,
             conversation_log_id=ev.conversation_log_id,
-            conversation_log_metadata=ev.conversation_log_metadata,
+            conversation_log_metadata=ev.conversation_log_metadata or {},
             memory=memory,
         )
         return await self.prompt_analyzer.analyze(extract_start)
@@ -100,10 +103,28 @@ class BlogWorkflow(Workflow):
         return await self.reviewer.review(extract_ev)
 
     @step
-    async def edit_step(self, ev: ReviewEvent) -> EditEvent:
-        """Blog editing step."""
-        logger.info("Starting blog editing", conversation_log_id=ev.conversation_log_id)
-        return await self.editor.edit(ev)
+    async def edit_step(self, ctx: Context, ev: Union[ReviewEvent, PromptAnalysisEvent]) -> Optional[EditEvent]:
+        """
+        Blog editing step (joins main flow with prompt analysis).
+        
+        This step waits for both the main content processing flow (ReviewEvent)
+        and the parallel prompt analysis flow (PromptAnalysisEvent) to complete
+        before generating the final blog post.
+        """
+        logger.info(f"Received event in edit_step: {type(ev).__name__}", conversation_log_id=ev.conversation_log_id)
+        
+        # Collect both events before proceeding to edit
+        if results := ctx.collect_events(ev, [ReviewEvent, PromptAnalysisEvent]):
+            review_ev, prompt_ev = results
+            logger.info("Main flow and prompt analysis joined", conversation_log_id=review_ev.conversation_log_id)
+            
+            # Merge prompt suggestions into ReviewEvent for the editor
+            review_ev.prompt_suggestions = prompt_ev.prompt_suggestions
+            
+            # Execute editor
+            return await self.editor.edit(review_ev)
+            
+        return None
 
     @step
     async def finalize_step(self, ev: EditEvent) -> BlogWorkflowStopEvent:
@@ -111,10 +132,10 @@ class BlogWorkflow(Workflow):
         logger.info(
             "Workflow completed",
             conversation_log_id=ev.conversation_log_id,
-            blog_post_id=ev.blog_post.id,
         )
         return BlogWorkflowStopEvent(
-            blog_post_id=str(ev.blog_post.id) if ev.blog_post.id else "",
+            blog_post=ev.blog_post,
+            prompt_suggestions=ev.prompt_suggestions,
             conversation_log_id=ev.conversation_log_id,
         )
 
@@ -128,6 +149,7 @@ class BlogWorkflow(Workflow):
             conversation_log_metadata=conversation_log_metadata or {},
         )
 
-        result = await self.run(start_event)
+        # T079: Pass the start event as a keyword argument to avoid confusion with context
+        result = await self.run(start_event=start_event)
         return result
 

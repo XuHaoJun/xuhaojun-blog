@@ -63,16 +63,21 @@ class ContentReviewer:
     @step
     async def review(self, ev: ExtractEvent) -> ReviewEvent:  # type: ignore
         """Review extracted content for errors, inconsistencies, and unclear explanations."""
+        import asyncio
         try:
             content_extract = ev.content_extract
             conversation_log_id = ev.conversation_log_id
             memory = ev.memory  # Get memory from event
 
-            # Perform comprehensive review
-            logical_gaps = await self._detect_logical_gaps(content_extract)
-            factual_inconsistencies = await self._detect_factual_inconsistencies(content_extract)
-            unclear_explanations = await self._detect_unclear_explanations(content_extract)
-            fact_checking_needs = await self._detect_fact_checking_needs(content_extract)  # FR-010
+            # Perform comprehensive review in parallel
+            results = await asyncio.gather(
+                self._detect_logical_gaps(content_extract, memory),
+                self._detect_factual_inconsistencies(content_extract, memory),
+                self._detect_unclear_explanations(content_extract, memory),
+                self._detect_fact_checking_needs(content_extract, memory),
+            )
+            
+            logical_gaps, factual_inconsistencies, unclear_explanations, fact_checking_needs = results
             
             # Perform fact-checking based on configured method
             fact_check_results = []
@@ -94,7 +99,7 @@ class ContentReviewer:
 
             # Generate improvement suggestions
             improvement_suggestions = await self._generate_improvement_suggestions(
-                content_extract, issues
+                content_extract, issues, memory
             )
 
             # Identify errors that cannot be auto-corrected (T062)
@@ -135,19 +140,40 @@ class ContentReviewer:
             logger.error("Content review failed", error=str(e), exc_info=True)
             raise
 
-    async def _detect_logical_gaps(self, content_extract: ContentExtract) -> List[Dict[str, Any]]:
+    async def _detect_logical_gaps(
+        self, content_extract: ContentExtract, memory: Optional[ConversationMemoryManager] = None
+    ) -> List[Dict[str, Any]]:
         """Detect logical gaps with a constructive, editorial mindset (T055)."""
         # Soul Alignment: 像一位聰明的朋友一樣，指出論證哪裡跳躍太快，幫助使用者完善思考。
+        
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+
         template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容的邏輯推演過程，目標是讓論證更加無懈可擊。
 
+具體事實：
+<facts_text>
+{facts_text}
+</facts_text>
+
 核心觀點：
+<key_insights>
 {key_insights}
+</key_insights>
 
 核心概念：
+<core_concepts>
 {core_concepts}
+</core_concepts>
 
 內容：
+<content>
 {content}
+</content>
 
 請分析論證結構，找出可能會讓讀者感到困惑或論證不足的地方（Gaps）：
 1. **推論跳躍**：是否有結論缺乏充分的前提鋪墊？
@@ -166,6 +192,7 @@ class ContentReviewer:
             response = await self.llm.astructured_predict(
                 LogicalGapsResponse,
                 prompt_tmpl,
+                facts_text=facts_text,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
@@ -180,20 +207,39 @@ class ContentReviewer:
             return []
 
     async def _detect_factual_inconsistencies(
-        self, content_extract: ContentExtract
+        self, content_extract: ContentExtract, memory: Optional[ConversationMemoryManager] = None
     ) -> List[Dict[str, Any]]:
         """Detect factual inconsistencies with a constructive, editorial mindset (T056)."""
         # Soul Alignment: 像一位嚴謹的編輯夥伴，協助找出可能誤導讀者的事實問題。
+        
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+
         template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容，找出可能影響內容可信度的事實不一致或矛盾。
 
+具體事實：
+<facts_text>
+{facts_text}
+</facts_text>
+
 核心觀點：
+<key_insights>
 {key_insights}
+</key_insights>
 
 核心概念：
+<core_concepts>
 {core_concepts}
+</core_concepts>
 
 內容：
+<content>
 {content}
+</content>
 
 請找出以下類型的事實問題：
 1. **前後矛盾的陳述**：內容中是否有相互衝突的聲稱？
@@ -213,6 +259,7 @@ class ContentReviewer:
             response = await self.llm.astructured_predict(
                 FactualInconsistenciesResponse,
                 prompt_tmpl,
+                facts_text=facts_text,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
@@ -227,20 +274,39 @@ class ContentReviewer:
             return []
 
     async def _detect_unclear_explanations(
-        self, content_extract: ContentExtract
+        self, content_extract: ContentExtract, memory: Optional[ConversationMemoryManager] = None
     ) -> List[Dict[str, Any]]:
         """Detect unclear explanations with a constructive, editorial mindset (T057)."""
         # Soul Alignment: 像一位體貼的編輯夥伴，協助找出可能讓讀者困惑的地方。
+        
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+
         template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容，找出可能讓讀者感到困惑或需要進一步澄清的解釋。
 
+具體事實：
+<facts_text>
+{facts_text}
+</facts_text>
+
 核心觀點：
+<key_insights>
 {key_insights}
+</key_insights>
 
 核心概念：
+<core_concepts>
 {core_concepts}
+</core_concepts>
 
 內容：
+<content>
 {content}
+</content>
 
 請找出以下類型的不清楚之處：
 1. **術語未定義或解釋不清**：是否有專業術語或概念未充分解釋？
@@ -261,6 +327,7 @@ class ContentReviewer:
             response = await self.llm.astructured_predict(
                 UnclearExplanationsResponse,
                 prompt_tmpl,
+                facts_text=facts_text,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
                 content=content_extract.filtered_content,
@@ -275,17 +342,39 @@ class ContentReviewer:
             return []
 
     async def _detect_fact_checking_needs(
-        self, content_extract: ContentExtract
+        self, content_extract: ContentExtract, memory: Optional[ConversationMemoryManager] = None
     ) -> List[str]:
         """Detect claims specifically requiring verification based on importance and risk (FR-010, T060)."""
         # Soul Alignment: 專注於真正重要（Material）的聲稱，而非瑣碎細節。
-        prompt = f"""請分析以下內容，找出需要進行外部驗證的關鍵事實聲稱。
+        
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+
+        template_str = """請分析以下內容，找出需要進行外部驗證的關鍵事實聲稱。
+
+具體事實：
+<facts_text>
+{facts_text}
+</facts_text>
 
 核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+<key_insights>
+{key_insights}
+</key_insights>
+
+核心概念：
+<core_concepts>
+{core_concepts}
+</core_concepts>
 
 內容：
-{content_extract.filtered_content}
+<content>
+{content}
+</content>
 
 請找出以下類型的聲稱（優先考慮若錯誤會誤導讀者或造成損害的項目）：
 1. **具體且關鍵的數據/統計**（非通用常識）
@@ -296,7 +385,18 @@ class ContentReviewer:
 請忽略一般常識或明顯的主觀意見。以列表形式輸出，每一行一個聲稱。"""
 
         try:
-            response = await self.llm.acomplete(prompt)
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            response = await self.llm.acomplete(
+                prompt_tmpl.format(
+                    facts_text=facts_text,
+                    key_insights=key_insights_str,
+                    content=content_extract.filtered_content,
+                )
+            )
 
             # Parse response into list
             claims = [
@@ -315,20 +415,35 @@ class ContentReviewer:
             return []
 
     async def _generate_improvement_suggestions(
-        self, content_extract: ContentExtract, issues: Dict[str, Any]
+        self, content_extract: ContentExtract, issues: Dict[str, Any], memory: Optional[ConversationMemoryManager] = None
     ) -> List[str]:
         """Generate high-value, actionable suggestions to elevate the content."""
         # Soul Alignment: 不要只修補錯誤，要提升品質。
         # 避免 "preachy" 或 "condescending" (居高臨下) 的語氣。
-        prompt = f"""作為一位致力於讓內容更卓越的專業編輯，請根據發現的問題提供改進建議。
+
+        # Get facts from memory for context calibration
+        facts_text = ""
+        if memory:
+            raw_facts = await memory.get_extracted_facts()
+            if raw_facts:
+                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+
+        template_str = """作為一位致力於讓內容更卓越的專業編輯，請根據發現的問題提供改進建議。
+
+具體事實：
+<facts_text>
+{facts_text}
+</facts_text>
 
 核心觀點：
-{chr(10).join('- ' + insight for insight in content_extract.key_insights)}
+<key_insights>
+{key_insights}
+</key_insights>
 
 已識別的問題概況：
-- 邏輯需要加強處：{len(issues.get('logical_gaps', []))}
-- 需釐清的事實：{len(issues.get('factual_inconsistencies', []))}
-- 解釋不夠清晰處：{len(issues.get('unclear_explanations', []))}
+- 邏輯需要加強處：{logical_gaps_count}
+- 需釐清的事實：{factual_inconsistencies_count}
+- 解釋不夠清晰處：{unclear_explanations_count}
 
 請提供 3-5 個**高價值且具體的行動建議**。建議方向：
 1. **提升清晰度**：如何讓複雜概念對讀者更友善？（而不僅僅是說「解釋清楚」）
@@ -338,7 +453,20 @@ class ContentReviewer:
 語氣要求：真誠、直接、建設性，像與聰明的同事討論一樣。只輸出建議列表。"""
 
         try:
-            response = await self.llm.acomplete(prompt)
+            key_insights_str = "\n".join("- " + insight for insight in content_extract.key_insights)
+            
+            # Convert template string to PromptTemplate object
+            prompt_tmpl = PromptTemplate(template_str)
+            
+            response = await self.llm.acomplete(
+                prompt_tmpl.format(
+                    facts_text=facts_text,
+                    key_insights=key_insights_str,
+                    logical_gaps_count=len(issues.get("logical_gaps", [])),
+                    factual_inconsistencies_count=len(issues.get("factual_inconsistencies", [])),
+                    unclear_explanations_count=len(issues.get("unclear_explanations", [])),
+                )
+            )
 
             # Parse response into list
             suggestions = [
@@ -415,12 +543,11 @@ class ContentReviewer:
         Returns:
             List of fact-check results (formatted strings with verification status)
         """
+        import asyncio
         if not self.tavily_service:
             raise ValueError("Tavily service is not initialized. FACT_CHECK_METHOD must be 'TAVILY'.")
         
-        fact_check_results = []
-
-        for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid API overload
+        async def check_single_claim(claim):
             try:
                 # Step 1: Get sources from Tavily
                 result = await self.tavily_service.fact_check(claim, max_results=5)
@@ -428,14 +555,11 @@ class ContentReviewer:
                 sources_count = len(sources)
                 
                 if sources_count == 0:
-                    fact_check_results.append(
-                        f"✗ 無法驗證：{claim} (未找到相關來源)"
-                    )
                     logger.info(
                         "Fact-check: no sources found",
                         claim=claim,
                     )
-                    continue
+                    return f"✗ 無法驗證：{claim} (未找到相關來源)"
                 
                 # Step 2: Use LLM to analyze whether sources support/contradict the claim
                 sources_text = "\n\n".join(
@@ -447,15 +571,17 @@ class ContentReviewer:
                     ]
                 )
                 
-                # Soul Alignment: Calibrated Uncertainty.
-                # 不只問「是否支持」，要問「證據的強度與細節」。
                 template_str = """請像一位嚴謹的研究員分析以下聲稱。根據提供的來源，評估該聲稱的可信度。
 
 聲稱：
+<claim>
 {claim}
+</claim>
 
 來源資訊：
+<sources_text>
 {sources_text}
+</sources_text>
 
 請進行細緻的證據權衡（Epistemic Calibration）：
 1. **證據支持度**：來源是強烈支持、部分支持、反駁，還是僅僅相關但未直接證實？
@@ -505,8 +631,6 @@ class ContentReviewer:
                         contradictions_text = "; ".join(analysis.contradictions[:2])
                         result_text += f"\n  矛盾資訊：{contradictions_text}"
                     
-                    fact_check_results.append(result_text)
-                    
                     logger.info(
                         "Fact-check completed with LLM analysis",
                         claim=claim,
@@ -514,6 +638,7 @@ class ContentReviewer:
                         confidence=confidence,
                         sources_count=sources_count,
                     )
+                    return result_text
                     
                 except Exception as llm_error:
                     # Fallback to simple verification if LLM analysis fails
@@ -522,9 +647,7 @@ class ContentReviewer:
                         claim=claim,
                         error=str(llm_error),
                     )
-                    fact_check_results.append(
-                        f"? 部分驗證：{claim} (找到 {sources_count} 個相關來源，但無法進行深度分析)"
-                    )
+                    return f"? 部分驗證：{claim} (找到 {sources_count} 個相關來源，但無法進行深度分析)"
 
             except ExternalServiceError as e:
                 # Tavily failure should stop processing (FR-019)
@@ -532,9 +655,11 @@ class ContentReviewer:
                 raise
             except Exception as e:
                 logger.warning("Fact-check failed for claim", claim=claim, error=str(e))
-                fact_check_results.append(f"? 檢查失敗：{claim} (錯誤：{str(e)})")
+                return f"? 檢查失敗：{claim} (錯誤：{str(e)})"
 
-        return fact_check_results
+        tasks = [check_single_claim(claim) for claim in fact_checking_needs[:5]]
+        results = await asyncio.gather(*tasks)
+        return list(results)
 
     async def _fact_check_via_llm(
         self, fact_checking_needs: List[str]
@@ -551,16 +676,18 @@ class ContentReviewer:
         Returns:
             List of fact-check results (formatted strings with verification status)
         """
-        fact_check_results = []
-
-        for claim in fact_checking_needs[:5]:  # Limit to top 5 claims to avoid overload
+        import asyncio
+        
+        async def check_single_claim(claim):
             try:
                 # Soul Alignment: Calibrated Uncertainty.
                 # 不只問「是否正確」，要問「證據的強度與細微差別」。
                 template_str = """請像一位嚴謹的研究員，基於你的知識分析以下聲稱。評估該聲稱的可信度與證據強度。
 
 聲稱：
+<claim>
 {claim}
+</claim>
 
 請進行細緻的證據權衡（Epistemic Calibration）：
 1. **證據支持度**：這個聲稱是強烈支持、部分支持、被反駁，還是無法確定？（verified/contradicted/unclear/unverifiable）
@@ -610,14 +737,13 @@ class ContentReviewer:
                         contradictions_text = "; ".join(analysis.contradictions[:2])
                         result_text += f"\n  矛盾資訊：{contradictions_text}"
                     
-                    fact_check_results.append(result_text)
-                    
                     logger.info(
                         "Fact-check completed with LLM",
                         claim=claim,
                         status=status,
                         confidence=confidence,
                     )
+                    return result_text
                     
                 except Exception as llm_error:
                     # Fallback if LLM analysis fails
@@ -626,13 +752,13 @@ class ContentReviewer:
                         claim=claim,
                         error=str(llm_error),
                     )
-                    fact_check_results.append(
-                        f"? 檢查失敗：{claim} (無法進行分析：{str(llm_error)})"
-                    )
+                    return f"? 檢查失敗：{claim} (無法進行分析：{str(llm_error)})"
 
             except Exception as e:
                 logger.warning("Fact-check failed for claim", claim=claim, error=str(e))
-                fact_check_results.append(f"? 檢查失敗：{claim} (錯誤：{str(e)})")
+                return f"? 檢查失敗：{claim} (錯誤：{str(e)})"
 
-        return fact_check_results
+        tasks = [check_single_claim(claim) for claim in fact_checking_needs[:5]]
+        results = await asyncio.gather(*tasks)
+        return list(results)
 
