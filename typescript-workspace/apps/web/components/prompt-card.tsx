@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { PromptMeta, ConversationMessage } from "@blog-agent/proto-gen";
 import { cn } from "@/lib/utils";
 import { MyReactMarkdown } from "./my-react-markdown";
@@ -15,11 +15,6 @@ import {
   CardTitle,
 } from "@blog-agent/ui/components/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@blog-agent/ui/components/tabs";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@blog-agent/ui/components/collapsible";
 import { Button } from "@blog-agent/ui/components/button";
 import { Badge } from "@blog-agent/ui/components/badge";
 import { Search, User, MessageSquare, ChevronDown, ChevronUp, Rocket } from "lucide-react";
@@ -46,7 +41,44 @@ export function PromptCard({
 }: PromptCardProps) {
   const [selectedCandidateIndex, setSelectedCandidateIndex] = useState(0);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [hoverProgress, setHoverProgress] = useState(0);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const candidates = promptMeta.betterCandidates || [];
+
+  // 處理遊戲風格的自動展開邏輯
+  const startHoverTimer = () => {
+    if (isAnalysisOpen) return;
+    
+    const startTime = Date.now();
+    const duration = 700; // 0.7 秒自動展開
+    
+    hoverTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / duration) * 100, 100);
+      
+      setHoverProgress(progress);
+      
+      if (progress >= 100) {
+        setIsAnalysisOpen(true);
+        setHoverProgress(0);
+        if (hoverTimerRef.current) clearInterval(hoverTimerRef.current);
+      }
+    }, 16); // ~60fps
+  };
+
+  const stopHoverTimer = () => {
+    if (hoverTimerRef.current) {
+      clearInterval(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setHoverProgress(0);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearInterval(hoverTimerRef.current);
+    };
+  }, []);
 
   const {
     copyCurrentMessage,
@@ -168,33 +200,78 @@ export function PromptCard({
         </div>
       )}
 
-      {/* 4. 🧐 AI 診斷 - 放到最後並改為摺疊 */}
+      {/* 4. 🧐 AI 診斷 - 改為直接顯示部分內容並提供「閱讀更多」 */}
       {promptMeta.analysis && (
-        <Collapsible open={isAnalysisOpen} onOpenChange={setIsAnalysisOpen} className="w-full">
-          <CollapsibleTrigger asChild>
-            <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-colors bg-amber-50/30 dark:bg-amber-900/5">
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <Search className="w-4 h-4" />
-                <span className="text-sm font-semibold">為什麼這樣改？(AI 診斷)</span>
-              </div>
+        <div className="p-4 bg-amber-50/30 dark:bg-amber-900/5 border-t border-amber-100/50 dark:border-amber-900/20">
+          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
+            <Search className="w-4 h-4" />
+            <span className="text-sm font-semibold">為什麼這樣改？(AI 診斷)</span>
+          </div>
+
+          <div
+            className={cn(
+              "prose prose-sm dark:prose-invert max-w-none font-serif text-sm text-muted-foreground transition-all duration-300 relative",
+              !isAnalysisOpen && promptMeta.analysis.length > 300 && "max-h-[180px] overflow-hidden"
+            )}
+          >
+            <MyReactMarkdown content={promptMeta.analysis} />
+            {!isAnalysisOpen && promptMeta.analysis.length > 300 && (
+              <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-amber-50/80 dark:from-amber-950/40 to-transparent pointer-events-none" />
+            )}
+          </div>
+
+          {promptMeta.analysis.length > 300 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 h-8 text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 px-2 font-medium relative overflow-hidden group/btn"
+              onClick={() => setIsAnalysisOpen(!isAnalysisOpen)}
+              onMouseEnter={startHoverTimer}
+              onMouseLeave={stopHoverTimer}
+            >
               {isAnalysisOpen ? (
-                <ChevronUp className="w-4 h-4 text-amber-600" />
+                <>
+                  <ChevronUp className="w-3.5 h-3.5 mr-1" /> 收起分析
+                </>
               ) : (
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-amber-600/70 font-medium">查看深度分析</span>
-                  <ChevronDown className="w-4 h-4 text-amber-600" />
+                <div className="flex items-center">
+                  <div className="relative w-4 h-4 mr-1.5 flex items-center justify-center">
+                    {/* 背景圈 */}
+                    <svg className="absolute inset-0 w-full h-full -rotate-90">
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        className="opacity-20"
+                      />
+                      {/* 進度圈 */}
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeDasharray={37.7}
+                        strokeDashoffset={37.7 - (hoverProgress / 100) * 37.7}
+                        strokeLinecap="round"
+                        className="transition-all duration-75"
+                      />
+                    </svg>
+                    <ChevronDown className={cn(
+                      "w-3.5 h-3.5 transition-transform duration-200",
+                      hoverProgress > 0 && "scale-75"
+                    )} />
+                  </div>
+                  <span>{hoverProgress > 0 ? `自動展開中...` : `閱讀更多深度分析`}</span>
                 </div>
               )}
-            </div>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="p-4 pt-0 bg-amber-50/30 dark:bg-amber-900/5 border-t border-amber-100/50 dark:border-amber-900/20">
-              <div className="prose prose-sm dark:prose-invert max-w-none font-serif text-sm text-muted-foreground py-4">
-                <MyReactMarkdown content={promptMeta.analysis} />
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+            </Button>
+          )}
+        </div>
       )}
     </Card>
   );
