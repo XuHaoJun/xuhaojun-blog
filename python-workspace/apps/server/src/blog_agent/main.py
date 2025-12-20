@@ -1,7 +1,7 @@
 """gRPC server entry point."""
 
 import asyncio
-import signal
+import json
 import sys
 from pathlib import Path
 
@@ -11,18 +11,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from datetime import datetime
 from uuid import UUID
 
-try:
-    import grpc
-except ImportError:
-    grpc = None  # Will be available when grpcio is installed
-
-from connectrpc import Code, ConnectError
+from connectrpc.code import Code
+from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
 from blog_agent.config import config
 from blog_agent.observability import init_observability
 from blog_agent.services.blog_service import BlogService
-from blog_agent.services.llm import get_llm
 from blog_agent.services.memory import MemoryService
 from blog_agent.storage.models import ConversationMessage
 from blog_agent.storage.repository import (
@@ -32,7 +27,6 @@ from blog_agent.storage.repository import (
     ProcessingHistoryRepository,
     PromptSuggestionRepository,
 )
-from blog_agent.utils.prompt_meta_builder import build_prompt_meta
 from blog_agent.utils.errors import BlogAgentError
 from blog_agent.utils.logging import get_logger
 
@@ -115,7 +109,6 @@ class BlogAgentServiceImpl(BlogAgentService):
 
     def _conversation_log_to_proto(self, conversation_log):
         """Convert ConversationLog model to proto message."""
-        import json
         
         # Convert metadata values to strings (protobuf requires map<string, string>)
         metadata_dict = {}
@@ -144,7 +137,6 @@ class BlogAgentServiceImpl(BlogAgentService):
 
     def _blog_post_to_proto(self, blog_post):
         """Convert BlogPost model to proto message."""
-        import json
         
         # Convert metadata values to strings (protobuf requires map<string, string>)
         metadata_dict = {}
@@ -176,7 +168,6 @@ class BlogAgentServiceImpl(BlogAgentService):
 
     def _processing_history_to_proto(self, processing_history):
         """Convert ProcessingHistory model to proto message."""
-        import json
         return blog_agent_pb2.ProcessingHistory(
             id=str(processing_history.id) if processing_history.id else "",
             conversation_log_id=str(processing_history.conversation_log_id),
@@ -489,8 +480,6 @@ class BlogAgentServiceImpl(BlogAgentService):
         Returns:
             ConversationMessage 列表
         """
-        from datetime import datetime
-        
         messages = []
         parsed_content = conversation_log.parsed_content
         
@@ -547,54 +536,6 @@ class BlogAgentServiceImpl(BlogAgentService):
         
         return messages
 
-    # Helper methods for conversion (temporary dict-based until proto generation)
-    def _conversation_log_to_dict(self, conversation_log):
-        """Convert ConversationLog model to dictionary (temporary)."""
-        import json
-        return {
-            "id": str(conversation_log.id),
-            "file_path": conversation_log.file_path,
-            "file_format": self._map_file_format_to_proto(conversation_log.file_format),
-            "raw_content": conversation_log.raw_content,
-            "parsed_content_json": json.dumps(conversation_log.parsed_content),
-            "metadata": conversation_log.metadata or {},
-            "language": conversation_log.language or "",
-            "message_count": conversation_log.message_count or 0,
-            "created_at": conversation_log.created_at.isoformat() if conversation_log.created_at else "",
-            "updated_at": conversation_log.updated_at.isoformat() if conversation_log.updated_at else "",
-        }
-
-    def _blog_post_to_dict(self, blog_post):
-        """Convert BlogPost model to dictionary (temporary)."""
-        import json
-        return {
-            "id": str(blog_post.id),
-            "conversation_log_id": str(blog_post.conversation_log_id),
-            "title": blog_post.title,
-            "summary": blog_post.summary,
-            "tags": blog_post.tags,
-            "content": blog_post.content,
-            "metadata": blog_post.metadata or {},
-            "status": self._map_blog_post_status_to_proto(blog_post.status),
-            "created_at": blog_post.created_at.isoformat() if blog_post.created_at else "",
-            "updated_at": blog_post.updated_at.isoformat() if blog_post.updated_at else "",
-        }
-
-    def _processing_history_to_dict(self, processing_history):
-        """Convert ProcessingHistory model to dictionary (temporary)."""
-        import json
-        return {
-            "id": str(processing_history.id),
-            "conversation_log_id": str(processing_history.conversation_log_id),
-            "blog_post_id": str(processing_history.blog_post_id) if processing_history.blog_post_id else "",
-            "status": self._map_processing_status_to_proto(processing_history.status),
-            "error_message": processing_history.error_message or "",
-            "processing_steps_json": json.dumps(processing_history.processing_steps) if processing_history.processing_steps else "",
-            "started_at": processing_history.started_at.isoformat() if processing_history.started_at else "",
-            "completed_at": processing_history.completed_at.isoformat() if processing_history.completed_at else "",
-            "created_at": processing_history.created_at.isoformat() if processing_history.created_at else "",
-        }
-
     def _map_file_format_to_proto(self, format_str):
         """Map string format to proto FileFormat enum."""
         format_map = {
@@ -649,6 +590,7 @@ async def serve():
     from starlette.applications import Starlette
     from starlette.routing import Mount
     import uvicorn
+    import signal
 
     # Initialize observability first
     init_observability()
@@ -669,17 +611,28 @@ async def serve():
     logger.info("Starting ConnectRPC server", host=config.GRPC_HOST, port=config.GRPC_PORT)
     
     # Run with uvicorn
+    # handle_signals=True is default, but we'll be explicit for clarity
     config_uvicorn = uvicorn.Config(
         app, 
         host=config.GRPC_HOST, 
         port=config.GRPC_PORT,
-        log_level="info"
+        log_level="info",
+        timeout_graceful_shutdown=10,
     )
     server = uvicorn.Server(config_uvicorn)
+    
+    # The server.serve() method will handle SIGINT and SIGTERM gracefully.
     await server.serve()
 
 def main():
-    asyncio.run(serve())
+    """Main entry point."""
+    try:
+        asyncio.run(serve())
+    except KeyboardInterrupt:
+        logger.info("Server stopped by user")
+    except Exception as e:
+        logger.error("Server failed", error=str(e), exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
