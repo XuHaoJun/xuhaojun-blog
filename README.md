@@ -1,5 +1,7 @@
 # AI Conversation to Blog Agent System
 
+https://xuhaojun.github.io/xuhaojun-blog/
+
 一個使用 LlamaIndex 工作流將 AI 對話紀錄轉換為結構化部落格文章的系統。系統不僅提取知識內容，還提供 Prompt Engineering 優化建議，幫助使用者學習如何更有效地與 AI 互動。
 
 ## ✨ 功能特色
