@@ -53,7 +53,7 @@ OPENAI_API_KEY=your-openai-api-key
 TAVILY_API_KEY=your-tavily-api-key
 
 # TypeScript CLI (.env in typescript-workspace/apps/cli/)
-GRPC_SERVER_URL=http://localhost:50051
+NEXT_PUBLIC_API_URL=http://localhost:50051
 ```
 
 ### 4. 初始化資料庫

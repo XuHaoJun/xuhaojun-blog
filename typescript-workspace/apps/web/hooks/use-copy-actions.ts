@@ -62,9 +62,7 @@ export function useCopyActions({ messages, conversationLogId }: UseCopyActionsOp
     toast.info("正在提取對話事實...");
 
     try {
-      const client = createBlogAgentClient({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:50051",
-      });
+      const client = createBlogAgentClient();
 
       let extractedFacts = "";
 

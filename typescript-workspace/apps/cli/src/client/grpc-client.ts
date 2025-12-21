@@ -12,9 +12,7 @@ export interface BlogAgentClientConfig {
  * Create and configure gRPC client
  */
 export function createClient(config: BlogAgentClientConfig = {}) {
-  const baseUrl = config.baseUrl || process.env.GRPC_SERVER_URL || "http://localhost:50051";
-
-  return createBlogAgentClient({ baseUrl });
+  return createBlogAgentClient();
 }
 
 /**

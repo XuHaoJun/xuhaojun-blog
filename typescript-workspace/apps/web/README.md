@@ -21,7 +21,7 @@ Next.js web application for displaying blog posts generated from AI conversation
 
 2. Set environment variables (optional):
    ```bash
-   export GRPC_SERVER_URL=http://localhost:50051
+   export NEXT_PUBLIC_API_URL=http://localhost:50051
    ```
 
 3. Run development server:

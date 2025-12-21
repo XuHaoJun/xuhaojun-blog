@@ -36,7 +36,7 @@ export type BlogAgentClient = Client<typeof BlogAgentService>;
  * Create a Blog Agent ConnectRPC client
  */
 export function createBlogAgentClient(config: BlogAgentClientConfig = {}): BlogAgentClient {
-  const baseUrl = config.baseUrl || "http://localhost:50051";
+  const baseUrl = config.baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:50051";
 
   // Using Connect transport for better compatibility with web and modern backends
   const transport = createConnectTransport({

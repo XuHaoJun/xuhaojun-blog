@@ -199,10 +199,10 @@ curl -s http://localhost:3000/page/2 | grep -E '<title>|rel="(prev|next|canonica
 
 ### Q: 建置時出現 API 錯誤?
 
-確認 `GRPC_SERVER_URL` 環境變數正確設定：
+確認 `NEXT_PUBLIC_API_URL` 環境變數正確設定：
 
 ```bash
-GRPC_SERVER_URL=http://localhost:50051 pnpm build
+NEXT_PUBLIC_API_URL=http://localhost:50051 pnpm build
 ```
 
 ### Q: 如何測試零文章情況?
