@@ -230,16 +230,19 @@ class ConversationMemoryManager:
         logger.debug("Initialized memory from messages", message_count=len(messages))
         return manager
     
-    async def get_context_text(self) -> str:
+    async def get_context_text(self, exclude_facts: bool = False) -> str:
         """
         Get conversation context as a string.
         
+        Args:
+            exclude_facts: If True, filters out the injected fact extraction blocks.
+        
         Returns:
-            String representation of conversation history with extracted facts + recent turns
+            String representation of conversation history
         """
         history = await self.memory.aget()
         
-        # Convert ChatMessage list to formatted string (including any injected memory blocks)
+        # Convert ChatMessage list to formatted string
         context_parts = []
         for msg in history:
             role = msg.role
@@ -260,6 +263,10 @@ class ConversationMemoryManager:
             blocks = getattr(msg, "blocks", None)
             if blocks:
                 for block in blocks:
+                    # Skip fact extraction blocks if requested
+                    if exclude_facts and hasattr(block, "text") and "<extracted_info>" in block.text:
+                        continue
+                        
                     if isinstance(block, TextBlock) and block.text and block.text.strip():
                         _add_content(block.text)
 
@@ -269,7 +276,7 @@ class ConversationMemoryManager:
             context_parts.append(f"{role_str}: " + "\n".join(content_parts))
         
         context = "\n".join(context_parts)
-        logger.debug("Retrieved context text from memory", history_length=len(history))
+        logger.debug("Retrieved context text from memory", history_length=len(history), exclude_facts=exclude_facts)
         return context
     
     async def get_all_messages(self) -> List[ChatMessage]:

@@ -146,21 +146,14 @@ class ContentReviewer:
         """Detect logical gaps with a constructive, editorial mindset (T055)."""
         # Soul Alignment: 像一位聰明的朋友一樣，指出論證哪裡跳躍太快，幫助使用者完善思考。
         
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容的邏輯推演過程，目標是讓論證更加無懈可擊。
 
-具體事實：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點：
+{facts_text}核心觀點：
 <key_insights>
 {key_insights}
 </key_insights>
@@ -195,7 +188,7 @@ class ContentReviewer:
                 facts_text=facts_text,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
-                content=content_extract.filtered_content,
+                content=content_extract.conversation_history,
             )
 
             gaps = [gap.model_dump() for gap in response.gaps]
@@ -212,21 +205,14 @@ class ContentReviewer:
         """Detect factual inconsistencies with a constructive, editorial mindset (T056)."""
         # Soul Alignment: 像一位嚴謹的編輯夥伴，協助找出可能誤導讀者的事實問題。
         
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容，找出可能影響內容可信度的事實不一致或矛盾。
 
-具體事實：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點：
+{facts_text}核心觀點：
 <key_insights>
 {key_insights}
 </key_insights>
@@ -262,7 +248,7 @@ class ContentReviewer:
                 facts_text=facts_text,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
-                content=content_extract.filtered_content,
+                content=content_extract.conversation_history,
             )
 
             inconsistencies = [inc.model_dump() for inc in response.inconsistencies]
@@ -279,21 +265,14 @@ class ContentReviewer:
         """Detect unclear explanations with a constructive, editorial mindset (T057)."""
         # Soul Alignment: 像一位體貼的編輯夥伴，協助找出可能讓讀者困惑的地方。
         
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """你是一位資深且思維嚴謹的編輯夥伴。請協助審視以下內容，找出可能讓讀者感到困惑或需要進一步澄清的解釋。
 
-具體事實：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點：
+{facts_text}核心觀點：
 <key_insights>
 {key_insights}
 </key_insights>
@@ -330,7 +309,7 @@ class ContentReviewer:
                 facts_text=facts_text,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
-                content=content_extract.filtered_content,
+                content=content_extract.conversation_history,
             )
 
             unclear_points = [point.model_dump() for point in response.unclear_points]
@@ -347,21 +326,14 @@ class ContentReviewer:
         """Detect claims specifically requiring verification based on importance and risk (FR-010, T060)."""
         # Soul Alignment: 專注於真正重要（Material）的聲稱，而非瑣碎細節。
         
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """請分析以下內容，找出需要進行外部驗證的關鍵事實聲稱。
 
-具體事實：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點：
+{facts_text}核心觀點：
 <key_insights>
 {key_insights}
 </key_insights>
@@ -394,7 +366,7 @@ class ContentReviewer:
                 prompt_tmpl.format(
                     facts_text=facts_text,
                     key_insights=key_insights_str,
-                    content=content_extract.filtered_content,
+                    content=content_extract.conversation_history,
                 )
             )
 
@@ -421,21 +393,14 @@ class ContentReviewer:
         # Soul Alignment: 不要只修補錯誤，要提升品質。
         # 避免 "preachy" 或 "condescending" (居高臨下) 的語氣。
 
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"從對話中提取的核心事實：\n{raw_facts}\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """作為一位致力於讓內容更卓越的專業編輯，請根據發現的問題提供改進建議。
 
-具體事實：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點：
+{facts_text}核心觀點：
 <key_insights>
 {key_insights}
 </key_insights>

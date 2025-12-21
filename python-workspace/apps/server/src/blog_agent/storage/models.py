@@ -75,7 +75,8 @@ class ContentExtract(BaseModel):
     conversation_log_id: UUID
     key_insights: List[str] = Field(default_factory=list)
     core_concepts: List[str] = Field(default_factory=list)
-    filtered_content: str
+    facts: str = Field(default="")  # Extracted facts as a bulleted list
+    conversation_history: str  # Original conversation text (filtered/de-noised)
     created_at: Optional[datetime] = None
 
 

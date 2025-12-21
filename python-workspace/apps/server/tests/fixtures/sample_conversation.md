@@ -149,7 +149,9 @@ class ContentExtender:
 
                 core_concepts=content_extract.core_concepts,
 
-                filtered_content=extended_content,
+                facts=content_extract.facts,
+
+                conversation_history=extended_content,
 
             )
 
@@ -217,7 +219,7 @@ class ContentExtender:
 
 內容：
 
-{content_extract.filtered_content}
+{content_extract.conversation_history}
 
 請找出以下類型的知識缺口：
 
@@ -515,7 +517,7 @@ class ContentExtender:
 
             # No research to integrate, return original content
 
-            return content_extract.filtered_content
+            return content_extract.conversation_history
 
         # Build research context for LLM
 
@@ -551,7 +553,7 @@ class ContentExtender:
 
 原始內容：
 
-{content_extract.filtered_content}
+{content_extract.conversation_history}
 
 {research_context}
 
@@ -575,7 +577,7 @@ class ContentExtender:
 
             extended_content = await self.llm_service.generate(prompt)
 
-            logger.info("Research integrated into content", original_length=len(content_extract.filtered_content), extended_length=len(extended_content))
+            logger.info("Research integrated into content", original_length=len(content_extract.conversation_history), extended_length=len(extended_content))
 
             return extended_content.strip()
 
@@ -585,7 +587,7 @@ class ContentExtender:
 
             # Return original content if integration fails
 
-            return content_extract.filtered_content
+            return content_extract.conversation_history
 
 ```
 
@@ -706,7 +708,7 @@ class ContentExtender:
         response = await self.llm.structured_predict(
             KnowledgeGapResponse,
             prompt_template,
-            content=content_extract.filtered_content
+            content=content_extract.conversation_history
         )
 
         # 這裡的 response.gaps 已經是乾淨的 List[KnowledgeGap] 物件了

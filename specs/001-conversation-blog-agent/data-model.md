@@ -89,7 +89,8 @@ CREATE TABLE content_extracts (
     conversation_log_id UUID NOT NULL REFERENCES conversation_logs(id) ON DELETE CASCADE,
     key_insights TEXT[] NOT NULL DEFAULT '{}',
     core_concepts TEXT[] NOT NULL DEFAULT '{}',
-    filtered_content TEXT NOT NULL,
+    facts TEXT,
+    conversation_history TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -271,7 +272,8 @@ class ContentExtract(BaseModel):
     conversation_log_id: UUID
     key_insights: List[str] = Field(default_factory=list)
     core_concepts: List[str] = Field(default_factory=list)
-    filtered_content: str
+    facts: str = Field(default="")
+    conversation_history: str
     created_at: Optional[datetime] = None
 ```
 

@@ -77,11 +77,12 @@ class ContentExtractor:
 
             # Use structured extraction to get insights, concepts, and user intent in one call
             # Use memory manager to get context (facts + recent turns) for analysis
+            # We keep including facts for analysis to give LLM better context
             analysis = await self._extract_structured_analysis(memory)
 
-            # Get combined content from memory as the base for further steps
-            # This contains facts and recent conversation turns, serving as high-quality input
-            filtered_content = await memory.get_context_text()
+            # Get separate conversation history (excluding fact blocks) and extracted facts
+            conversation_history = await memory.get_context_text(exclude_facts=True)
+            facts = await memory.get_extracted_facts()
 
             # Determine quality warning based on substantive score
             quality_warning = ""
@@ -92,7 +93,8 @@ class ContentExtractor:
                 conversation_log_id=conversation_log_id,
                 key_insights=analysis.key_insights[:5],  # Limit to 5
                 core_concepts=analysis.core_concepts[:10],  # Limit to 10
-                filtered_content=filtered_content,
+                facts=facts,
+                conversation_history=conversation_history,
             )
 
             return ExtractEvent(

@@ -100,7 +100,8 @@ class ContentExtender:
                 conversation_log_id=content_extract.conversation_log_id,
                 key_insights=content_extract.key_insights,
                 core_concepts=content_extract.core_concepts,
-                filtered_content=extended_content,
+                facts=content_extract.facts,
+                conversation_history=extended_content,
             )
 
             return ExtendEvent(
@@ -169,7 +170,7 @@ class ContentExtender:
                 prompt_tmpl,
                 key_insights=key_insights_str,
                 core_concepts=core_concepts_str,
-                content=content_extract.filtered_content,
+                content=content_extract.conversation_history,
             )
 
             gaps = [gap.model_dump() for gap in response.gaps]
@@ -367,13 +368,13 @@ class ContentExtender:
         """
         if not research_results:
             # No research to integrate, return original content
-            return content_extract.filtered_content
+            return content_extract.conversation_history
 
         # Filter low-quality results before integration
         filtered_results = await self._filter_bad_results(research_results)
         if not filtered_results:
             logger.info("All research results filtered out as low-quality, returning original content")
-            return content_extract.filtered_content
+            return content_extract.conversation_history
 
         # Build research context for LLM
         research_context = "\n\n研究補充資訊：\n"
@@ -396,7 +397,7 @@ class ContentExtender:
         prompt = f"""請以一位博學、客觀且誠實的共同作者身分，將研究資料整合進原始內容中。
 
 原始內容：
-{content_extract.filtered_content}
+{content_extract.conversation_history}
 
 {research_context}
 
@@ -426,11 +427,11 @@ class ContentExtender:
             research_llm = get_llm(temperature=config.LLM_TEMPERATURE_RESEARCH_INTEGRATION)
             response = await research_llm.acomplete(prompt)
             extended_content = response.text
-            logger.info("Research integrated into content", original_length=len(content_extract.filtered_content), extended_length=len(extended_content))
+            logger.info("Research integrated into content", original_length=len(content_extract.conversation_history), extended_length=len(extended_content))
             return extended_content.strip()
 
         except Exception as e:
             logger.warning("Failed to integrate research", error=str(e))
             # Return original content if integration fails
-            return content_extract.filtered_content
+            return content_extract.conversation_history
 

@@ -118,12 +118,10 @@ class BlogEditor:
         memory: Optional[ConversationMemoryManager] = None,
     ) -> str:
         """Generate blog post content in Markdown format, incorporating review findings (T061)."""
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"具體事實：\n<facts_text>\n{raw_facts}\n</facts_text>\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         # Build review context for LLM
         review_context = ""
@@ -155,12 +153,7 @@ class BlogEditor:
         template_str = """你是一位擁有深厚技術背景的資深工程師，也是讀者身邊那位聰明、誠實且樂於分享的朋友。
 請基於以下內容，撰寫一篇「高度濃縮、去蕪存菁」的技術部落格文章。
 
-具體事實 (Ground Truth)：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點 (Key Insights)：
+{facts_text}核心觀點 (Key Insights)：
 <key_insights>
 {key_insights}
 </key_insights>
@@ -214,7 +207,7 @@ class BlogEditor:
                     facts_text=facts_text,
                     key_insights=key_insights_str,
                     core_concepts=core_concepts_str,
-                    content=content_extract.filtered_content,
+                    content=content_extract.conversation_history,
                     review_context=review_context,
                 )
             )
@@ -309,12 +302,10 @@ class BlogEditor:
         """Generate blog post title (anchor on user prompt + concepts + evidence)."""
         user_prompts = self._collect_user_prompts(prompt_suggestions)
         
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"具體事實：\n<facts_text>\n{raw_facts}\n</facts_text>\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """你是資深技術編輯。請為這篇「深度對話濃縮文章」產生一個精準、專業且具備技術質感的標題。
 
@@ -345,7 +336,7 @@ class BlogEditor:
         )
         core_concepts = ", ".join(content_extract.core_concepts[:10])
         key_insights = "\n".join("- " + i for i in content_extract.key_insights)
-        content = content_extract.filtered_content[:1200]
+        content = content_extract.conversation_history[:1200]
 
         creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
 
@@ -397,12 +388,10 @@ class BlogEditor:
         """Generate blog post summary (TL;DR) anchored on the user prompt."""
         user_prompts = self._collect_user_prompts(prompt_suggestions)
         
-        # Get facts from memory for context calibration
+        # Use facts from content_extract
         facts_text = ""
-        if memory:
-            raw_facts = await memory.get_extracted_facts()
-            if raw_facts:
-                facts_text = f"具體事實：\n<facts_text>\n{raw_facts}\n</facts_text>\n\n"
+        if content_extract.facts:
+            facts_text = f"從對話中提取的核心事實：\n<facts>{content_extract.facts}</facts>\n\n"
 
         template_str = """你是資深技術編輯。請為這篇文章撰寫一段「高資訊密度」的摘要（TL;DR）。
 
@@ -411,12 +400,7 @@ class BlogEditor:
 {user_prompts}
 </user_prompts>
 
-具體事實：
-<facts_text>
-{facts_text}
-</facts_text>
-
-核心觀點：
+{facts_text}核心觀點：
 <key_insights>
 {key_insights}
 </key_insights>
@@ -437,7 +421,7 @@ class BlogEditor:
         )
         core_concepts = ", ".join(content_extract.core_concepts[:10])
         key_insights = "\n".join("- " + i for i in content_extract.key_insights)
-        content = content_extract.filtered_content[:1400]
+        content = content_extract.conversation_history[:1400]
 
         creative_llm = get_llm(temperature=config.LLM_TEMPERATURE_CREATIVE)
 
